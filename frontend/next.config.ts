@@ -1,3 +1,4 @@
+import path from "node:path";
 import type { NextConfig } from "next";
 
 const isDev = process.env.NODE_ENV === "development";
@@ -20,6 +21,8 @@ const contentSecurityPolicy = [
 
 const nextConfig: NextConfig = {
 	output: "standalone",
+	// O bun.lock da raiz (só husky/commitlint) faria o Next inferir o monorepo como raiz do app.
+	outputFileTracingRoot: path.join(__dirname),
 	poweredByHeader: false,
 	async headers() {
 		return [

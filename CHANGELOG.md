@@ -1,0 +1,66 @@
+# Changelog
+
+Todas as mudanças relevantes deste projeto ficam aqui. O formato segue o [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) e o projeto usa [Versionamento Semântico](https://semver.org/lang/pt-BR/) (versão única para backend, frontend e bot).
+
+## [Unreleased]
+
+## [2.0.0] - 2026-09-26
+
+Refatoração geral: segurança, arquitetura, infraestrutura, CI/CD e correção do fluxo do YouTube.
+
+### Added
+
+- `YOUTUBE_PROXY`: proxy aplicado só ao YouTube, com túnel SSH pela Tailscale até uma máquina de casa (`setups/setup-*-home-proxy.sh`) para sair com IP residencial.
+- Runtime JS do yt-dlp (`yt-dlp-ejs` + Node, `YTDLP_JS_RUNTIME`) para não perder formatos do YouTube.
+- Autenticação opcional do backend por `API_KEY` (header `X-API-Key`), gerada automaticamente pelos setups de VPS.
+- Limite de jobs simultâneos (`MAX_CONCURRENT_JOBS`, erro `SERVER_BUSY`) e novos erros `UNAUTHORIZED`, `NOT_FOUND` e `CONFLICT`.
+- Headers de segurança no frontend (CSP, `frame-ancestors`, `nosniff`, `Permissions-Policy`) e no backend.
+- Testes do bot do Telegram e do frontend (`bun test`); testes de segurança no backend.
+- CI no GitHub Actions (lint, format, tsc, testes, build, auditoria de dependências, imagens Docker, smoke E2E, shellcheck, commitlint e checagem de versão) e CD (deploy na VPS e GitHub Release por tag).
+- Husky + commitlint (Conventional Commits) com `bun run check` no pre-commit e `bun run build` no pre-push, cobrindo os três workspaces.
+- Documentação por área em `docs/`, `PLAN.md` e skills do projeto em `.claude/skills/`.
+
+### Changed
+
+- Bot do Telegram: no modo Stories cada clipe de 60s é enviado como um vídeo separado, em vez de um `.zip`.
+- Plataformas definidas num único registro (`backend/app/platforms.py`); as quatro rotas por plataforma são geradas a partir dele.
+- Proxy do frontend reescrito num único módulo (`src/lib/api-proxy.ts`), sem expor a URL do backend ao browser.
+- YouTube usa os player clients padrão do yt-dlp; cookies só entram se a tentativa sem cookies cair no bot-check.
+- Infra movida para `infra/` (Dockerfiles com contexto na raiz, compose de dev e de produção com portas só em loopback) e scripts para `setups/` (`setup-[windows|unix]-*.sh`).
+- `setups/setup-unix-vps-pm2.sh` reescrito de forma enxuta e idempotente (mantém os nomes de processo e o site do Caddy da produção).
+- Bot configurado por um único `API_BASE_URL` (sai o par `VPS_API_ENDPOINT`/`VPS_API_BASE_URL`).
+- Indentação com tab (largura 4) em todos os workspaces; dependências pinadas nas últimas versões estáveis (Next.js 16.3, React 19.3, TypeScript 7).
+
+### Removed
+
+- Cookies do YouTube versionados (inclusive o fallback hardcoded), token do bot e credenciais de proxy que estavam no repositório.
+- Variantes experimentais de deploy (container único, bot em PM2 com backend em Docker, compose só backend+bot), `DOCKER.md`, docs do Koyeb e `koyeb.exe`.
+- Suporte a `tv` em `YTDLP_PLAYER_CLIENTS` com reconciliação automática de cookies.
+
+### Fixed
+
+- PO Token provider nunca era usado: o `base_url` ia como string e o yt-dlp o lia como `"h"`.
+- Setup da VPS gravava o `.env` na raiz, que o backend (rodando em `backend/`) nunca lia; agora usa `backend/.env` e migra o antigo.
+- Nome de arquivo Unicode no Cut & Crop causava erro 500 no `Content-Disposition`.
+- Cookies `#HttpOnly_` eram ignorados no cálculo de expiração.
+
+### Security
+
+- Auditoria OWASP Top 10:2025 ([docs/security.md](docs/security.md)): bloqueio de playlists HLS/concat no ffmpeg (LFI/SSRF), allowlist de extractors do yt-dlp, validação de host, IDs de job validados, entrypoint sem vazar variáveis de ambiente, allowlist do bot fail-closed e HTML escapado nas mensagens.
+- **Credenciais expostas no histórico antigo devem ser rotacionadas**: sessão do YouTube, token do bot e senha do proxy Webshare.
+
+## [1.0.0] - 2026-09-14
+
+Primeira versão, com histórico consolidado na refatoração 2.0.0.
+
+### Added
+
+- API FastAPI com download de YouTube, Instagram, X e TikTok em MP4/MP3, jobs em background com progresso e modo "Clipes p/ Stories" (60s).
+- Cut & Crop e fatiamento de vídeos enviados, com ffmpeg.
+- Frontend Next.js com telas de Download e Cut & Crop.
+- Bot do Telegram com allowlist de usuários.
+- Mitigações do bot-check do YouTube (PO Token provider, IPv4, rate limit, cookies).
+- Deploy no Koyeb, na Vercel e em VPS com Caddy.
+
+[Unreleased]: https://github.com/AlexGalhardo/galhardo-studio.vercel.app/compare/v2.0.0...HEAD
+[2.0.0]: https://github.com/AlexGalhardo/galhardo-studio.vercel.app/releases/tag/v2.0.0

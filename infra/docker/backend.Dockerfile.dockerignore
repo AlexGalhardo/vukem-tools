@@ -1,0 +1,6 @@
+# Allowlist: o contexto é a raiz do repo, mas a imagem só precisa disto.
+*
+!backend/requirements.txt
+!backend/app
+!infra/docker/backend-entrypoint.sh
+**/__pycache__

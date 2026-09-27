@@ -1,0 +1,62 @@
+# Desenvolvimento local com hot-reload (código montado do host).
+#   docker compose -f infra/docker-compose.yml up --build
+# O bot do Telegram só sobe com o profile "telegram" (precisa de telegram/.env preenchido):
+#   docker compose -f infra/docker-compose.yml --profile telegram up --build
+name: galhardo-video-dev
+
+services:
+  backend:
+    build:
+      context: ..
+      dockerfile: infra/docker/backend.Dockerfile
+    command: ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000", "--reload"]
+    ports:
+      - "${API_PORT:-8000}:8000"
+    environment:
+      DEBUG: "true"
+      ALLOWED_ORIGINS: "http://localhost:${WEB_PORT:-3000}"
+      YTDLP_POT_PROVIDER_ENABLED: "false"
+      WATCHFILES_FORCE_POLLING: "true"
+    env_file:
+      - path: ../backend/.env
+        required: false
+    volumes:
+      - ../backend/app:/app/app
+    restart: unless-stopped
+
+  frontend:
+    build:
+      context: ..
+      dockerfile: infra/docker/frontend.Dockerfile
+      target: dev
+    ports:
+      - "${WEB_PORT:-3000}:3000"
+    environment:
+      API_BASE_URL: "http://backend:8000"
+      NEXT_TELEMETRY_DISABLED: "1"
+      WATCHPACK_POLLING: "true"
+    env_file:
+      - path: ../frontend/.env.local
+        required: false
+    volumes:
+      - ../frontend:/app
+      - /app/node_modules
+      - /app/.next
+    depends_on:
+      - backend
+    restart: unless-stopped
+
+  telegram:
+    profiles: ["telegram"]
+    build:
+      context: ..
+      dockerfile: infra/docker/telegram.Dockerfile
+    environment:
+      API_BASE_URL: "http://backend:8000"
+      PUBLIC_WEB_BASE_URL: "http://localhost:${WEB_PORT:-3000}"
+    env_file:
+      - path: ../telegram/.env
+        required: false
+    depends_on:
+      - backend
+    restart: unless-stopped

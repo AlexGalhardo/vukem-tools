@@ -1,0 +1,7 @@
+*
+!frontend
+frontend/node_modules
+frontend/.next
+frontend/.env*
+frontend/*.tsbuildinfo
+frontend/**/*.test.ts

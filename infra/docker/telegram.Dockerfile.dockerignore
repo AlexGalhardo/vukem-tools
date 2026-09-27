@@ -1,0 +1,4 @@
+*
+!telegram/requirements.txt
+!telegram/app
+**/__pycache__

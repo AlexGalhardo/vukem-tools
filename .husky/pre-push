@@ -1,1 +1,3 @@
+# Testes antes do build nos 3 workspaces.
+bun run test
 bun run build

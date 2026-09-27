@@ -1,1 +1,11 @@
+# 1. Corrige lint e format nos 3 workspaces (Ruff no Python, Biome no TypeScript)
+#    e devolve ao commit os arquivos que já estavam staged.
+staged=$(git diff --cached --name-only --diff-filter=ACMR)
+bun run fix
+if [ -n "$staged" ]; then
+	printf '%s\n' "$staged" | while IFS= read -r file; do
+		[ -f "$file" ] && git add -- "$file"
+	done
+fi
+# 2. Verifica: format, lint, typecheck e testes.
 bun run check

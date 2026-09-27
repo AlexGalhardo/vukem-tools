@@ -8,6 +8,8 @@
 | Backend + bot + PO Token | VPS Ubuntu (Hostinger) | PM2 nativo atrás do Caddy: `setups/setup-unix-vps-pm2.sh` |
 | Saída do YouTube (opcional) | PC/Raspberry em casa | Túnel SSH pela Tailscale: `setups/setup-*-home-proxy.sh` ([youtube.md](youtube.md)) |
 
+Legado: o serviço `galhardo-video/backend` no **Koyeb** segue ativo, com builder Docker, workdir vazio (raiz do repo) e Dockerfile `infra/docker/backend.Dockerfile`. Se continuar em uso, defina `API_KEY` nas envs dele.
+
 Alternativa self-hosted completa (sem Vercel): `setups/setup-unix-vps-docker.sh` sobe `infra/docker-compose.prod.yml` (backend + frontend + bot) atrás do Caddy em `video.galhardo.tech`.
 
 ## VPS com PM2 (produção atual)

@@ -27,6 +27,7 @@ cd telegram && .venv/bin/python -m app.main                         # precisa de
 |---|---|
 | `bun run format` | Ruff format + Biome (escreve) |
 | `bun run format:check` | Só verifica |
+| `bun run fix` | Corrige lint e format (Ruff `--fix` + `format`, Biome `check --write`) |
 | `bun run lint` | Ruff check + Biome lint (warnings viram erro) |
 | `bun run typecheck` | `tsc --noEmit` (frontend) |
 | `bun run test` | pytest (backend, telegram) + `bun test` (frontend) |
@@ -41,8 +42,8 @@ Cada workspace também tem os seus (`cd frontend && bun run dev`, `cd backend &&
 | Hook | Roda |
 |---|---|
 | `commit-msg` | commitlint ([Conventional Commits](https://www.conventionalcommits.org/en/v1.0.0/), escopos em `commitlint.config.js`) |
-| `pre-commit` | `bun run check` |
-| `pre-push` | `bun run build` |
+| `pre-commit` | `bun run fix` (Ruff `check --fix` + `format` no Python, Biome `check --write` no TypeScript) e re-stage dos arquivos já staged; depois `bun run check` |
+| `pre-push` | `bun run test` e depois `bun run build` |
 
 Instalados por `bun install` na raiz (`prepare: husky`). Não use `--no-verify`.
 

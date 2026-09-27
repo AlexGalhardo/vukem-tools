@@ -4,6 +4,16 @@ Todas as mudanças relevantes deste projeto ficam aqui. O formato segue o [Keep 
 
 ## [Unreleased]
 
+### Changed
+
+- Hook `pre-commit` corrige lint e format automaticamente (Ruff no Python, Biome no TypeScript) antes de verificar; `pre-push` roda os testes antes do build.
+
+### Fixed
+
+- CI do frontend: `next typegen` antes do `tsc` (tipos globais `RouteContext`/`LayoutProps`).
+- Aviso de múltiplos lockfiles no `next build` (`outputFileTracingRoot`).
+- Deploy no Koyeb apontando para o Dockerfile antigo (`backend/Dockerfile`).
+
 ## [2.0.0] - 2026-09-26
 
 Refatoração geral: segurança, arquitetura, infraestrutura, CI/CD e correção do fluxo do YouTube.

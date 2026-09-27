@@ -13,6 +13,7 @@
     "lint:telegram": "sh infra/scripts/python.sh telegram -m ruff check .",
     "lint:frontend": "cd frontend && bun run lint",
     "format": "sh infra/scripts/python.sh backend -m ruff format . && sh infra/scripts/python.sh telegram -m ruff format . && cd frontend && bun run check",
+    "fix": "sh infra/scripts/python.sh backend -m ruff check --fix . && sh infra/scripts/python.sh backend -m ruff format . && sh infra/scripts/python.sh telegram -m ruff check --fix . && sh infra/scripts/python.sh telegram -m ruff format . && cd frontend && bun run check",
     "format:check": "sh infra/scripts/python.sh backend -m ruff format --check . && sh infra/scripts/python.sh telegram -m ruff format --check . && cd frontend && bun run format:check",
     "typecheck": "cd frontend && bun run typecheck",
     "test": "bun run test:backend && bun run test:telegram && bun run test:frontend",

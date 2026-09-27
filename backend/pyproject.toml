@@ -1,0 +1,60 @@
+[project]
+name = "galhardo-video-backend"
+version = "2.0.0"
+description = "API FastAPI: download de vídeos (YouTube, Instagram, X, TikTok) e cut & crop com ffmpeg."
+requires-python = ">=3.12"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+asyncio_mode = "auto"
+addopts = "-ra -q"
+filterwarnings = [
+    "ignore::DeprecationWarning",
+]
+
+[tool.ruff]
+line-length = 120
+indent-width = 4
+target-version = "py312"
+
+[tool.ruff.lint]
+select = [
+    "E",   # pycodestyle erros
+    "W",   # pycodestyle avisos
+    "F",   # pyflakes
+    "I",   # isort (ordenação de imports)
+    "B",   # flake8-bugbear
+    "C4",  # flake8-comprehensions
+    "UP",  # pyupgrade
+    "SIM", # flake8-simplify
+]
+ignore = [
+    "W191", # indentação com tab é o padrão do projeto (.editorconfig)
+    "E101", # docstrings alinham continuação de listas com espaços após o tab
+    "UP045", # `Optional[X]` -> `X | None`: estilo já consistente no projeto
+             # (Pydantic v2 aceita ambos); não vale o diff de reescrever tudo.
+    "UP042", # `class X(str, Enum)` -> `StrEnum`: mudaria sutilmente repr/str
+             # dos enums (Pydantic já serializa `str, Enum` corretamente).
+]
+# BLE001 (except Exception genérico) é usado de propósito em alguns pontos do
+# projeto para não deixar um erro inesperado quebrar um job em background sem
+# resposta ao cliente (ver comentários "# noqa: BLE001" nos próprios call sites).
+
+[tool.ruff.lint.flake8-bugbear]
+# B008 (chamada de função em default de argumento) dispara em falso positivo
+# nos parâmetros de rota do FastAPI — `File(...)`/`Form(...)`/`Depends(...)`
+# como default é o padrão de Dependency Injection da própria framework.
+extend-immutable-calls = [
+    "fastapi.Depends",
+    "fastapi.File",
+    "fastapi.Form",
+    "fastapi.Query",
+    "fastapi.Header",
+    "fastapi.Cookie",
+    "fastapi.Path",
+    "fastapi.Body",
+]
+
+[tool.ruff.format]
+quote-style = "double"
+indent-style = "tab"

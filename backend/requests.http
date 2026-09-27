@@ -1,0 +1,180 @@
+### =========================================================================
+### backend/requests.http
+### Arquivo de teste/documentação viva da API (extensão "REST Client" do VSCode).
+### Clique em "Send Request" acima de cada bloco. Serve também de referência de
+### payload para Postman/Insomnia/curl.
+### =========================================================================
+
+@baseUrl = http://localhost:8000
+@contentType = application/json
+# Mesmo valor de API_KEY do backend/.env (vazio se a API estiver aberta).
+@apiKey =
+
+### -------------------------------------------------------------------------
+### HEALTH
+### -------------------------------------------------------------------------
+
+### Status da API + versão do yt-dlp
+GET {{baseUrl}}/health
+
+### Descobre a plataforma de uma URL (utilitário do front-end)
+GET {{baseUrl}}/api/v1/detect?url=https://x.com/NASASpaceflight/status/1928909292305826184
+X-API-Key: {{apiKey}}
+
+### Capacidades da feature de corte/crop (ffmpeg disponível?)
+GET {{baseUrl}}/api/v1/edit/capabilities
+X-API-Key: {{apiKey}}
+
+
+### =========================================================================
+### DOWNLOAD — X.COM (funciona sem cookies)
+### =========================================================================
+
+### Metadados (sem baixar)
+POST {{baseUrl}}/api/v1/twitter/info
+X-API-Key: {{apiKey}}
+Content-Type: {{contentType}}
+
+{
+  "url": "https://x.com/NASASpaceflight/status/1928909292305826184",
+  "format": "mp4"
+}
+
+### Baixa em MP4 (melhor qualidade) — resposta binária em streaming
+POST {{baseUrl}}/api/v1/twitter/download
+X-API-Key: {{apiKey}}
+Content-Type: {{contentType}}
+
+{
+  "url": "https://x.com/NASASpaceflight/status/1928909292305826184",
+  "format": "mp4",
+  "quality": "best"
+}
+
+### Baixa só o áudio em MP3
+POST {{baseUrl}}/api/v1/twitter/download
+X-API-Key: {{apiKey}}
+Content-Type: {{contentType}}
+
+{
+  "url": "https://x.com/NASASpaceflight/status/1928909292305826184",
+  "format": "mp3"
+}
+
+### Download COM PROGRESSO — passo 1: inicia o job (devolve { "job_id": ... })
+# @name startDl
+POST {{baseUrl}}/api/v1/twitter/download/start
+X-API-Key: {{apiKey}}
+Content-Type: {{contentType}}
+
+{
+  "url": "https://x.com/NASASpaceflight/status/1928909292305826184",
+  "format": "mp4",
+  "quality": "best"
+}
+
+### passo 2: consulta o progresso (repita até status == "finished")
+GET {{baseUrl}}/api/v1/downloads/{{startDl.response.body.job_id}}
+X-API-Key: {{apiKey}}
+
+### passo 3: baixa o arquivo pronto (streaming) e descarta o job
+GET {{baseUrl}}/api/v1/downloads/{{startDl.response.body.job_id}}/file
+X-API-Key: {{apiKey}}
+
+### Erro esperado: URL de outra plataforma (400)
+POST {{baseUrl}}/api/v1/twitter/info
+X-API-Key: {{apiKey}}
+Content-Type: {{contentType}}
+
+{ "url": "https://www.youtube.com/watch?v=dQw4w9WgXcQ", "format": "mp4" }
+
+
+### =========================================================================
+### DOWNLOAD — YOUTUBE (pode exigir YOUTUBE_COOKIES_FILE / YOUTUBE_COOKIES)
+### =========================================================================
+
+### Metadados
+POST {{baseUrl}}/api/v1/youtube/info
+X-API-Key: {{apiKey}}
+Content-Type: {{contentType}}
+
+{ "url": "https://www.youtube.com/watch?v=aqz-KE-bpKQ", "format": "mp4" }
+
+### Baixa em MP4 na pior qualidade (rápido, bom para testes)
+POST {{baseUrl}}/api/v1/youtube/download
+X-API-Key: {{apiKey}}
+Content-Type: {{contentType}}
+
+{ "url": "https://www.youtube.com/watch?v=aqz-KE-bpKQ", "format": "mp4", "quality": "worst" }
+
+### Baixa em MP3
+POST {{baseUrl}}/api/v1/youtube/download
+X-API-Key: {{apiKey}}
+Content-Type: {{contentType}}
+
+{ "url": "https://www.youtube.com/watch?v=aqz-KE-bpKQ", "format": "mp3" }
+
+
+### =========================================================================
+### DOWNLOAD — INSTAGRAM (quase sempre exige INSTAGRAM_COOKIES_FILE / _COOKIES)
+### =========================================================================
+
+### Metadados de um Reel
+POST {{baseUrl}}/api/v1/instagram/info
+X-API-Key: {{apiKey}}
+Content-Type: {{contentType}}
+
+{ "url": "https://www.instagram.com/reel/SUBSTITUA_PELO_SHORTCODE/", "format": "mp4" }
+
+### Baixa o Reel em MP4
+POST {{baseUrl}}/api/v1/instagram/download
+X-API-Key: {{apiKey}}
+Content-Type: {{contentType}}
+
+{ "url": "https://www.instagram.com/reel/SUBSTITUA_PELO_SHORTCODE/", "format": "mp4" }
+
+
+### =========================================================================
+### CUT & CROP  (multipart/form-data — envie um arquivo de vídeo)
+### =========================================================================
+
+### Corta de 00:00:01.5 a 00:00:05 e recorta 640x360 a partir de (100, 50).
+### O REST Client substitui < pelo conteúdo do arquivo indicado.
+POST {{baseUrl}}/api/v1/edit/cut-crop
+X-API-Key: {{apiKey}}
+Content-Type: multipart/form-data; boundary=----form
+
+------form
+Content-Disposition: form-data; name="start"
+
+1.5
+------form
+Content-Disposition: form-data; name="end"
+
+5
+------form
+Content-Disposition: form-data; name="crop_x"
+
+100
+------form
+Content-Disposition: form-data; name="crop_y"
+
+50
+------form
+Content-Disposition: form-data; name="crop_w"
+
+640
+------form
+Content-Disposition: form-data; name="crop_h"
+
+360
+------form
+Content-Disposition: form-data; name="output_format"
+
+mp4
+------form
+Content-Disposition: form-data; name="file"; filename="entrada.mp4"
+Content-Type: video/mp4
+
+< ./downloads/entrada.mp4
+------form--

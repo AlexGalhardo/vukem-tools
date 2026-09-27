@@ -1,0 +1,59 @@
+name: CD
+
+# Roda depois do CI verde na main (deploy do backend + bot na VPS) e em tags vX.Y.Z (release).
+# O frontend é publicado pela integração Git da Vercel (Root Directory = frontend).
+on:
+  workflow_run:
+    workflows: [CI]
+    types: [completed]
+
+permissions:
+  contents: write
+
+jobs:
+  deploy-vps:
+    name: Deploy na VPS (PM2)
+    if: >-
+      github.event.workflow_run.conclusion == 'success' &&
+      github.event.workflow_run.head_branch == 'main' &&
+      github.event.workflow_run.event == 'push'
+    runs-on: ubuntu-latest
+    environment: production
+    steps:
+      - name: Verifica secrets
+        id: secrets
+        env:
+          VPS_HOST: ${{ secrets.VPS_HOST }}
+        run: echo "configured=$([ -n "$VPS_HOST" ] && echo true || echo false)" >> "$GITHUB_OUTPUT"
+      - name: git pull + setup idempotente
+        if: steps.secrets.outputs.configured == 'true'
+        uses: appleboy/ssh-action@v1.2.5
+        with:
+          host: ${{ secrets.VPS_HOST }}
+          username: ${{ secrets.VPS_USER }}
+          key: ${{ secrets.VPS_SSH_KEY }}
+          script: |
+            set -e
+            cd "${{ vars.VPS_APP_DIR || '/opt/galhardo-studio' }}"
+            git fetch origin main
+            git reset --hard ${{ github.event.workflow_run.head_sha }}
+            sudo -E HOME_PROXY_SSH="${{ vars.HOME_PROXY_SSH }}" bash setups/setup-unix-vps-pm2.sh
+
+  release:
+    name: GitHub Release
+    if: >-
+      github.event.workflow_run.conclusion == 'success' &&
+      startsWith(github.event.workflow_run.head_branch, 'v')
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7.0.1
+        with:
+          ref: ${{ github.event.workflow_run.head_sha }}
+      - name: Notas da versão a partir do CHANGELOG
+        run: |
+          version="${{ github.event.workflow_run.head_branch }}"
+          awk -v v="${version#v}" '$0 ~ "^## \\[" v "\\]" {on=1; next} /^## \[/ {on=0} on' CHANGELOG.md > notes.md
+      - uses: softprops/action-gh-release@v3.0.3
+        with:
+          tag_name: ${{ github.event.workflow_run.head_branch }}
+          body_path: notes.md

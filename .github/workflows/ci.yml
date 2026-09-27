@@ -1,0 +1,130 @@
+name: CI
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+    tags: ["v*.*.*"]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  conventions:
+    name: Commits e versão (Conventional Commits + SemVer)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7.0.1
+        with:
+          fetch-depth: 0
+      - uses: oven-sh/setup-bun@v2.2.0
+        with:
+          bun-version: 1.4.2
+      - run: bun install --frozen-lockfile
+      - name: commitlint
+        if: github.event_name == 'pull_request'
+        run: bunx commitlint --from ${{ github.event.pull_request.base.sha }} --to ${{ github.event.pull_request.head.sha }}
+      - name: Versão única nos 3 workspaces
+        run: |
+          root=$(jq -r .version package.json)
+          frontend=$(jq -r .version frontend/package.json)
+          backend=$(sed -n 's/^APP_VERSION = "\(.*\)"/\1/p' backend/app/config.py)
+          backend_toml=$(sed -n 's/^version = "\(.*\)"/\1/p' backend/pyproject.toml)
+          telegram=$(sed -n 's/^version = "\(.*\)"/\1/p' telegram/pyproject.toml)
+          echo "root=$root frontend=$frontend backend=$backend/$backend_toml telegram=$telegram"
+          for v in "$frontend" "$backend" "$backend_toml" "$telegram"; do [ "$v" = "$root" ] || exit 1; done
+          [[ "$root" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]
+          if [[ "$GITHUB_REF" == refs/tags/v* ]]; then [ "${GITHUB_REF#refs/tags/v}" = "$root" ]; fi
+
+  backend:
+    name: Backend (ruff, pytest, pip-audit)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+      - uses: actions/checkout@v7.0.1
+      - uses: actions/setup-python@v7.0.0
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: backend/requirements-dev.txt
+      - run: sudo apt-get update && sudo apt-get install -y --no-install-recommends ffmpeg
+      - run: pip install -r requirements-dev.txt pip-audit==2.10.1
+      - run: ruff format --check .
+      - run: ruff check .
+      - run: pytest -q
+      - run: python -c "import app.main"
+      - run: pip-audit -r requirements.txt
+
+  telegram:
+    name: Telegram (ruff, pytest, pip-audit)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: telegram
+    steps:
+      - uses: actions/checkout@v7.0.1
+      - uses: actions/setup-python@v7.0.0
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: telegram/requirements-dev.txt
+      - run: pip install -r requirements-dev.txt pip-audit==2.10.1
+      - run: ruff format --check .
+      - run: ruff check .
+      - run: pytest -q
+      - run: python -c "import app.main"
+      - run: pip-audit -r requirements.txt
+
+  frontend:
+    name: Frontend (biome, tsc, bun test, build, audit)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v7.0.1
+      - uses: oven-sh/setup-bun@v2.2.0
+        with:
+          bun-version: 1.4.2
+      - run: bun install --frozen-lockfile
+      - run: bun run format:check
+      - run: bun run lint
+      - run: bun run typecheck
+      - run: bun run test
+      - run: bun run build
+      - run: bun audit --audit-level=high
+
+  docker:
+    name: Imagens Docker + smoke E2E
+    needs: [backend, telegram, frontend]
+    runs-on: ubuntu-latest
+    env:
+      API_KEY: ci-smoke-key
+    steps:
+      - uses: actions/checkout@v7.0.1
+      - name: Build das 3 imagens
+        run: docker compose -f infra/docker-compose.prod.yml --profile telegram build
+      - name: Sobe backend + frontend
+        run: |
+          echo "API_KEY=$API_KEY" > backend/.env
+          echo "API_KEY=$API_KEY" > frontend/.env.local
+          docker compose -f infra/docker-compose.prod.yml up -d --wait
+      - name: Smoke test
+        run: API=http://127.0.0.1:8000 WEB=http://127.0.0.1:3000 bash infra/smoke/stack.sh
+      - name: Logs em caso de falha
+        if: failure()
+        run: docker compose -f infra/docker-compose.prod.yml logs
+
+  shellcheck:
+    name: Shellcheck (setups e infra)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7.0.1
+      - run: shellcheck -x setups/*.sh infra/scripts/*.sh infra/docker/*.sh infra/smoke/*.sh

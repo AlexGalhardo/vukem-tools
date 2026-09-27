@@ -23,7 +23,15 @@ LETSENCRYPT_EMAIL="${LETSENCRYPT_EMAIL:-}"
 CADDY_SITE=/etc/caddy/sites-enabled/galhardo-video.caddy
 
 if [[ -z "${APP_DIR:-}" ]]; then
-	if [[ -f "$(pwd)/infra/docker-compose.prod.yml" ]]; then APP_DIR="$(pwd)"; else APP_DIR=/opt/galhardo-video; fi
+	# Repositório onde este script está (roda de qualquer pasta) > diretório atual > padrão.
+	SCRIPT_REPO="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+	if [[ -f "$SCRIPT_REPO/infra/docker-compose.prod.yml" ]]; then
+		APP_DIR="$SCRIPT_REPO"
+	elif [[ -f "$(pwd)/infra/docker-compose.prod.yml" ]]; then
+		APP_DIR="$(pwd)"
+	else
+		APP_DIR=/opt/galhardo-video
+	fi
 fi
 
 set_env() {

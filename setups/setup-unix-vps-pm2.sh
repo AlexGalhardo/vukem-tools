@@ -39,8 +39,17 @@ PM2_POT=galhardo-pot-provider
 PM2_PROXY=galhardo-youtube-proxy
 CADDY_SITE=/etc/caddy/sites-enabled/galhardo-studio-backend-pm2.caddy
 
+# Ordem: APP_DIR explícito > repositório onde este script está (funciona rodando de qualquer
+# pasta, inclusive de dentro de setups/) > diretório atual > padrão para clonar do zero.
 if [[ -z "${APP_DIR:-}" ]]; then
-	if [[ -f "$(pwd)/backend/requirements.txt" ]]; then APP_DIR="$(pwd)"; else APP_DIR=/opt/galhardo-studio; fi
+	SCRIPT_REPO="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+	if [[ -f "$SCRIPT_REPO/backend/requirements.txt" ]]; then
+		APP_DIR="$SCRIPT_REPO"
+	elif [[ -f "$(pwd)/backend/requirements.txt" ]]; then
+		APP_DIR="$(pwd)"
+	else
+		APP_DIR=/opt/galhardo-studio
+	fi
 fi
 
 set_env() { # set_env <arquivo> <CHAVE> <valor>: substitui ou acrescenta sem duplicar
@@ -92,9 +101,15 @@ cd "$APP_DIR"
 
 step "5. Dependências Python (backend/.venv e telegram/.venv)"
 for workspace in backend telegram; do
-	[[ -x "$workspace/.venv/bin/pip" ]] || { rm -rf "$workspace/.venv"; python3 -m venv "$workspace/.venv"; }
-	"$workspace/.venv/bin/pip" install -q --upgrade pip
-	"$workspace/.venv/bin/pip" install -q -r "$workspace/requirements.txt"
+	# Venv não é relocável: se a pasta do app foi movida (ou o python3 do sistema mudou), os
+	# shebangs apontam para o caminho antigo e o pip falha com "bad interpreter". Recria.
+	if ! "$workspace/.venv/bin/pip" --version >/dev/null 2>&1; then
+		echo "Recriando $workspace/.venv (ausente ou quebrado)."
+		rm -rf "$workspace/.venv"
+		python3 -m venv "$workspace/.venv"
+	fi
+	"$workspace/.venv/bin/python" -m pip install -q --upgrade pip
+	"$workspace/.venv/bin/python" -m pip install -q -r "$workspace/requirements.txt"
 done
 
 step "6. PO Token provider ($POT_PROVIDER_TAG)"

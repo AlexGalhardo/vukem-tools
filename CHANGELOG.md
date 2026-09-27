@@ -17,6 +17,8 @@ Todas as mudanças relevantes deste projeto ficam aqui. O formato segue o [Keep 
 
 ### Fixed
 
+- `setup-unix-vps-pm2.sh` / `setup-unix-vps-docker.sh`: `APP_DIR` vem da pasta do próprio script (antes, rodar de dentro de `setups/` caía no padrão `/opt/...` inexistente).
+- `setup-unix-vps-pm2.sh`: recria o venv quando o `pip` não executa (pasta do app movida ou `python3` do sistema atualizado dá "bad interpreter").
 - CI do frontend: `next typegen` antes do `tsc` (tipos globais `RouteContext`/`LayoutProps`).
 - Aviso de múltiplos lockfiles no `next build` (`outputFileTracingRoot`).
 - Deploy no Koyeb apontando para o Dockerfile antigo (`backend/Dockerfile`).

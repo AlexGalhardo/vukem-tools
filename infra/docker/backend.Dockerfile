@@ -10,7 +10,7 @@ RUN pip install --no-cache-dir -r requirements.txt
 # Servidor do PO Token (bgutil-ytdlp-pot-provider), mesma tag do plugin Python.
 # Mesmo codename Debian do runtime: o binário `node` copiado abaixo depende da mesma glibc,
 # e também serve de runtime JS para o yt-dlp-ejs (YTDLP_JS_RUNTIME=node).
-FROM --platform=linux/amd64 node:24-bookworm-slim AS pot
+FROM --platform=linux/amd64 node:26-bookworm-slim AS pot
 RUN apt-get update && apt-get install -y --no-install-recommends git ca-certificates \
 	&& rm -rf /var/lib/apt/lists/*
 RUN git clone --branch 2.0.0 --depth 1 https://github.com/Brainicism/bgutil-ytdlp-pot-provider.git /pot

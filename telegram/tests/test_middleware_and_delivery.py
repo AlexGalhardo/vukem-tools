@@ -44,7 +44,8 @@ async def test_clips_are_sent_as_individual_videos(monkeypatch):
 	message = SimpleNamespace(answer_video=AsyncMock(), answer_audio=AsyncMock())
 	progress = SimpleNamespace(edit_text=AsyncMock())
 	client = SimpleNamespace(
-		download_clip=AsyncMock(side_effect=lambda job_id, i: DownloadedFile(b"v", f"p{i}.mp4", "video/mp4"))
+		download_clip=AsyncMock(side_effect=lambda job_id, i: DownloadedFile(b"v", f"p{i}.mp4", "video/mp4")),
+		last_deploy_target="Koyeb (fra)",
 	)
 	clips = [Clip(1, "p1.mp4", 10.0), Clip(2, "p2.mp4", 80.0), Clip(3, "p3.mp4", 3.0)]
 
@@ -55,6 +56,7 @@ async def test_clips_are_sent_as_individual_videos(monkeypatch):
 	summary = progress.edit_text.await_args_list[-1].args[0]
 	assert "3 clipes enviados" in summary
 	assert f"/api/download/clips/{'c' * 32}/2" in summary
+	assert "API: Koyeb (fra)" in summary
 
 
 async def test_single_file_too_big_sends_link(monkeypatch):
@@ -62,6 +64,10 @@ async def test_single_file_too_big_sends_link(monkeypatch):
 	progress = SimpleNamespace(edit_text=AsyncMock())
 	job = JobStatus("d" * 32, "finished", 100, "ok", 5 * 1024 * 1024, None, None)
 
-	await handlers._deliver_single(SimpleNamespace(), progress, SimpleNamespace(), job)
+	await handlers._deliver_single(
+		SimpleNamespace(), progress, SimpleNamespace(last_deploy_target="VPS Hostinger"), job
+	)
 
-	assert f"/api/download/file/{'d' * 32}" in progress.edit_text.await_args.args[0]
+	text = progress.edit_text.await_args.args[0]
+	assert f"/api/download/file/{'d' * 32}" in text
+	assert "API: VPS Hostinger" in text

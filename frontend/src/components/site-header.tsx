@@ -6,11 +6,12 @@
  *
  * No mobile o nome "Video Studio" some — fica só o ícone `>_` à esquerda — e os
  * dois botões (Download / Cut & Crop) ficam centralizados. O toggle de tema fica
- * sempre na extrema direita.
+ * sempre na extrema direita, precedido (a partir do md) pelo badge de deploy.
  */
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { DeployBadge } from "@/components/deploy-badge";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { cn } from "@/lib/utils";
 
@@ -55,7 +56,8 @@ export function SiteHeader() {
 					})}
 				</nav>
 
-				<div className="shrink-0">
+				<div className="flex shrink-0 items-center gap-2">
+					<DeployBadge />
 					<ThemeToggle />
 				</div>
 			</div>

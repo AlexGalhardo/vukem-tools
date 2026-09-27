@@ -4,11 +4,13 @@ Swagger em `/docs` (desligue com `DOCS_ENABLED=false`). Exemplos prontos em [`ba
 
 **Autenticação:** com `API_KEY` definido, toda rota sob `/api/` exige o header `X-API-Key` (401 `UNAUTHORIZED` sem ele). `/` e `/health` são públicas.
 
+**Deploy:** toda resposta traz `X-Deploy-Target` com o rótulo do deploy (`DEPLOY_TARGET`, ou `Koyeb (<região>)` detectado pelas variáveis `KOYEB_*`, ou `local`). O proxy do frontend repassa como `X-Backend-Deploy` e acrescenta `X-Frontend-Deploy`.
+
 **Erros:** sempre `{"detail": "mensagem pt-BR", "error_type": "CODIGO"}`.
 
 | Método | Rota | Descrição |
 |---|---|---|
-| GET | `/health` | `{status, version, yt_dlp_version}` |
+| GET | `/health` | `{status, version, yt_dlp_version, deploy_target}` |
 | GET | `/api/v1/detect?url=` | `{platform}`: `youtube`, `instagram`, `twitter`, `tiktok` ou `null` |
 | POST | `/api/v1/{plataforma}/info` | Metadados (título, duração, thumbnail, tamanho estimado) |
 | POST | `/api/v1/{plataforma}/download` | Download síncrono em streaming |

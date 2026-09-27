@@ -6,6 +6,8 @@ import {
 	proxyStream,
 	readUpstreamJson,
 } from "@/lib/api-proxy";
+import { resolveFrontendDeploy } from "@/lib/config";
+import { getDeploy, recordDeploy, resetDeploy } from "@/lib/deploy-info";
 
 const realFetch = globalThis.fetch;
 
@@ -79,5 +81,51 @@ describe("proxy", () => {
 		const res = await proxyStream("/api/v1/downloads/x/file");
 		expect(res.status).toBe(503);
 		expect(await res.json()).toEqual({ detail: "ocupado", error_type: "SERVER_BUSY" });
+	});
+});
+
+describe("headers de deploy", () => {
+	test("repassa o deploy do backend e carimba o do frontend", async () => {
+		globalThis.fetch = mock(() =>
+			Promise.resolve(
+				Response.json(
+					{ status: "ok" },
+					{ headers: { "x-deploy-target": "Koyeb (fra)" } },
+				),
+			),
+		) as unknown as typeof fetch;
+		const res = await proxyJson("/health");
+		expect(res.headers.get("x-backend-deploy")).toBe("Koyeb (fra)");
+		expect(res.headers.get("x-frontend-deploy")).toBeTruthy();
+	});
+
+	test("backend fora do ar vira unreachable", async () => {
+		globalThis.fetch = mock(() =>
+			Promise.reject(new Error("ECONNREFUSED")),
+		) as unknown as typeof fetch;
+		const res = await proxyJson("/health");
+		expect(res.headers.get("x-backend-deploy")).toBe("unreachable");
+	});
+
+	test("resolveFrontendDeploy: explícito, Vercel e fallback", () => {
+		expect(resolveFrontendDeploy({ DEPLOY_TARGET: "VPS Docker", VERCEL: "1" })).toBe(
+			"VPS Docker",
+		);
+		expect(resolveFrontendDeploy({ VERCEL: "1", VERCEL_REGION: "gru1" })).toBe(
+			"Vercel (gru1)",
+		);
+		expect(resolveFrontendDeploy({})).toBe("self-hosted");
+		expect(resolveFrontendDeploy({ DEPLOY_TARGET: "a\r\nb" })).toBe("ab");
+	});
+
+	test("store registra o último deploy e ignora respostas sem backend", () => {
+		resetDeploy();
+		const withBackend = new Headers({
+			"x-frontend-deploy": "Vercel",
+			"x-backend-deploy": "VPS Hostinger",
+		});
+		recordDeploy(withBackend);
+		recordDeploy(new Headers({ "x-frontend-deploy": "Vercel" }));
+		expect(getDeploy()).toEqual({ frontend: "Vercel", backend: "VPS Hostinger" });
 	});
 });

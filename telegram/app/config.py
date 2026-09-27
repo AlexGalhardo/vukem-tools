@@ -1,6 +1,7 @@
 """Configuração do bot via variáveis de ambiente (``.env``)."""
 
 import os
+import re
 
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
@@ -11,10 +12,20 @@ def _csv_ints(value: str) -> list[int]:
 	return [int(item) for item in value.split(",") if item.strip()]
 
 
+_DEPLOY_LABEL_UNSAFE = re.compile(r"[^A-Za-z0-9 ._()/:-]")
+
+
+def sanitize_deploy_label(value: str) -> str:
+	return _DEPLOY_LABEL_UNSAFE.sub("", value)[:64].strip()
+
+
 class Settings(BaseSettings):
 	model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8", extra="ignore")
 
 	TELEGRAM_BOT_TOKEN: str = ""
+
+	# Rótulo deste bot nas mensagens (ex.: "VPS Hostinger"). Vazio = "local".
+	DEPLOY_TARGET: str = ""
 
 	# Backend: loopback no PM2 (http://127.0.0.1:8000) ou o nome do serviço no Docker Compose.
 	API_BASE_URL: str = "http://127.0.0.1:8000"
@@ -35,6 +46,10 @@ class Settings(BaseSettings):
 	REQUEST_TIMEOUT_SECONDS: float = 120.0
 	# Abaixo disso um "clipe de 60s" seria o próprio vídeo: pula a pergunta de modo.
 	MIN_CLIPS_DURATION_SECONDS: float = 60.0
+
+	@property
+	def deploy_target(self) -> str:
+		return sanitize_deploy_label(self.DEPLOY_TARGET) or "local"
 
 	@property
 	def allowed_user_ids(self) -> list[int]:

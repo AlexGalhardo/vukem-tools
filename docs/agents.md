@@ -43,4 +43,5 @@ Contexto mínimo para trabalhar neste repositório sem reler tudo. Documentaçã
 - O PO Token provider é best-effort: fora do ar, o yt-dlp segue sem token.
 - `YOUTUBE_PROXY` vale só para o YouTube; as outras plataformas saem direto.
 - Instagram quase sempre exige cookies; X e TikTok normalmente não.
+- `DEPLOY_TARGET` (backend, frontend, bot) identifica quem respondeu e vai em header HTTP: é sanitizado para ASCII nos três workspaces; mantenha isso ao mexer ([deployment.md](deployment.md#qual-deploy-respondeu)).
 - Validação de domínio é por host exato: subdomínio novo de compartilhamento precisa entrar em `PLATFORMS`.

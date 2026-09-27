@@ -2,7 +2,17 @@
  * Proxy server-side para o backend FastAPI. O browser só fala com `/api/*` do Next:
  * a URL e a `API_KEY` do backend nunca chegam ao cliente.
  */
-import { API_BASE_URL, API_KEY } from "@/lib/config";
+import {
+	API_BASE_URL,
+	API_KEY,
+	FRONTEND_DEPLOY,
+	sanitizeDeployLabel,
+} from "@/lib/config";
+import {
+	BACKEND_DEPLOY_HEADER,
+	BACKEND_UNREACHABLE,
+	FRONTEND_DEPLOY_HEADER,
+} from "@/lib/deploy-info";
 
 const PASSTHROUGH_HEADERS = [
 	"content-type",
@@ -22,14 +32,45 @@ export function isClipIndex(value: string): boolean {
 	return CLIP_INDEX.test(value);
 }
 
-export function jsonError(detail: string, status: number, errorType?: string): Response {
+/**
+ * Identifica quem respondeu: o deploy deste frontend e o do backend (header
+ * `X-Deploy-Target` do FastAPI). `upstream` nulo = o backend não chegou a responder.
+ */
+export function deployHeaders(upstream?: Response | null): Headers {
+	const headers = new Headers({ [FRONTEND_DEPLOY_HEADER]: FRONTEND_DEPLOY });
+	if (upstream !== undefined) {
+		headers.set(
+			BACKEND_DEPLOY_HEADER,
+			upstream
+				? sanitizeDeployLabel(
+						upstream.headers.get("x-deploy-target") ?? "",
+						"desconhecido",
+					)
+				: BACKEND_UNREACHABLE,
+		);
+	}
+	return headers;
+}
+
+export function jsonError(
+	detail: string,
+	status: number,
+	errorType?: string,
+	headers: Headers = deployHeaders(),
+): Response {
 	return Response.json(errorType ? { detail, error_type: errorType } : { detail }, {
 		status,
+		headers,
 	});
 }
 
 const UNREACHABLE = () =>
-	jsonError("O backend está indisponível no momento.", 502, "NETWORK_ERROR");
+	jsonError(
+		"O backend está indisponível no momento.",
+		502,
+		"NETWORK_ERROR",
+		deployHeaders(null),
+	);
 
 function backendHeaders(extra: HeadersInit = {}): Headers {
 	const headers = new Headers(extra);
@@ -69,7 +110,10 @@ async function callBackend(
 export async function proxyJson(path: string, init?: RequestInit): Promise<Response> {
 	const upstream = await callBackend(path, init);
 	if (!upstream) return UNREACHABLE();
-	return Response.json(await readUpstreamJson(upstream), { status: upstream.status });
+	return Response.json(await readUpstreamJson(upstream), {
+		status: upstream.status,
+		headers: deployHeaders(upstream),
+	});
 }
 
 /**
@@ -85,10 +129,12 @@ export async function proxyStream(
 	if (!upstream.ok || !upstream.body) {
 		return Response.json(await readUpstreamJson(upstream), {
 			status: upstream.status || 502,
+			headers: deployHeaders(upstream),
 		});
 	}
 
-	const headers = new Headers({ "Cache-Control": "no-store" });
+	const headers = deployHeaders(upstream);
+	headers.set("Cache-Control", "no-store");
 	for (const name of PASSTHROUGH_HEADERS) {
 		const value = upstream.headers.get(name);
 		if (value) headers.set(name, value);

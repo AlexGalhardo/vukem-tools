@@ -4,6 +4,13 @@ Todas as mudanças relevantes deste projeto ficam aqui. O formato segue o [Keep 
 
 ## [Unreleased]
 
+### Added
+
+- Identificação do deploy que respondeu (Koyeb + Vercel, VPS Hostinger, Docker): `DEPLOY_TARGET` no backend (autodetecta `Koyeb (<região>)` pelas variáveis `KOYEB_*`), header `X-Deploy-Target` em toda resposta e campo `deploy_target` em `/` e `/health`.
+- Frontend: route handlers carimbam `X-Frontend-Deploy` (`Vercel (<região>)` ou `DEPLOY_TARGET`) e `X-Backend-Deploy`; nova rota `/api/deploy`; badge na navbar com `frontend → api` e aviso no console quando a resposta muda de deploy.
+- Bot: rodapé `🛰️ Bot: … · API: …` no preview, na entrega e nos erros, e comando `/status`.
+- `setup-unix-vps-pm2.sh` grava `DEPLOY_TARGET=VPS Hostinger` no backend e no bot (sem sobrescrever valor personalizado); `docker-compose.prod.yml` usa `VPS Docker` por padrão.
+
 ### Changed
 
 - Hook `pre-commit` corrige lint e format automaticamente (Ruff no Python, Biome no TypeScript) antes de verificar; `pre-push` roda os testes antes do build.

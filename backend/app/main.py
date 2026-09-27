@@ -40,7 +40,7 @@ app.add_middleware(
 	allow_credentials=False,
 	allow_methods=["GET", "POST"],
 	allow_headers=["Content-Type", "X-API-Key"],
-	expose_headers=["Content-Disposition", "X-Clip-Count"],
+	expose_headers=["Content-Disposition", "X-Clip-Count", "X-Deploy-Target"],
 )
 
 _SECURITY_HEADERS = {
@@ -52,13 +52,18 @@ _SECURITY_HEADERS = {
 
 @app.middleware("http")
 async def api_key_and_headers(request: Request, call_next: RequestResponseEndpoint) -> Response:
+	response: Response
 	if settings.API_KEY and request.url.path.startswith("/api/") and request.method != "OPTIONS":
 		provided = request.headers.get("x-api-key", "")
 		if not hmac.compare_digest(provided.encode(), settings.API_KEY.encode()):
 			error = UnauthorizedError()
-			return JSONResponse(status_code=error.status_code, content=error.as_body())
-	response = await call_next(request)
+			response = JSONResponse(status_code=error.status_code, content=error.as_body())
+		else:
+			response = await call_next(request)
+	else:
+		response = await call_next(request)
 	response.headers.update(_SECURITY_HEADERS)
+	response.headers["X-Deploy-Target"] = settings.deploy_target
 	return response
 
 
@@ -97,7 +102,7 @@ async def unhandled_exception_handler(request: Request, exc: Exception) -> JSONR
 
 @app.get("/", tags=["Health"])
 async def root() -> dict[str, str]:
-	return {"name": settings.APP_NAME, "version": APP_VERSION}
+	return {"name": settings.APP_NAME, "version": APP_VERSION, "deploy_target": settings.deploy_target}
 
 
 @app.get("/api/v1/detect", tags=["Health"], summary="Descobre a plataforma de uma URL")

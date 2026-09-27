@@ -8,7 +8,8 @@ PLATFORM_LABELS = {"youtube": "YouTube", "instagram": "Instagram", "twitter": "X
 
 START_TEXT = (
 	"👋 Envie um link do <b>YouTube</b>, <b>Instagram</b>, <b>X (Twitter)</b> ou <b>TikTok</b> "
-	"que eu baixo pra você — vídeo (MP4) ou áudio (MP3), completo ou no padrão Stories (clipes de 60s)."
+	"que eu baixo pra você — vídeo (MP4) ou áudio (MP3), completo ou no padrão Stories (clipes de 60s).\n\n"
+	"/status mostra em qual servidor o bot e a API estão rodando."
 )
 
 
@@ -43,3 +44,20 @@ def progress_text(status: str, percent: float, phase: str) -> str:
 
 def clip_caption(index: int, total: int) -> str:
 	return f"🎬 Parte {index}/{total}"
+
+
+def deploy_footer(bot_deploy: str, api_deploy: str | None) -> str:
+	"""Rodapé que identifica qual deploy (Koyeb, VPS...) atendeu.
+
+	Escapado porque também entra em legendas com ``parse_mode="HTML"`` e o rótulo da API vem de um header.
+	"""
+	return f"🛰️ Bot: {escape(bot_deploy)} · API: {escape(api_deploy or 'desconhecida')}"
+
+
+def with_footer(text: str, footer: str) -> str:
+	return f"{text}\n\n{footer}"
+
+
+def status_text(bot_deploy: str, api_deploy: str | None) -> str:
+	api = escape(api_deploy) if api_deploy else "❌ fora do ar"
+	return f"🛰️ <b>Status do deploy</b>\n\n🤖 Bot: {escape(bot_deploy)}\n🖥️ API: {api}"

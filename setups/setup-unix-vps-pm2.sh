@@ -27,6 +27,8 @@ LETSENCRYPT_EMAIL="${LETSENCRYPT_EMAIL:-}"
 PUBLIC_WEB_BASE_URL="${PUBLIC_WEB_BASE_URL:-https://galhardo-video.vercel.app}"
 HOME_PROXY_SSH="${HOME_PROXY_SSH:-}"
 TAILSCALE_AUTHKEY="${TAILSCALE_AUTHKEY:-}"
+# Rótulo que o backend e o bot mostram nas respostas (header X-Deploy-Target, /status do bot).
+DEPLOY_TARGET="${DEPLOY_TARGET:-VPS Hostinger}"
 PM2_VERSION="7.0.4"
 POT_PROVIDER_TAG="2.0.0"
 SOCKS_PORT=1080
@@ -130,6 +132,10 @@ set_env backend/.env ALLOWED_ORIGINS "$PUBLIC_WEB_BASE_URL"
 set_env telegram/.env API_BASE_URL "http://127.0.0.1:$API_PORT"
 set_env telegram/.env API_KEY "$API_KEY"
 set_env telegram/.env PUBLIC_WEB_BASE_URL "$PUBLIC_WEB_BASE_URL"
+# Não sobrescreve um rótulo já personalizado no .env.
+for env_file in backend/.env telegram/.env; do
+	[[ -n "$(get_env "$env_file" DEPLOY_TARGET)" ]] || set_env "$env_file" DEPLOY_TARGET "$DEPLOY_TARGET"
+done
 chmod 600 backend/.env telegram/.env
 
 if [[ -n "$HOME_PROXY_SSH" ]]; then

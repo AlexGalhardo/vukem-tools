@@ -2,7 +2,7 @@ import uuid
 
 import pytest
 
-from app.config import settings
+from app.config import resolve_deploy_target, settings
 from app.services import jobs
 from app.utils.streaming import content_disposition
 from tests.conftest import requires_ffmpeg
@@ -21,6 +21,29 @@ def test_api_key_required_when_configured(client, monkeypatch):
 	assert client.get("/api/v1/detect", params=params, headers={"X-API-Key": "wrong"}).status_code == 401
 	assert client.get("/api/v1/detect", params=params, headers={"X-API-Key": "s3cret"}).status_code == 200
 	assert client.get("/health").status_code == 200
+
+
+def test_deploy_target_header_and_health(client, monkeypatch):
+	monkeypatch.setattr(settings, "DEPLOY_TARGET", "VPS Hostinger")
+	monkeypatch.setattr(settings, "API_KEY", "s3cret")
+	r = client.get("/health")
+	assert r.headers["x-deploy-target"] == "VPS Hostinger"
+	assert r.json()["deploy_target"] == "VPS Hostinger"
+	assert client.get("/api/v1/detect", params={"url": "x"}).headers["x-deploy-target"] == "VPS Hostinger"
+
+
+@pytest.mark.parametrize(
+	"explicit,environ,expected",
+	[
+		("VPS Hostinger", {"KOYEB_REGION": "fra"}, "VPS Hostinger"),
+		("", {"KOYEB_APP_NAME": "galhardo-video", "KOYEB_REGION": "fra"}, "Koyeb (fra)"),
+		("", {"KOYEB_SERVICE_NAME": "backend"}, "Koyeb"),
+		("", {}, "local"),
+		("evil\r\nSet-Cookie: x", {}, "evilSet-Cookie: x"),
+	],
+)
+def test_resolve_deploy_target(explicit, environ, expected):
+	assert resolve_deploy_target(explicit, environ) == expected
 
 
 def test_job_id_must_be_hex(client):

@@ -4,6 +4,8 @@ Importar este módulo cria ``DOWNLOAD_DIR`` e ``COOKIES_DIR`` (efeito colateral 
 """
 
 import os
+import re
+from collections.abc import Mapping
 from pathlib import Path
 
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -15,12 +17,30 @@ def _csv(value: str) -> list[str]:
 	return [item.strip() for item in value.split(",") if item.strip()]
 
 
+# O rótulo vai em header HTTP: só ASCII seguro, sem quebra de linha.
+_DEPLOY_LABEL_UNSAFE = re.compile(r"[^A-Za-z0-9 ._()/:-]")
+
+
+def resolve_deploy_target(explicit: str, environ: Mapping[str, str]) -> str:
+	"""Rótulo do deploy que está respondendo: ``DEPLOY_TARGET`` ou detecção pelo ambiente.
+
+	O Koyeb injeta ``KOYEB_*`` em runtime; na VPS o setup grava ``DEPLOY_TARGET`` no ``.env``.
+	"""
+	label = explicit.strip()
+	if not label and any(key.startswith("KOYEB_") for key in environ):
+		region = environ.get("KOYEB_REGION", "").strip()
+		label = f"Koyeb ({region})" if region else "Koyeb"
+	return _DEPLOY_LABEL_UNSAFE.sub("", label)[:64].strip() or "local"
+
+
 class Settings(BaseSettings):
 	model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8", extra="ignore")
 
 	APP_NAME: str = "Galhardo Video API"
 	DEBUG: bool = False
 	DOCS_ENABLED: bool = True
+	# Identifica o deploy nas respostas (header X-Deploy-Target e /health). Vazio = autodetecta.
+	DEPLOY_TARGET: str = ""
 
 	# Segredo compartilhado com o frontend (route handlers) e o bot. Vazio = API aberta,
 	# aceitável só quando o backend não é alcançável publicamente (rede interna/loopback).
@@ -66,6 +86,10 @@ class Settings(BaseSettings):
 	TIKTOK_COOKIES_FILE: str | None = None
 	TIKTOK_COOKIES: str | None = None
 	COOKIES_FROM_BASE64: bool = False
+
+	@property
+	def deploy_target(self) -> str:
+		return resolve_deploy_target(self.DEPLOY_TARGET, os.environ)
 
 	@property
 	def allowed_origins_list(self) -> list[str]:

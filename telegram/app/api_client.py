@@ -92,18 +92,34 @@ class BackendClient:
 		headers = {"X-API-Key": api_key} if api_key else {}
 		self._client = httpx.AsyncClient(base_url=base_url, timeout=timeout, headers=headers)
 		self._file_timeout = file_timeout
+		# Deploy do backend que respondeu por último (header X-Deploy-Target); None = nunca respondeu.
+		self.last_deploy_target: str | None = None
+
+	def _check(self, response: httpx.Response) -> None:
+		if deploy := response.headers.get("x-deploy-target"):
+			self.last_deploy_target = deploy
+		_raise_for_error(response)
+
+	async def health(self) -> str | None:
+		"""Consulta ``/health`` e devolve o deploy do backend (None se estiver fora do ar)."""
+		try:
+			response = await self._client.get("/health")
+			self._check(response)
+		except (httpx.HTTPError, BackendError):
+			return None
+		return response.json().get("deploy_target") or self.last_deploy_target
 
 	async def aclose(self) -> None:
 		await self._client.aclose()
 
 	async def detect_platform(self, url: str) -> Platform | None:
 		response = await self._client.get("/api/v1/detect", params={"url": url})
-		_raise_for_error(response)
+		self._check(response)
 		return response.json().get("platform")
 
 	async def get_info(self, platform: Platform, url: str) -> VideoInfo:
 		response = await self._client.post(f"/api/v1/{platform}/info", json={"url": url})
-		_raise_for_error(response)
+		self._check(response)
 		data = response.json()
 		return VideoInfo(
 			title=data["title"],
@@ -120,12 +136,12 @@ class BackendClient:
 		response = await self._client.post(
 			f"/api/v1/{platform}/{endpoint}", json={"url": url, "format": fmt, "quality": "best"}
 		)
-		_raise_for_error(response)
+		self._check(response)
 		return response.json()["job_id"]
 
 	async def get_job_status(self, job_id: str) -> JobStatus:
 		response = await self._client.get(f"/api/v1/downloads/{job_id}")
-		_raise_for_error(response)
+		self._check(response)
 		data = response.json()
 		return JobStatus(
 			job_id=data["job_id"],
@@ -140,7 +156,7 @@ class BackendClient:
 
 	async def _get_file(self, path: str, fallback_name: str) -> DownloadedFile:
 		response = await self._client.get(path, timeout=self._file_timeout)
-		_raise_for_error(response)
+		self._check(response)
 		return DownloadedFile(
 			content=response.content,
 			filename=filename_from_content_disposition(response.headers.get("content-disposition")) or fallback_name,

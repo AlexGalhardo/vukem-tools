@@ -10,6 +10,14 @@
 
 Legado: o serviço `galhardo-video/backend` no **Koyeb** segue ativo, com builder Docker, workdir vazio (raiz do repo) e Dockerfile `infra/docker/backend.Dockerfile`. Se continuar em uso, defina `API_KEY` nas envs dele.
 
+### Qual deploy respondeu?
+
+Cada peça se identifica pelo rótulo `DEPLOY_TARGET` (só ASCII; o resto é descartado):
+
+- **Backend**: header `X-Deploy-Target` e `deploy_target` no `/health`. No Koyeb é detectado sozinho (`Koyeb (<região>)`); na VPS o setup grava `VPS Hostinger`.
+- **Frontend**: headers `X-Frontend-Deploy` / `X-Backend-Deploy` em toda rota `/api/*` e badge `frontend → api` na navbar (desktop). Na Vercel vira `Vercel (<região>)`.
+- **Bot**: rodapé `🛰️ Bot: … · API: …` nas mensagens e comando `/status`.
+
 Alternativa self-hosted completa (sem Vercel): `setups/setup-unix-vps-docker.sh` sobe `infra/docker-compose.prod.yml` (backend + frontend + bot) atrás do Caddy em `video.galhardo.tech`.
 
 ## VPS com PM2 (produção atual)

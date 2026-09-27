@@ -1,5 +1,6 @@
 /** Chamadas do browser para as rotas `/api/*` do próprio Next. */
 import type { z } from "zod";
+import { recordDeploy } from "@/lib/deploy-info";
 import { resolveErrorMessage } from "@/lib/errors";
 import { apiErrorSchema } from "@/lib/schemas";
 
@@ -10,6 +11,7 @@ export async function request(
 	fallback: string,
 ): Promise<Response> {
 	const res = await fetch(input, init);
+	recordDeploy(res.headers);
 	if (res.ok) return res;
 	const parsed = apiErrorSchema.safeParse(await res.json().catch(() => null));
 	throw new Error(

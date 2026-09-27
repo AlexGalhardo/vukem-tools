@@ -21,7 +21,15 @@ from app.api_client import BackendClient, BackendError, DownloadedFile, JobMode,
 from app.config import settings
 from app.errors import FALLBACK_MESSAGE, resolve_error_message
 from app.keyboards import format_keyboard, mode_keyboard
-from app.presenters import START_TEXT, clip_caption, progress_text, video_caption
+from app.presenters import (
+	START_TEXT,
+	clip_caption,
+	deploy_footer,
+	progress_text,
+	status_text,
+	video_caption,
+	with_footer,
+)
 from app.states import DownloadFlow
 
 router = Router(name="download-flow")
@@ -36,11 +44,25 @@ def _download_link(path: str) -> str:
 	return f"{settings.PUBLIC_WEB_BASE_URL.rstrip('/')}/api/download/{path}"
 
 
+def _footer(client: BackendClient) -> str:
+	return deploy_footer(settings.deploy_target, client.last_deploy_target)
+
+
+def _error_text(client: BackendClient, error_type: str | None, detail: str | None) -> str:
+	return with_footer(resolve_error_message(error_type, detail), _footer(client))
+
+
 @router.message(CommandStart())
 @router.message(Command("help"))
 async def cmd_start(message: Message, state: FSMContext) -> None:
 	await state.clear()
 	await message.answer(START_TEXT, parse_mode="HTML")
+
+
+@router.message(Command("status"))
+async def cmd_status(message: Message) -> None:
+	api_deploy = await _backend(message).health()
+	await message.answer(status_text(settings.deploy_target, api_deploy), parse_mode="HTML")
 
 
 @router.message(F.text.startswith("http"))
@@ -52,7 +74,7 @@ async def on_url(message: Message, state: FSMContext) -> None:
 	try:
 		platform = await client.detect_platform(url)
 	except BackendError as e:
-		await message.answer(resolve_error_message(e.error_type, e.detail))
+		await message.answer(_error_text(client, e.error_type, e.detail))
 		return
 	if platform is None:
 		await message.answer("❌ URL inválida. Envie um link do YouTube, Instagram, X (Twitter) ou TikTok.")
@@ -62,13 +84,13 @@ async def on_url(message: Message, state: FSMContext) -> None:
 	try:
 		info = await client.get_info(platform, url)
 	except BackendError as e:
-		await status_msg.edit_text(resolve_error_message(e.error_type, e.detail))
+		await status_msg.edit_text(_error_text(client, e.error_type, e.detail))
 		return
 
 	await state.update_data(url=url, platform=platform, duration=info.duration_seconds)
 	await state.set_state(DownloadFlow.choosing_format)
 
-	caption = video_caption(platform, info)
+	caption = with_footer(video_caption(platform, info), _footer(client))
 	if info.thumbnail:
 		await message.answer_photo(info.thumbnail, caption=caption, parse_mode="HTML", reply_markup=format_keyboard())
 		await status_msg.delete()
@@ -118,11 +140,11 @@ async def _start_download(message: Message, state: FSMContext) -> None:
 		job_id = await client.start_job(data["platform"], data["url"], data["format"], data["mode"])
 		job = await _watch_progress(client, job_id, progress_msg)
 	except BackendError as e:
-		await progress_msg.edit_text(resolve_error_message(e.error_type, e.detail))
+		await progress_msg.edit_text(_error_text(client, e.error_type, e.detail))
 		return
 
 	if job.status == "error":
-		await progress_msg.edit_text(resolve_error_message(job.error_type, job.detail))
+		await progress_msg.edit_text(_error_text(client, job.error_type, job.detail))
 		return
 
 	try:
@@ -131,7 +153,7 @@ async def _start_download(message: Message, state: FSMContext) -> None:
 		else:
 			await _deliver_single(message, progress_msg, client, job)
 	except BackendError as e:
-		await progress_msg.edit_text(resolve_error_message(e.error_type, e.detail))
+		await progress_msg.edit_text(_error_text(client, e.error_type, e.detail))
 	except Exception:  # noqa: BLE001 - timeout/rede do Telegram não pode deixar o chat sem resposta
 		logger.exception("Falha ao entregar o job %s", job.job_id)
 		await progress_msg.edit_text(FALLBACK_MESSAGE)
@@ -163,12 +185,13 @@ async def _deliver_single(message: Message, progress_msg: Message, client: Backe
 	if size > settings.max_direct_upload_bytes:
 		await progress_msg.edit_text(
 			f"✅ Pronto! ({size / 1024 / 1024:.1f} MB — grande demais pro Telegram)\n"
-			f"⬇️ Baixe aqui: {_download_link(f'file/{job.job_id}')}"
+			f"⬇️ Baixe aqui: {_download_link(f'file/{job.job_id}')}\n\n"
+			f"{_footer(client)}"
 		)
 		return
 	await progress_msg.edit_text("✅ Pronto! Enviando o arquivo...")
 	file = await asyncio.wait_for(client.download_file(job.job_id), timeout=settings.REQUEST_TIMEOUT_SECONDS)
-	await _send_media(message, file, "✅ Pronto!")
+	await _send_media(message, file, with_footer("✅ Pronto!", _footer(client)))
 	await progress_msg.delete()
 
 
@@ -189,7 +212,7 @@ async def _deliver_clips(message: Message, progress_msg: Message, client: Backen
 	summary = f"🎬 {total} clipes enviados."
 	if too_big:
 		summary += "\n\nGrandes demais pro Telegram, baixe pelo link:\n" + "\n".join(too_big)
-	await progress_msg.edit_text(summary)
+	await progress_msg.edit_text(with_footer(summary, _footer(client)))
 
 
 async def on_dispatcher_error(event: ErrorEvent) -> None:

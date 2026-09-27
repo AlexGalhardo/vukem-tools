@@ -1,8 +1,16 @@
 import pytest
 
 from app.api_client import VideoInfo
+from app.config import sanitize_deploy_label
 from app.errors import ERROR_COPY, resolve_error_message
-from app.presenters import clip_caption, format_duration, progress_text, video_caption
+from app.presenters import (
+	clip_caption,
+	deploy_footer,
+	format_duration,
+	progress_text,
+	status_text,
+	video_caption,
+)
 
 BACKEND_ERROR_TYPES = {
 	"TIMEOUT",
@@ -64,3 +72,14 @@ def test_bot_check_surfaces_expired_cookies_detail():
 def test_progress_and_clip_texts():
 	assert progress_text("processing", 42.4, "Merge") == "⏳ Processando vídeo 42%... (Merge)"
 	assert clip_caption(2, 5) == "🎬 Parte 2/5"
+
+
+def test_deploy_footer_and_status_escape_labels():
+	assert deploy_footer("VPS Hostinger", "Koyeb (fra)") == "🛰️ Bot: VPS Hostinger · API: Koyeb (fra)"
+	assert "desconhecida" in deploy_footer("local", None)
+	assert "&lt;b&gt;" in status_text("local", "<b>")
+	assert "fora do ar" in status_text("local", None)
+
+
+def test_sanitize_deploy_label():
+	assert sanitize_deploy_label("VPS\r\nHostinger<script>") == "VPSHostingerscript"

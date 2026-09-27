@@ -90,3 +90,24 @@ async def test_info_request_body_is_minimal():
 	info = await _client(handler).get_info("tiktok", "https://www.tiktok.com/@a/video/1")
 	assert captured == [{"url": "https://www.tiktok.com/@a/video/1"}]
 	assert info.title == "t"
+
+
+async def test_remembers_backend_deploy_target_and_health():
+	def handler(request: httpx.Request) -> httpx.Response:
+		headers = {"x-deploy-target": "Koyeb (fra)"}
+		if request.url.path == "/health":
+			return httpx.Response(200, json={"status": "ok", "deploy_target": "Koyeb (fra)"}, headers=headers)
+		return httpx.Response(200, json={"platform": "youtube"}, headers=headers)
+
+	client = _client(handler)
+	assert client.last_deploy_target is None
+	await client.detect_platform("https://youtu.be/a")
+	assert client.last_deploy_target == "Koyeb (fra)"
+	assert await client.health() == "Koyeb (fra)"
+
+
+async def test_health_returns_none_when_backend_is_down():
+	def handler(request: httpx.Request) -> httpx.Response:
+		raise httpx.ConnectError("refused")
+
+	assert await _client(handler).health() is None

@@ -18,6 +18,7 @@ services:
       - "127.0.0.1:${API_PORT:-8000}:8000"
     environment:
       FFMPEG_THREADS: "1"
+      DEPLOY_TARGET: "${DEPLOY_TARGET:-VPS Docker}"
     env_file:
       - path: ../backend/.env
         required: false
@@ -38,6 +39,7 @@ services:
       - "127.0.0.1:${WEB_PORT:-3000}:3000"
     environment:
       API_BASE_URL: "http://backend:8000"
+      DEPLOY_TARGET: "${DEPLOY_TARGET:-VPS Docker}"
     env_file:
       - path: ../frontend/.env.local
         required: false
@@ -59,6 +61,7 @@ services:
     restart: unless-stopped
     environment:
       API_BASE_URL: "http://backend:8000"
+      DEPLOY_TARGET: "${DEPLOY_TARGET:-VPS Docker}"
     env_file:
       - path: ../telegram/.env
         required: false

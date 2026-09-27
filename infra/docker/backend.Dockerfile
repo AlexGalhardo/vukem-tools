@@ -1,7 +1,7 @@
 # Backend FastAPI + ffmpeg + PO Token provider. Contexto de build: raiz do repositório.
 # linux/amd64 fixo: produção é x86_64 mesmo quando o build roda em Apple Silicon.
 
-FROM --platform=linux/amd64 python:3.12-slim-bookworm AS deps
+FROM --platform=linux/amd64 python:3.14-slim-bookworm AS deps
 RUN python -m venv /opt/venv
 ENV PATH="/opt/venv/bin:$PATH"
 COPY backend/requirements.txt .
@@ -17,7 +17,7 @@ RUN git clone --branch 2.0.0 --depth 1 https://github.com/Brainicism/bgutil-ytdl
 WORKDIR /pot/server
 RUN npm ci && npx tsc && npm prune --omit=dev
 
-FROM --platform=linux/amd64 python:3.12-slim-bookworm
+FROM --platform=linux/amd64 python:3.14-slim-bookworm
 WORKDIR /app
 RUN apt-get update && apt-get install -y --no-install-recommends ffmpeg curl \
 	&& rm -rf /var/lib/apt/lists/* \

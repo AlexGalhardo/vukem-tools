@@ -1,0 +1,34 @@
+{
+  "name": "galhardo-video",
+  "version": "2.0.0",
+  "private": true,
+  "license": "MIT",
+  "packageManager": "bun@1.4.2",
+  "description": "Monorepo: backend FastAPI, frontend Next.js e bot do Telegram. Os scripts rodam os 3 workspaces.",
+  "scripts": {
+    "prepare": "husky",
+    "setup": "bun install && cd frontend && bun install",
+    "lint": "bun run lint:backend && bun run lint:telegram && bun run lint:frontend",
+    "lint:backend": "sh infra/scripts/python.sh backend -m ruff check .",
+    "lint:telegram": "sh infra/scripts/python.sh telegram -m ruff check .",
+    "lint:frontend": "cd frontend && bun run lint",
+    "format": "sh infra/scripts/python.sh backend -m ruff format . && sh infra/scripts/python.sh telegram -m ruff format . && cd frontend && bun run check",
+    "format:check": "sh infra/scripts/python.sh backend -m ruff format --check . && sh infra/scripts/python.sh telegram -m ruff format --check . && cd frontend && bun run format:check",
+    "typecheck": "cd frontend && bun run typecheck",
+    "test": "bun run test:backend && bun run test:telegram && bun run test:frontend",
+    "test:backend": "sh infra/scripts/python.sh backend -m pytest -q -p no:cacheprovider",
+    "test:telegram": "sh infra/scripts/python.sh telegram -m pytest -q -p no:cacheprovider",
+    "test:frontend": "cd frontend && bun run test",
+    "build": "bun run build:backend && bun run build:telegram && bun run build:frontend",
+    "build:backend": "sh infra/scripts/python.sh backend -c \"import app.main\"",
+    "build:telegram": "sh infra/scripts/python.sh telegram -c \"import app.main\"",
+    "build:frontend": "cd frontend && bun run build",
+    "build:docker": "docker compose -f infra/docker-compose.prod.yml --profile telegram build",
+    "check": "bun run format:check && bun run lint && bun run typecheck && bun run test"
+  },
+  "devDependencies": {
+    "@commitlint/cli": "21.2.3",
+    "@commitlint/config-conventional": "21.2.3",
+    "husky": "9.1.7"
+  }
+}

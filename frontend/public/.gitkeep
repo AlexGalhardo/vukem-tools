@@ -1,0 +1,1 @@
+# mantém o diretório public/ no repo; o Dockerfile de produção copia public/ para a imagem

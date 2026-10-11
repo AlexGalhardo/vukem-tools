@@ -5,7 +5,7 @@ yt-dlp==2026.8.19
 # Scripts que resolvem os desafios JS do YouTube (exigem um runtime: node, ver YTDLP_JS_RUNTIME).
 yt-dlp-ejs==0.8.0
 # Plugin do PO Token; o servidor HTTP correspondente (mesma versão) roda ao lado do backend.
-bgutil-ytdlp-pot-provider==2.0.0
+bgutil-ytdlp-pot-provider==2.0.2
 pydantic==2.13.5
 pydantic-settings==2.15.0
 python-multipart==0.0.32

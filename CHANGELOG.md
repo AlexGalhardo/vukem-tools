@@ -8,6 +8,7 @@ Todas as mudanças relevantes deste projeto ficam aqui. O formato segue o [Keep 
 
 - Download com compressão: `compress: true` em `/download/start` comprime o MP4 depois de baixar (H.264 CRF 28, AAC 128k) e entrega o menor dos dois; o frontend envia sempre e mostra quanto diminuiu em MB e em %.
 - Compressão por API, para o gerenciador de arquivos do `lekzera.xyz`: `POST /api/v1/compress/media` (vídeo → `.mp4` H.264 CRF 28 + AAC 128k; áudio → `.mp3` 128k) e `POST /api/v1/compress/pdf` (Ghostscript, imagens a ~150 dpi). Respondem `204` quando o resultado não fica menor.
+- Backend também no Railway (projeto `video-lekzera-xyz`), usado pelo `lekzera.xyz` para a compressão: a instância gratuita do Koyeb não termina um PDF a tempo.
 - `docs/agent-setup.md`: ferramentas e estado dos acessos de um agente (Koyeb, Vercel, GitHub, Hostinger), onde cada parte roda e o que está pendente.
 - `docs/hostinger-agent-setup.md`: como agentes de IA operam a VPS pela API pública e pelo MCP da Hostinger, e o que o Alex configura uma vez.
 - Ghostscript instalado pelo `setup-unix-vps-pm2.sh`, pela imagem Docker do backend e pelo CI; binário configurável em `GHOSTSCRIPT_BIN`.

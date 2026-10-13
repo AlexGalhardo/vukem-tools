@@ -7,12 +7,14 @@ painel. Estado conferido em 2026-10-13. Nenhum segredo fica neste repositório: 
 
 | Parte | Onde | Como publica |
 |---|---|---|
-| Backend (FastAPI) | Koyeb, app `galhardo-video`, serviço `backend`, região `was`, instância `free` | build do `infra/docker/backend.Dockerfile` a partir do `main` |
+| Backend (FastAPI) | Koyeb, app `galhardo-video`, serviço `backend`, região `was`, instância `free`: atende o site de vídeo | build do `infra/docker/backend.Dockerfile` a partir do `main` |
+| Backend de compressão | Railway, projeto `video-lekzera-xyz`, serviço `backend` (mesmo código e mesma `API_KEY`): atende o `lekzera.xyz` | `railway up --service backend` na raiz deste repositório (`RAILWAY_DOCKERFILE_PATH` aponta o Dockerfile) |
 | Frontend (Next.js) | Vercel, projeto `video.lekzera.xyz` (time `galhardos-projects`) | integração Git da Vercel |
 | Código | GitHub `AlexGalhardo/video.lekzera.xyz` (privado; o nome antigo `galhardo-video.vercel.app` redireciona) | `git push origin main` |
 | VPS Hostinger | alternativa de hospedagem (`setups/setup-unix-vps-pm2.sh`); **não é o backend em produção hoje** | SSH ou `cd.yml` |
 
-Endereço público do backend: `https://galhardo-video-alexgalhardo-b4e8425d.koyeb.app`.
+Endereços públicos: `https://galhardo-video-alexgalhardo-b4e8425d.koyeb.app` (Koyeb) e
+`https://backend-production-293e.up.railway.app` (Railway).
 
 ## Ferramentas e estado
 
@@ -21,6 +23,7 @@ Endereço público do backend: `https://galhardo-video-alexgalhardo-b4e8425d.koy
 | `gh` (GitHub CLI) | repositório, releases, execuções do Actions | logado como `AlexGalhardo` |
 | `vercel` (CLI 62) | envs e deploys do frontend | logado; escolher o projeto com `vercel link --project video.lekzera.xyz` |
 | `koyeb` (CLI) | envs, secrets, deploys e logs do backend | logado; `~/OneDrive/Documentos/koyeb` está no PATH do usuário |
+| `railway` (CLI) | envs, deploys e logs do backend de compressão | logado; `railway link --project video-lekzera-xyz` |
 | MCP da Hostinger (plugin `hostinger` do Claude Code) | VPS, DNS, domínios | autorizado por OAuth; ver [`hostinger-agent-setup.md`](hostinger-agent-setup.md) |
 | MCP do GitHub (plugin `github`) | o mesmo que o `gh` | **falhando**: o token configurado é recusado (HTTP 401); o `gh` cobre |
 
@@ -66,6 +69,9 @@ Os dois comandos de secret acima foram usados em 2026-10-13 para criar a `API_KE
   `koyeb service redeploy`.
 - **GitHub Actions não inicia os jobs** (todos falham em 2 a 3 segundos, antes de rodar): o `ci.yml` e o `cd.yml` estão
   parados até a cobrança da conta ser resolvida. A verificação é a local (`bun run check`, hooks do husky).
+- **Compressão no Railway desde 2026-10-13**: no Koyeb gratuito um PDF de 130 KB passou de 300 s; no Railway um PDF
+  de 45 MB leva cerca de 52 s e um clipe curto menos de 1 s. O Railway cobra por uso. O deploy lá é manual
+  (`railway up`): o repositório não está conectado ao GitHub no Railway.
 - **Instância `free` com suspensão por inatividade**: a primeira chamada depois de um tempo parada demora, e comprimir
   vídeo com libx264 nela é lento. Vídeos maiores tendem a estourar o limite de 150 s do `lekzera.xyz`, que então guarda
   o original.

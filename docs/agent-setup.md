@@ -41,8 +41,8 @@ koyeb service list --app galhardo-video
 koyeb deployment list --service <id-do-serviço>
 koyeb service logs galhardo-video/backend
 koyeb service redeploy galhardo-video/backend          # publica o main atual
-koyeb secret create NOME --value-from-stdin            # o valor nunca vai na linha de comando
-koyeb service update galhardo-video/backend --env NOME=@NOME   # env apontando para o secret
+koyeb secret create NOME --value-from-stdin < arquivo   # o valor nunca vai na linha de comando
+koyeb service update galhardo-video/backend --env "NOME={{secret.NOME}}"   # env apontando para o secret; publica
 
 # Vercel (frontend)
 vercel env ls production
@@ -53,15 +53,14 @@ vercel redeploy <url-do-deploy>
 gh run list -R AlexGalhardo/video.lekzera.xyz --limit 5
 ```
 
-**Não verificado:** as flags exatas de `koyeb secret create` e de `--env NOME=@NOME` nesta versão da CLI. Confira
-com `koyeb secret create --help` e `koyeb service update --help` antes de usar.
+Os dois comandos de secret acima foram usados em 2026-10-13 para criar a `API_KEY`.
 
 ## O que foi observado e pede decisão
 
-- **O backend no Koyeb não tem `API_KEY`**: sem ela, a API fica aberta para qualquer pessoa, incluindo as rotas de
-  compressão (uso de CPU). O frontend na Vercel também não tem `API_KEY` em produção. Definir a chave exige gravar o
-  mesmo valor em três lugares e publicar de novo: secret no Koyeb, `API_KEY` no projeto `video.lekzera.xyz` da Vercel e
-  `VIDEO_API_KEY` no projeto `lekzera.xyz`.
+- **Uma chave, três lugares.** A `API_KEY` do backend (secret `API_KEY` no Koyeb) é o mesmo valor de `API_KEY` no
+  projeto `video.lekzera.xyz` da Vercel e de `VIDEO_API_KEY` no projeto `lekzera.xyz`, gravados em 2026-10-13. Trocar a
+  chave exige gravar os três e publicar os três; o valor não pode ser lido de volta. Ordem segura: Vercel primeiro
+  (o backend ignora a chave enquanto não tem uma), backend por último.
 - **O push em `main` de 2026-10-13 não gerou deploy no Koyeb**, embora o serviço esteja com deploy automático ligado
   (`no_deploy_on_push: false`). O serviço ainda aponta para o nome antigo do repositório. Publicar exige
   `koyeb service redeploy`.

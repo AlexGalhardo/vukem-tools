@@ -79,9 +79,9 @@ Documento vivo do projeto: contexto, marcos e microtarefas. Marque `[x]` ao conc
 ## Marco 4.1: Compressão para o lekzera.xyz
 
 - [x] `POST /api/v1/compress/media` e `POST /api/v1/compress/pdf` (backend, testes, docs)
-- [ ] Publicar no Koyeb: `koyeb service redeploy galhardo-video/backend` (o push não gerou deploy)
-- [ ] Definir `API_KEY` no Koyeb e no projeto `video.lekzera.xyz` da Vercel (hoje a API está aberta)
-- [ ] No `lekzera.xyz` (Vercel): definir `VIDEO_API_URL` e `VIDEO_API_KEY`
+- [x] Publicar no Koyeb (o push não gerou deploy; foi por `koyeb service update`)
+- [x] `API_KEY` no Koyeb (secret) e no projeto `video.lekzera.xyz` da Vercel
+- [x] No `lekzera.xyz` (Vercel): `VIDEO_API_URL` e `VIDEO_API_KEY`
 
 ## Marco 5: Melhorias futuras (backlog)
 

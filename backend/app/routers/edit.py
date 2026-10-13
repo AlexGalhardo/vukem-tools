@@ -45,9 +45,12 @@ def _require_ffmpeg() -> None:
 		raise VideoProcessingError("ffmpeg não está disponível no servidor.")
 
 
-async def _save_upload(file: UploadFile) -> Path:
-	suffix = Path(file.filename or "").suffix.lower()
-	dst = settings.DOWNLOAD_DIR / f"upload_{uuid.uuid4().hex}{suffix if suffix in _UPLOAD_SUFFIXES else '.mp4'}"
+async def _save_upload(file: UploadFile, suffix: str | None = None) -> Path:
+	"""Grava o upload em blocos. ``suffix`` fixa a extensão; sem ele vale a do nome, se for de mídia."""
+	if suffix is None:
+		named = Path(file.filename or "").suffix.lower()
+		suffix = named if named in _UPLOAD_SUFFIXES else ".mp4"
+	dst = settings.DOWNLOAD_DIR / f"upload_{uuid.uuid4().hex}{suffix}"
 	total = 0
 	try:
 		with dst.open("wb") as out:

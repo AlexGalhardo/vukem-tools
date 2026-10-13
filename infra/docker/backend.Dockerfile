@@ -19,7 +19,7 @@ RUN npm ci && npx tsc && npm prune --omit=dev
 
 FROM --platform=linux/amd64 python:3.12-slim-bookworm
 WORKDIR /app
-RUN apt-get update && apt-get install -y --no-install-recommends ffmpeg curl \
+RUN apt-get update && apt-get install -y --no-install-recommends ffmpeg ghostscript curl \
 	&& rm -rf /var/lib/apt/lists/* \
 	&& useradd --create-home appuser
 ENV PATH="/opt/venv/bin:$PATH" \

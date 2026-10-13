@@ -23,6 +23,8 @@ Swagger em `/docs` (desligue com `DOCS_ENABLED=false`). Exemplos prontos em [`ba
 | GET | `/api/v1/edit/capabilities` | ffmpeg disponível, limite de upload |
 | POST | `/api/v1/edit/cut-crop` | multipart: `file`, `start`, `end`, `crop_x/y/w/h`, `output_format` |
 | POST | `/api/v1/edit/split` | multipart: `file`, `segment_seconds` (5–600) → `.zip` + `X-Clip-Count` |
+| POST | `/api/v1/compress/media` | multipart: `file` (vídeo ou áudio) → `.mp4` (H.264 CRF 28, AAC 128k) ou `.mp3` (128k) + `X-Original-Size`, `X-Compressed-Size`; `204` quando não há ganho |
+| POST | `/api/v1/compress/pdf` | multipart: `file` (PDF) → PDF com imagens a ~150 dpi (Ghostscript `/ebook`), mesmos headers; `204` quando não há ganho |
 
 Corpo de download: `{"url": "...", "format": "mp4" | "mp3", "quality": "best" | "worst"}`. `job_id` é hex de 32 caracteres.
 

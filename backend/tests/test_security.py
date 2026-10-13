@@ -87,3 +87,17 @@ def test_split_segment_bounds(client, segment_seconds):
 		data={"segment_seconds": str(segment_seconds)},
 	)
 	assert r.status_code == 422
+
+
+@requires_ffmpeg
+def test_hls_playlist_is_rejected_by_the_compressor(client):
+	playlist = b"#EXTM3U\n#EXT-X-TARGETDURATION:1\n#EXTINF:1,\nfile:///etc/passwd\n#EXT-X-ENDLIST\n"
+	r = client.post("/api/v1/compress/media", files={"file": ("evil.mp4", playlist, "video/mp4")})
+	assert r.status_code == 400
+	assert r.json()["error_type"] == "INVALID_MEDIA"
+
+
+def test_compress_requires_the_api_key(client, monkeypatch):
+	monkeypatch.setattr(settings, "API_KEY", "segredo")
+	r = client.post("/api/v1/compress/pdf", files={"file": ("a.pdf", b"%PDF-1.4\n", "application/pdf")})
+	assert r.status_code == 401

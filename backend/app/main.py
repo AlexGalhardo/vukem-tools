@@ -19,7 +19,7 @@ from app.errors import (
 	classify_oserror,
 )
 from app.platforms import detect_platform
-from app.routers import downloads, edit, health, platforms
+from app.routers import compress, downloads, edit, health, platforms
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s | %(levelname)s | %(name)s | %(message)s")
 logger = logging.getLogger("video-api")
@@ -67,7 +67,7 @@ async def api_key_and_headers(request: Request, call_next: RequestResponseEndpoi
 	return response
 
 
-for router in (health.router, *platforms.routers, downloads.router, edit.router):
+for router in (health.router, *platforms.routers, downloads.router, edit.router, compress.router):
 	app.include_router(router)
 
 

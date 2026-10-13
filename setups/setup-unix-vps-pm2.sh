@@ -61,7 +61,7 @@ port_in_use() { ss -Htln | awk -v p=":$1" '$4 ~ (p "$") {found=1} END {exit !fou
 step "1. Pacotes do sistema"
 export DEBIAN_FRONTEND=noninteractive
 apt-get update -y
-apt-get install -y --no-install-recommends ca-certificates curl git gnupg openssl ufw ffmpeg openssh-client \
+apt-get install -y --no-install-recommends ca-certificates curl git gnupg openssl ufw ffmpeg ghostscript openssh-client \
 	python3 python3-venv debian-keyring debian-archive-keyring apt-transport-https
 python3 -c 'import sys; raise SystemExit(sys.version_info < (3, 12))' || { echo "Python 3.12+ é obrigatório." >&2; exit 1; }
 

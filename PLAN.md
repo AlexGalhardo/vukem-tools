@@ -76,6 +76,12 @@ Documento vivo do projeto: contexto, marcos e microtarefas. Marque `[x]` ao conc
 - [ ] Dar `sudo` sem senha ao usuário de deploy para `bash setups/setup-unix-vps-pm2.sh`
 - [ ] Confirmar que a integração Git da Vercel usa Root Directory = `frontend`
 
+## Marco 4.1: Compressão para o lekzera.xyz
+
+- [x] `POST /api/v1/compress/media` e `POST /api/v1/compress/pdf` (backend, testes, docs)
+- [ ] Na VPS: reexecutar `setups/setup-unix-vps-pm2.sh` (instala o Ghostscript) depois do deploy
+- [ ] No `lekzera.xyz` (Vercel): definir `VIDEO_API_URL` e `VIDEO_API_KEY` (a `API_KEY` deste backend)
+
 ## Marco 5: Melhorias futuras (backlog)
 
 - [ ] Registro de jobs em Redis para rodar mais de 1 worker/réplica

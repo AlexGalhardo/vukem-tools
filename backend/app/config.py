@@ -74,6 +74,7 @@ class Settings(BaseSettings):
 
 	FFMPEG_BIN: str = "ffmpeg"
 	FFPROBE_BIN: str = "ffprobe"
+	GHOSTSCRIPT_BIN: str = "gs"
 	# 0 = ffmpeg decide; 1 reduz o pico de RAM em servidores pequenos.
 	FFMPEG_THREADS: int = 0
 

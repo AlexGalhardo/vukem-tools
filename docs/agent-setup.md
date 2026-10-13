@@ -7,14 +7,13 @@ painel. Estado conferido em 2026-10-13. Nenhum segredo fica neste repositório: 
 
 | Parte | Onde | Como publica |
 |---|---|---|
-| Backend (FastAPI) | Koyeb, app `galhardo-video`, serviço `backend`, região `was`, instância `free`: atende o site de vídeo | build do `infra/docker/backend.Dockerfile` a partir do `main` |
-| Backend de compressão | Railway, projeto `video-lekzera-xyz`, serviço `backend` (mesmo código e mesma `API_KEY`): atende o `lekzera.xyz` | `railway up --service backend` na raiz deste repositório (`RAILWAY_DOCKERFILE_PATH` aponta o Dockerfile) |
+| Backend (FastAPI) | Railway, projeto `video-lekzera-xyz`, serviço `backend`: atende o site de vídeo e a compressão do `lekzera.xyz` | `railway up --service backend` na raiz deste repositório (`RAILWAY_DOCKERFILE_PATH` aponta o Dockerfile) |
 | Frontend (Next.js) | Vercel, projeto `video.lekzera.xyz` (time `galhardos-projects`) | integração Git da Vercel |
 | Código | GitHub `AlexGalhardo/video.lekzera.xyz` (privado; o nome antigo `galhardo-video.vercel.app` redireciona) | `git push origin main` |
 | VPS Hostinger | alternativa de hospedagem (`setups/setup-unix-vps-pm2.sh`); **não é o backend em produção hoje** | SSH ou `cd.yml` |
 
-Endereços públicos: `https://galhardo-video-alexgalhardo-b4e8425d.koyeb.app` (Koyeb) e
-`https://backend-production-293e.up.railway.app` (Railway).
+Endereço público: `https://backend-production-293e.up.railway.app` (valor de `API_BASE_URL` na Vercel). O Koyeb saiu
+de uso em 2026-10-13: o endereço antigo parou de responder e o login da CLI expirou.
 
 ## Ferramentas e estado
 

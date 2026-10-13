@@ -7,6 +7,7 @@ Todas as mudanças relevantes deste projeto ficam aqui. O formato segue o [Keep 
 ### Added
 
 - Compressão por API, para o gerenciador de arquivos do `lekzera.xyz`: `POST /api/v1/compress/media` (vídeo → `.mp4` H.264 CRF 28 + AAC 128k; áudio → `.mp3` 128k) e `POST /api/v1/compress/pdf` (Ghostscript, imagens a ~150 dpi). Respondem `204` quando o resultado não fica menor.
+- `docs/hostinger-agent-setup.md`: como agentes de IA operam a VPS pela API pública e pelo MCP da Hostinger, e o que o Alex configura uma vez.
 - Ghostscript instalado pelo `setup-unix-vps-pm2.sh`, pela imagem Docker do backend e pelo CI; binário configurável em `GHOSTSCRIPT_BIN`.
 - Identificação do deploy que respondeu (Koyeb + Vercel, VPS Hostinger, Docker): `DEPLOY_TARGET` no backend (autodetecta `Koyeb (<região>)` pelas variáveis `KOYEB_*`), header `X-Deploy-Target` em toda resposta e campo `deploy_target` em `/` e `/health`.
 - Frontend: route handlers carimbam `X-Frontend-Deploy` (`Vercel (<região>)` ou `DEPLOY_TARGET`) e `X-Backend-Deploy`; nova rota `/api/deploy`; badge na navbar com `frontend → api` e aviso no console quando a resposta muda de deploy.

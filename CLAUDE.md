@@ -16,6 +16,7 @@ Monorepo de download e edição de vídeos.
 - [`PLAN.md`](PLAN.md): estado e próximos marcos
 - [`docs/architecture.md`](docs/architecture.md), [`docs/development.md`](docs/development.md), [`docs/deployment.md`](docs/deployment.md)
 - [`docs/youtube.md`](docs/youtube.md), [`docs/security.md`](docs/security.md), [`docs/api.md`](docs/api.md)
+- [`docs/hostinger-agent-setup.md`](docs/hostinger-agent-setup.md): VPS da Hostinger por API e MCP
 
 ## Skills
 

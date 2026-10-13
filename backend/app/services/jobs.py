@@ -21,6 +21,7 @@ from typing import Any, Literal
 from app.config import settings
 from app.errors import ERR_INTERNAL, AppError, OutOfMemoryError, ServerBusyError, classify_oserror
 from app.models.schemas import OutputFormat, VideoQuality
+from app.services.compressor import compress_media
 from app.services.downloader import ProgressHook, bytes_to_mb, get_service
 from app.services.editor import SEGMENT_SECONDS, build_clips_zip, split_into_segments
 from app.utils.filenames import sanitize_filename
@@ -50,6 +51,9 @@ class DownloadJob:
 	error: str | None = None
 	error_status: int = 502
 	error_type: str = ERR_INTERNAL
+	# Compressão depois do download: tamanhos antes e depois, quando houve ganho.
+	original_bytes: int | None = None
+	compressed_bytes: int | None = None
 	# Modo clipes: ``clips`` é a lista pública (sem caminhos de disco).
 	clips: list[dict[str, Any]] | None = None
 	clip_paths: list[Path] = field(default_factory=list)
@@ -105,6 +109,8 @@ class DownloadJob:
 			"filename": self.filename,
 			"detail": self.error,
 			"error_type": self.error_type if self.status == "error" else None,
+			"original_mb": bytes_to_mb(self.original_bytes),
+			"compressed_mb": bytes_to_mb(self.compressed_bytes),
 			"clips": self.clips,
 			"clip_count": len(self.clips) if self.clips is not None else None,
 		}
@@ -196,11 +202,34 @@ def _postprocessor_hook(job: DownloadJob, ceiling: float = 99.0) -> ProgressHook
 	return hook
 
 
-async def _run_download(job: DownloadJob, platform: str, url: str, fmt: OutputFormat, quality: VideoQuality) -> None:
+async def _compress(job: DownloadJob, path: Path) -> Path:
+	"""Comprime o vídeo baixado e fica com o menor dos dois. Uma falha aqui nunca derruba o download."""
+	job.status, job.phase = "processing", "Comprimindo o vídeo"
+	job.percent = max(job.percent, 99.0)
+	job.touch()
+	try:
+		out = await compress_media(path)
+	except AppError as e:
+		logger.warning("Job %s: compressão falhou (%s); o original é entregue", job.id, e.error_type)
+		return path
+	original, compressed = path.stat().st_size, out.stat().st_size
+	if compressed >= original:
+		cleanup_files(out)
+		return path
+	cleanup_files(path)
+	job.original_bytes, job.compressed_bytes = original, compressed
+	return out
+
+
+async def _run_download(
+	job: DownloadJob, platform: str, url: str, fmt: OutputFormat, quality: VideoQuality, compress: bool = False
+) -> None:
 	try:
 		path, pretty, media_type = await get_service(platform).download_file(
 			url, fmt, quality, _progress_hook(job), _postprocessor_hook(job)
 		)
+		if compress and fmt == OutputFormat.MP4:
+			path = await _compress(job, path)
 		job.finish(path, pretty, media_type)
 	except Exception as e:  # noqa: BLE001 - o job em background precisa sempre terminar num estado
 		job.fail(e, generic="Erro inesperado ao baixar o vídeo.")
@@ -251,9 +280,11 @@ async def _run_clips(
 		job.touch()
 
 
-def start_download_job(platform: str, url: str, fmt: OutputFormat, quality: VideoQuality) -> DownloadJob:
+def start_download_job(
+	platform: str, url: str, fmt: OutputFormat, quality: VideoQuality, compress: bool = False
+) -> DownloadJob:
 	job = _new_job()
-	return _spawn(job, _run_download(job, platform, url, fmt, quality))
+	return _spawn(job, _run_download(job, platform, url, fmt, quality, compress))
 
 
 def start_clips_job(

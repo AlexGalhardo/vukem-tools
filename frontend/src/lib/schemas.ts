@@ -98,6 +98,9 @@ export const downloadJobSchema = z.object({
 	detail: z.string().nullish(),
 	// Código estável do erro quando status === "error" (ver src/lib/errors.ts).
 	error_type: z.string().nullish(),
+	// Preenchidos quando o vídeo foi comprimido depois de baixado e ficou menor.
+	original_mb: z.number().nullish(),
+	compressed_mb: z.number().nullish(),
 	// Preenchidos só quando o job é do modo "Clipes p/ Stories" e terminou.
 	clips: z.array(clipInfoSchema).nullish(),
 	clip_count: z.number().nullish(),

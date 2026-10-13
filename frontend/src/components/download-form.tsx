@@ -36,7 +36,13 @@ import {
 	SelectValue,
 } from "@/components/ui/select";
 import { resolveErrorMessage } from "@/lib/errors";
-import { formatEta, formatMB, formatSpeed, formatTimecode } from "@/lib/format";
+import {
+	formatEta,
+	formatMB,
+	formatSaving,
+	formatSpeed,
+	formatTimecode,
+} from "@/lib/format";
 import { errorMessage, postJson, requestJson, triggerBrowserDownload } from "@/lib/http";
 import {
 	type DownloadJob,
@@ -139,7 +145,12 @@ export function DownloadForm() {
 					setBusy(false);
 					if (mode === "single") {
 						triggerBrowserDownload(`/api/download/file/${jobId}`, data.filename);
-						toast.success("Download pronto! Salvando o arquivo…");
+						const saving = formatSaving(data.original_mb, data.compressed_mb);
+						toast.success(
+							saving
+								? `Download pronto e comprimido: ${saving}. Salvando o arquivo…`
+								: "Download pronto! Salvando o arquivo…",
+						);
 					} else {
 						toast.success(
 							`${data.clip_count ?? data.clips?.length ?? 0} clipes de 60s gerados.`,
@@ -279,6 +290,13 @@ export function DownloadForm() {
 							{clipsEstimate ? ` · ~${clipsEstimate} partes` : ""}
 						</Button>
 					</div>
+
+					{job?.status === "finished" &&
+						formatSaving(job.original_mb, job.compressed_mb) && (
+							<p className="text-sm text-muted-foreground" aria-live="polite">
+								Compressão: {formatSaving(job.original_mb, job.compressed_mb)}
+							</p>
+						)}
 
 					{showProgress && (
 						<div className="flex flex-col gap-1.5" aria-live="polite">

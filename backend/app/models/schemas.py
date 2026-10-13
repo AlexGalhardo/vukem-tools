@@ -38,6 +38,10 @@ class DownloadRequest(BaseModel):
 		default=VideoQuality.BEST,
 		description="Qualidade do vídeo quando format=mp4 (ignorado em mp3)",
 	)
+	compress: bool = Field(
+		default=False,
+		description="Comprime o MP4 depois de baixar (só em /download/start; ignorado em mp3 e nos clipes)",
+	)
 
 	model_config = {
 		"json_schema_extra": {
@@ -121,6 +125,9 @@ class DownloadJobStatus(BaseModel):
 		default=None,
 		description=("Código estável do erro quando status=='error' (ver app/errors.py)."),
 	)
+	# Preenchidos quando o vídeo foi comprimido depois de baixado e ficou menor.
+	original_mb: Optional[float] = None
+	compressed_mb: Optional[float] = None
 	# Preenchidos apenas quando o job é do modo "Clipes p/ Stories" e terminou.
 	clips: Optional[list[ClipInfo]] = None
 	clip_count: Optional[int] = None

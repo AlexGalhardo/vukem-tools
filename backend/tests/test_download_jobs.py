@@ -170,3 +170,62 @@ def test_toolarge_job_file_returns_413(client):
 
 	f = client.get(f"/api/v1/downloads/{job_id}/file")
 	assert f.status_code == 413
+
+
+# --------------------------- compressão depois do download ---------------------------
+
+
+def _start_compressed(client, fmt="mp4"):
+	r = client.post(
+		"/api/v1/twitter/download/start",
+		json={"url": "https://x.com/a/status/1", "format": fmt, "compress": True},
+	)
+	assert r.status_code == 200
+	return r.json()["job_id"]
+
+
+def test_compressed_download_delivers_the_smaller_file_and_reports_the_saving(client, monkeypatch):
+	async def smaller(src):
+		out = settings.DOWNLOAD_DIR / f"compress_{uuid.uuid4().hex}.mp4"
+		out.write_bytes(b"SMALL")
+		return out
+
+	monkeypatch.setattr("app.services.jobs.compress_media", smaller)
+	job_id = _start_compressed(client)
+	s = _wait(client, job_id)
+	assert s["status"] == "finished"
+	assert s["original_mb"] is not None and s["compressed_mb"] is not None
+	job = jobs._JOBS[job_id]
+	assert (job.original_bytes, job.compressed_bytes) == (len(b"JOBDATA-" * 512), len(b"SMALL"))
+	f = client.get(f"/api/v1/downloads/{job_id}/file")
+	assert f.content == b"SMALL"
+	assert list(settings.DOWNLOAD_DIR.glob("*")) == []
+
+
+def test_compression_without_gain_or_failing_keeps_the_original(client, monkeypatch):
+	async def bigger(src):
+		out = settings.DOWNLOAD_DIR / f"compress_{uuid.uuid4().hex}.mp4"
+		out.write_bytes(src.read_bytes() * 2)
+		return out
+
+	async def broken(src):
+		raise DownloadError("ffmpeg falhou")
+
+	for fake in (bigger, broken):
+		monkeypatch.setattr("app.services.jobs.compress_media", fake)
+		job_id = _start_compressed(client)
+		s = _wait(client, job_id)
+		assert s["status"] == "finished"
+		assert s["original_mb"] is None and s["compressed_mb"] is None
+		assert client.get(f"/api/v1/downloads/{job_id}/file").content.startswith(b"JOBDATA-")
+		assert list(settings.DOWNLOAD_DIR.glob("*")) == []
+
+
+def test_mp3_and_plain_downloads_are_not_compressed(client, monkeypatch):
+	async def never(src):
+		raise AssertionError("a compressão não pode rodar aqui")
+
+	monkeypatch.setattr("app.services.jobs.compress_media", never)
+	assert _wait(client, _start_compressed(client, "mp3"))["status"] == "finished"
+	r = client.post("/api/v1/twitter/download/start", json={"url": "https://x.com/a/status/1", "format": "mp4"})
+	assert _wait(client, r.json()["job_id"])["status"] == "finished"

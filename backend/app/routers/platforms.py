@@ -53,7 +53,7 @@ def build_platform_router(spec: Platform) -> APIRouter:
 		summary="Inicia o download em background e devolve o job_id para polling",
 	)
 	async def download_start(payload: DownloadRequest) -> DownloadJobCreated:
-		job = start_download_job(spec.name, checked_url(payload), payload.format, payload.quality)
+		job = start_download_job(spec.name, checked_url(payload), payload.format, payload.quality, payload.compress)
 		return DownloadJobCreated(job_id=job.id)
 
 	@router.post(

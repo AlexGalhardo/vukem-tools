@@ -18,6 +18,23 @@ export function formatMB(mb?: number | null): string {
 	return `${mb.toFixed(1)} MB`;
 }
 
+/** (48.2, 15.9) -> "48.2 MB → 15.9 MB (−32.3 MB, −67%)". Null quando não houve ganho. */
+export function formatSaving(
+	originalMb?: number | null,
+	compressedMb?: number | null,
+): string | null {
+	if (
+		originalMb == null ||
+		compressedMb == null ||
+		originalMb <= 0 ||
+		compressedMb >= originalMb
+	)
+		return null;
+	const saved = originalMb - compressedMb;
+	const percent = Math.round((saved / originalMb) * 100);
+	return `${formatMB(originalMb)} → ${formatMB(compressedMb)} (−${formatMB(saved)}, −${percent}%)`;
+}
+
 /** bytes/s -> "2,4 MB/s". */
 export function formatSpeed(bps?: number | null): string | null {
 	if (!bps || bps <= 0) return null;

@@ -21,6 +21,12 @@ export async function forwardDownloadRequest(
 	return proxyJson(`${PLATFORM_PREFIX[platform]}/${endpoint}`, {
 		method: "POST",
 		headers: { "Content-Type": "application/json" },
-		body: JSON.stringify({ url, format, quality }),
+		// O download simples sai comprimido; os clipes já são reencodados no fatiamento.
+		body: JSON.stringify({
+			url,
+			format,
+			quality,
+			compress: endpoint === "download/start",
+		}),
 	});
 }

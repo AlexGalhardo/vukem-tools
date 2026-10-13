@@ -20,7 +20,7 @@ Endereço público do backend: `https://galhardo-video-alexgalhardo-b4e8425d.koy
 |---|---|---|
 | `gh` (GitHub CLI) | repositório, releases, execuções do Actions | logado como `AlexGalhardo` |
 | `vercel` (CLI 62) | envs e deploys do frontend | logado; escolher o projeto com `vercel link --project video.lekzera.xyz` |
-| `koyeb` (CLI) | envs, secrets, deploys e logs do backend | logado; o binário está em `~/OneDrive/Documentos/koyeb/koyeb.exe` e **não está no PATH** |
+| `koyeb` (CLI) | envs, secrets, deploys e logs do backend | logado; `~/OneDrive/Documentos/koyeb` está no PATH do usuário |
 | MCP da Hostinger (plugin `hostinger` do Claude Code) | VPS, DNS, domínios | autorizado por OAuth; ver [`hostinger-agent-setup.md`](hostinger-agent-setup.md) |
 | MCP do GitHub (plugin `github`) | o mesmo que o `gh` | **falhando**: o token configurado é recusado (HTTP 401); o `gh` cobre |
 
@@ -28,7 +28,7 @@ Endereço público do backend: `https://galhardo-video-alexgalhardo-b4e8425d.koy
 
 1. `gh auth login`
 2. `vercel login`
-3. `koyeb login` (abre o navegador) e pôr a pasta do `koyeb.exe` no PATH do usuário.
+3. `koyeb login` (abre o navegador); no PATH do usuário vai a pasta do `koyeb.exe`, não o arquivo.
 4. Hostinger: autorizar o plugin no navegador (o agente gera o link) ou
    `claude mcp add --transport http hostinger https://mcp.hostinger.com`.
 5. Opcional: corrigir o token do plugin `github` do Claude Code.

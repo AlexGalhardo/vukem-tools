@@ -97,22 +97,26 @@ and a `/up` route. What is left is below.
   - [x] Layout: `cmd/`, `app/`, `bootstrap/`, `database/`, `resources/`, `routes/`, `tests/`
   - [ ] `internal/` for the conversion packages — created with the first one, in S2
   - [x] Config through `vukem/config`
-  - [ ] `.env.example` listing **every** variable the app reads: it currently has only the eight
-        the scaffold wrote, and nothing for Postgres, the bucket, ClamAV, the engines, the
-        limits or the quota
+  - [x] `.env.example` lists every variable the app reads, grouped and commented, including the
+        ones whose feature lands later (bucket, ClamAV, engines, limits, quota), so nothing is
+        configured by reading the source
   - [x] Structured logging through `vukem/logging`
   - [x] `GET /up` creates no session, asserted by `TestHealthProbeCreatesNoSession` and confirmed
         in production (`set-cookie: 0`). It still runs through `session`, `csrf`, `inertia`,
         `shareProps` and `shareAuth` (`vukem route:list`); moving it to a server-level middleware
         is now a performance question, not a correctness one, and belongs with the S1.13 work
-  - [ ] A deep readiness check covering the database, the queue, the bucket and the engines
-  - [ ] `X-Deploy-Target` on every response, so it is obvious which deploy answered
+  - [x] A deep readiness check: `app.AddHealthCheck` for `database` and `queue`, reported by the
+        framework's own `GET /up?checks=1` and `ReadyHandler` — no second endpoint was needed. The
+        bucket and the engines get theirs in S1.7 and S1.11
+  - [x] `X-Deploy-Target` on every response, server-level so static files and 404s carry it too,
+        falling back to `unknown` so a missing header always means the middleware is not running
 - [ ] HTTP hardening from the start
   - [ ] Security headers (`X-Content-Type-Options`, `X-Frame-Options`, `Referrer-Policy`, CSP)
         asserted by a test rather than assumed from `DefaultMiddleware`
   - [ ] CSRF for browser routes through `vukem/csrf`; API routes exempt and token-authenticated
-  - [ ] RFC 9457 `problem+json` error bodies on every API route, each carrying a stable
-        machine-readable `type`
+  - [x] RFC 9457 `problem+json` on every API route, verified in production:
+        `GET /api/v1/me` without a key answers
+        `{"type","title","status","detail","instance","request_id"}`
   - [ ] Request body limits and request timeouts set explicitly
 
 #### Quality asserts
@@ -178,21 +182,35 @@ and a `/up` route. What is left is below.
 
 ### S1.5 API keys
 
-- [ ] Keys through `auth.Tokens`
-  - [ ] Create, list, revoke, and show-once display of the plaintext key
-  - [ ] Abilities per tool (`image:convert`, `image:compress`, `video:download`,
-        `video:convert`, `audio:convert`, `pixels:svg`, `pdf:compress`)
-  - [ ] `X-API-Key` header accepted, exactly as the Telegram bot sends it today
-  - [ ] `Authorization: Bearer` accepted as well, for OpenAPI clients
-  - [ ] Last-used timestamp and the key's prefix shown in the UI
-- [ ] Management page under the account area
+- [x] Keys through `auth.Tokens`
+  - [x] Create (`POST /api/v1/tokens`), list (`GET /api/v1/tokens`), revoke the current key
+        (`DELETE /api/v1/tokens/current`) and revoke one by id
+        (`DELETE /api/v1/tokens/{token}`, scoped with `RevokeFor` so guessing another user's id
+        revokes nothing and answers like an unknown id)
+  - [x] The plaintext key is returned once and never stored; only its SHA-256 hash is
+  - [x] Abilities per tool in `app/abilities`, a closed set published at `GET /api/v1/abilities`.
+        The issuing endpoint **requires** a non-empty list, refuses an unknown ability and refuses
+        the `"*"` wildcard — the scaffold minted every key with `"*"`, which defeated the
+        framework's own `auth.Ability` gate (audit A85)
+  - [x] `X-API-Key` accepted as well as `Authorization: Bearer`, through
+        `internal/httpx.AcceptAPIKeyHeader`, because vukem's token guard reads only
+        `Authorization` (audit A86). Authorization wins when both are sent; `Vary: X-API-Key` set
+  - [ ] Last-used timestamp and the key's prefix shown in the UI — needs the account page (S1.10)
+- [ ] Management page under the account area (S1.10)
 
 #### Quality asserts
 
-- A key without the required ability gets `403` and the response names the missing ability
-- A revoked key gets `401` on the next request, with no caching window
-- The plaintext key is never stored: `rg` finds no column or log line holding it
-- `go test -race ./internal/apikeys/...` covers create, use, missing ability, revoke and expiry
+- [x] A key without the ability gets `403`, one with it `200`, and none `401`
+      (`TestKeyWithoutTheAbilityIsRefused`, against a test-only route since no tool exists yet)
+- [x] A revoked key gets `401` on the next request (`TestRevokeByIDIsScopedToTheOwner`)
+- [x] Another user's key id revokes nothing and is answered exactly like an unknown id, so the
+      response never says whether the id was real
+- [x] The plaintext key is never stored, and the listing never contains it
+      (`TestKeyCarriesRequestedAbilitiesAndListingHidesSecrets`)
+- [x] Abilities are required, closed and wildcard-free
+      (`TestKeyAbilitiesAreRequiredAndClosed`, four cases)
+- [x] `X-API-Key` authenticates, whitespace does not, and `Authorization` wins over a stale one
+      (`TestAPIKeyHeaderIsAccepted`)
 
 ### S1.6 Job pipeline
 

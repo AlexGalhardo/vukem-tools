@@ -10,6 +10,7 @@ import (
 	"github.com/AlexGalhardo/vukem/router"
 
 	"github.com/AlexGalhardo/vukem-tools/app/controllers"
+	"github.com/AlexGalhardo/vukem-tools/internal/httpx"
 	"github.com/AlexGalhardo/vukem-tools/resources"
 )
 
@@ -19,6 +20,9 @@ func Web(r *router.Router, app *vukem.App) error {
 		return err
 	}
 
+	// Server level, so every response carries it: static files, 404s and the
+	// health probe included.
+	r.UseServer(httpx.DeployTarget(app.Source.Get("DEPLOY_TARGET")))
 	r.UseServer(middleware.StaticFS(resources.Public(), middleware.StaticConfig{Prefix: "/"}))
 	r.Use(app.Inertia.Middleware, shareProps(app))
 

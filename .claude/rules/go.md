@@ -8,6 +8,9 @@
   count.
 - Strong typing on exported APIs: explicit return types, no `any` where a type exists.
 - Fix the root cause. Never silence an error, skip a test or add `//nolint` to make a check pass.
+  The one exception is a linter false positive: then `//nolint:<linter> // <rule>: <why it is not
+  a finding>` on that line, naming the rule and the reason. A bare `//nolint`, or one whose comment
+  restates the rule instead of refuting it, is silencing.
 - Measure before claiming: `go test -bench . -benchmem`, and record wall-clock and peak RSS per
   conversion kind in `docs/benchmarks.md`.
 - Validate with the narrowest command (one package, one spec) before claiming done, and show the

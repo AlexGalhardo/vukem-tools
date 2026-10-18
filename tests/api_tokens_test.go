@@ -7,6 +7,7 @@ import (
 	"github.com/AlexGalhardo/vukem/orm"
 	"github.com/AlexGalhardo/vukem/vukemtest"
 
+	"github.com/AlexGalhardo/vukem-tools/app/abilities"
 	"github.com/AlexGalhardo/vukem-tools/app/accounts"
 	"github.com/AlexGalhardo/vukem-tools/app/models"
 	"github.com/AlexGalhardo/vukem-tools/bootstrap"
@@ -42,6 +43,7 @@ func apiUser(t *testing.T, app *vukemtest.App, email string) string {
 
 	r := app.Client(t).PostJSON("/api/v1/tokens", map[string]any{
 		"email": email, "password": "correct horse battery", "device_name": "cli",
+		"abilities": []string{abilities.ImageConvert},
 	}).AssertCreated().AssertJSONPath("type", "Bearer")
 
 	tok, _ := r.JSONPath("token")
@@ -60,6 +62,7 @@ func TestAPITokenNeedsVerifiedEmail(t *testing.T) {
 
 	app.Client(t).PostJSON("/api/v1/tokens", map[string]any{
 		"email": "squatter@example.com", "password": "correct horse battery", "device_name": "cli",
+		"abilities": []string{abilities.ImageConvert},
 	}).AssertForbidden()
 	vukemtest.AssertDatabaseCount(t, app, "access_tokens", 0)
 }
@@ -76,6 +79,7 @@ func TestTokenLifecycle(t *testing.T) {
 	app.Client(t).GetJSON("/api/v1/me").AssertUnauthorized()
 	app.Client(t).PostJSON("/api/v1/tokens", map[string]any{
 		"email": "dev@example.com", "password": "wrong", "device_name": "cli",
+		"abilities": []string{abilities.ImageConvert},
 	}).AssertJSONValidationErrors("email")
 
 	api.Delete("/api/v1/tokens/current").AssertNoContent()

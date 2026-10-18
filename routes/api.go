@@ -12,6 +12,7 @@ import (
 
 	"github.com/AlexGalhardo/vukem-tools/app/accounts"
 	"github.com/AlexGalhardo/vukem-tools/app/controllers/apiv1"
+	"github.com/AlexGalhardo/vukem-tools/internal/httpx"
 )
 
 // API registers /api/v1: token issuance and revocation, /me, CORS from
@@ -51,13 +52,19 @@ func API(r *router.Router, app *vukem.App) error {
 	issue := ratelimit.Middleware(limiters("api.tokens", 5, time.Minute), ratelimit.ByIP)
 
 	r.Group("/api/v1", func(g *router.Group) {
-		g.Use(middleware.JSONOnly(), perIP)
+		// httpx.AcceptAPIKeyHeader runs before the guard: it rewrites
+		// X-API-Key into Authorization, which is the only place vukem's token
+		// guard looks (see framework-feedback).
+		g.Use(middleware.JSONOnly(), httpx.AcceptAPIKeyHeader, perIP)
 		g.Post("/tokens", h.Issue).Name("tokens.store").Use(issue)
+		g.Get("/abilities", h.Abilities).Name("abilities")
 
 		g.Group("", func(p *router.Group) {
 			p.Use(auth.Required(acc.API), perToken)
 			p.Get("/me", h.Me).Name("me")
+			p.Get("/tokens", h.Index).Name("tokens.index")
 			p.Delete("/tokens/current", h.Revoke).Name("tokens.destroy")
+			p.Delete("/tokens/{token}", h.RevokeOne).Name("tokens.revoke")
 		})
 	}).Name("api.v1.")
 

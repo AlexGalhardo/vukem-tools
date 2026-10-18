@@ -75,7 +75,7 @@ All decided:
 - **Type detection:** magic bytes via `gabriel-vasile/mimetype`. Never the file extension, never
   the client's `Content-Type`.
 - **Malware:** ClamAV through `clamd`, wired from the start (`vukem/upload` integrates it).
-- **Result lifetime:** 1 hour, then deleted. The Railway volume is small and a full disk takes the
+- **Result lifetime:** 5 minutes, then deleted (revised 2026-10-18; it was 1 hour). The Railway volume is small and a full disk takes the
   service down.
 
 ### 3.4 Licensing

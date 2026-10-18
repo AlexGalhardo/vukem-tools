@@ -5,6 +5,7 @@ go 1.27.2
 require (
 	github.com/AlexGalhardo/vukem v0.28.0
 	github.com/AlexGalhardo/vukem/drivers/postgres v0.4.0
+	github.com/AlexGalhardo/vukem/drivers/s3 v0.3.0
 	github.com/gabriel-vasile/mimetype v1.4.16
 	github.com/jackc/pgx/v5 v5.11.0
 )

@@ -19,6 +19,21 @@ Engine and licence research: [docs/web-research.md](docs/web-research.md).
 - Finishing a phase triggers the framework-feedback ritual in
   [§ Framework feedback](#framework-feedback). That step is not optional.
 
+## Global rules
+
+Product rules that hold across every tool, not just every commit.
+
+- **A result lives 5 minutes.** From the moment a conversion finishes, the user has five minutes to
+  download it; after that the object and its row are deleted and the download link stops working.
+  The interface must say so next to the download button, and the API reports it as `expires_at` on
+  every conversion, so no client has to infer it. The reason is cost and liability in equal measure:
+  the bucket is billed by what sits in it, and a file nobody is waiting for is a file we are keeping
+  for no one. Set by `RESULT_TTL_MINUTES`; five is the default and the documented promise.
+- **An unfinished upload lives 24 hours.** A resumable upload that was never completed is scratch
+  space, not a result: long enough to survive a bad connection and a night's sleep, then swept.
+- **Login is required for every tool.** There is no anonymous conversion, so every file on the
+  service has an owner and every quota has somebody to charge.
+
 ## Global quality gates
 
 These hold for every commit in every phase.
@@ -259,7 +274,8 @@ and a `/up` route. What is left is below.
   - [ ] Railway object storage through `vukem/drivers/s3`, shared by the `web` and `worker`
         services
   - [ ] Signed download URLs with a short TTL (`vukem/signed`)
-  - [ ] Results expire after 1 hour; a scheduled command deletes expired objects and rows
+  - [ ] Results expire **5 minutes** after they are produced; a scheduled command deletes the
+        expired objects and rows (see [§ Global rules](#global-rules))
   - [ ] Disk never used as the primary store; the local directory is scratch space only
 
 #### Quality asserts
@@ -708,17 +724,177 @@ phase with its own asserts when it is picked up; the engines are already researc
 - [ ] **Archives** — ZIP, TAR, GZ, XZ, ZSTD, BR create and extract (`mholt/archives`,
       `klauspost/compress`); 7z write through `7zz`; RAR **read only**, because the unRAR licence
       forbids recreating RAR compression.
-- [ ] **PDF structural operations** — merge, split, rotate, watermark, encrypt, decrypt, page
-      extraction (`pdfcpu`, `qpdf`); PDF → images (`pdftoppm`); images → PDF (`img2pdf`);
-      PDF → text and Markdown.
-- [ ] **OCR** — scanned PDF → searchable PDF with OCRmyPDF and Tesseract.
-- [ ] **Office → PDF** — Gotenberg, or `unoserver` with a pool of per-worker LibreOffice profiles.
-      Last, because it adds roughly 1 GB to the image and is the most failure-prone.
+- [ ] **PDF** — its own phase, planned in [§ Phase S6](#phase-s6--pdf).
 - [ ] **Data formats** — CSV ↔ JSON ↔ XML ↔ XLSX (`excelize`), Parquet later.
 - [ ] **Fonts** — TTF ↔ OTF ↔ WOFF ↔ WOFF2 with `fonttools`, plus subsetting.
 - [ ] **Ebooks** — EPUB/MOBI/AZW3 ↔ PDF with Calibre (GPL-3.0).
 - [ ] **QR codes** — generation with `libqrencode`.
 - [ ] **3D and CAD** — only if the asset workflow demands it; every usable engine is GPL and large.
+
+---
+
+## Phase S6 — PDF
+
+The target is feature parity with <https://www.ilovepdf.com/pt>, tool for tool. The list below is
+their published catalogue as of 2026-10-18, read from the site rather than from memory, with a
+decision against each one: **take** it, take a **part** of it, or **skip** it with the reason.
+
+Nothing here is skipped for being difficult. Each skip is one of three things: it needs a
+proprietary or paid service, it needs a visual application rather than a conversion, or the
+open-source result would be bad enough that shipping it would be worse than not having it. A tool
+that would quietly produce a broken file is not a feature.
+
+Engines: `pdfcpu` (Apache-2.0, pure Go) for structure, `qpdf` (Apache-2.0) for encryption and
+repair, Ghostscript (**AGPL-3.0**, must be declared on `/licenses`) for compression, rasterisation
+and PDF/A, `pdftoppm`/`pdftotext` from Poppler (GPL-2.0) for rendering and text, OCRmyPDF
+(MPL-2.0) with Tesseract (Apache-2.0) for OCR, LibreOffice (MPL-2.0) headless for office formats.
+Licences verified in [docs/web-research.md](docs/web-research.md).
+
+### S6.1 Structure — take all
+
+- [ ] Merge PDF (*Juntar PDF*) — `pdfcpu merge`
+- [ ] Split PDF (*Dividir PDF*) — by page ranges, by every N pages, or into single pages
+- [ ] Extract pages (*Extrair páginas*) — a subset into one new file
+- [ ] Remove pages (*Remover páginas*) — the inverse of extract
+- [ ] Organise PDF (*Organizar PDF*) — reorder and delete pages from one page list
+- [ ] Rotate PDF (*Rodar PDF*) — per page or whole document, multiples of 90°
+- [ ] Crop PDF (*Recortar PDF*) — set the crop box, per page or uniformly
+
+#### Quality asserts
+
+- Merging two files produces a page count equal to the sum, and page 1 of the second input is
+  byte-identical as rendered to page *n+1* of the output
+- Splitting then merging the parts returns a document whose rendered pages match the original
+  page for page
+- Every operation preserves the document's outline, named destinations and internal links, or the
+  tool says in its description that it does not — a silently broken table of contents is a
+  regression nobody notices until a reader does
+- An encrypted input is refused with `unsupported_input` rather than producing an empty file
+
+### S6.2 Convert to PDF — take all but HTML
+
+- [ ] JPG to PDF (*JPG para PDF*) — also PNG, WebP, TIFF, AVIF; page size, orientation and margin
+- [ ] Word to PDF (*WORD para PDF*) — LibreOffice headless, `.docx` and `.doc`
+- [ ] PowerPoint to PDF (*POWERPOINT para PDF*) — `.pptx` and `.ppt`
+- [ ] Excel to PDF (*EXCEL para PDF*) — `.xlsx` and `.xls`
+- [ ] **Skip** HTML to PDF (*HTML para PDF*) — it needs a headless Chromium in the image, which
+      roughly doubles it, plus a sandbox and an egress policy for a tool whose whole job is
+      fetching URLs the user supplies. That is a server-side request forgery surface wrapped in a
+      400 MB dependency. Revisit only with a dedicated, network-isolated worker
+
+#### Quality asserts
+
+- A 30-page `.docx` with embedded fonts converts with its fonts embedded, not substituted
+- LibreOffice runs with a per-job profile directory, so two concurrent conversions cannot corrupt
+  one another's user profile — the failure mode is a silent hang, so there is a test for it
+- The office engines are absent from the default image and the tools are hidden, not broken, when
+  the binary is missing: `/up?checks=1` reports which engines resolved
+
+### S6.3 Convert from PDF — take the faithful ones
+
+- [ ] PDF to JPG (*PDF para JPG*) — per page, also PNG and WebP, with a DPI option
+- [ ] PDF to PDF/A (*PDF para PDF/A*) — Ghostscript, PDF/A-1b, 2b and 3b, with a conformance report
+- [ ] PDF to text and Markdown (*PDF para Markdown*) — **part**: `pdftotext -layout` plus heading
+      and list heuristics. Headings, paragraphs, lists and simple tables. Not a layout
+      reconstruction, and the tool page says so
+- [ ] **Skip** PDF to Word (*PDF para WORD*) — there is no open-source converter that produces an
+      editable, faithful `.docx`. LibreOffice imports a PDF as a Draw document of absolutely
+      positioned text boxes; saving that as `.docx` yields a file that opens and cannot be edited.
+      Shipping it would generate support rather than value
+- [ ] **Skip** PDF to PowerPoint (*PDF para POWERPOINT*) — the same, worse: slide semantics cannot
+      be recovered from page images
+- [ ] **Skip** PDF to Excel (*PDF para EXCEL*) — table extraction good enough to trust needs
+      Camelot or Tabula (Python, and Tabula needs a JVM), and both still fail on merged cells and
+      borderless tables. A spreadsheet that is subtly wrong is worse than no spreadsheet
+
+#### Quality asserts
+
+- Rasterising at 150 DPI a page whose size is known produces an image of the expected pixel
+  dimensions, within one pixel
+- A PDF/A conversion is validated by a second tool (`verapdf`, or Ghostscript's own report), not
+  by the absence of an error
+- The Markdown output of a document with three heading levels keeps all three, and a round trip
+  through Markdown does not lose a list
+
+### S6.4 Optimise — take all
+
+- [ ] Compress PDF (*Comprimir PDF*) — Ghostscript, three levels, image downsampling, with the
+      before and after sizes reported
+- [ ] Repair PDF (*Reparar PDF*) — `qpdf --replace-input` structural rebuild, best effort, with the
+      limits stated on the page
+- [ ] OCR PDF (*OCR PDF*) — OCRmyPDF plus Tesseract, searchable text layer, language selectable
+
+#### Quality asserts
+
+- Compression never increases the file size: a document already optimised is returned unchanged
+  with a message saying so, not re-encoded into something larger
+- Compression at the mildest level keeps every page's rendered appearance within a perceptual
+  threshold of the original, measured, not eyeballed
+- OCR on a scanned page produces text extractable with `pdftotext`, and the image layer is
+  unchanged
+- Repair is honest: a file it cannot rebuild fails with `unsupported_input` rather than returning a
+  document that opens empty
+
+### S6.5 Security — take most
+
+- [ ] Protect PDF (*Proteger PDF*) — `qpdf` AES-256, owner and user passwords, permission flags
+- [ ] Unlock PDF (*Desbloquear PDF*) — **only** with the password supplied by the user. The tool
+      page states plainly that it removes a password you know; it does not attempt to recover one
+      it was not given, and there is no brute-force path in the code
+- [ ] Compare PDF (*Comparar PDF*) — **part**: a text-level diff through `pdftotext`, page aligned.
+      A visual pixel diff is a later addition
+- [ ] **Skip** Sign PDF (*Assinar PDF*) — a cryptographic signature means holding the signer's
+      private key, or proxying a certificate authority. Key custody for other people is a
+      liability this project will not take on, and a signature that is not legally meaningful is
+      theatre. The honest alternative, a visible image stamp, is the watermark tool
+- [ ] **Skip** Redact PDF (*Ocultar PDF*) — true redaction removes the content, not just covers it.
+      Drawing a black rectangle over text that `pdftotext` still extracts is a security failure
+      dressed as a feature, and it is the single most dangerous thing on this list to get wrong.
+      Only with content-stream editing plus a test that greps the output for the redacted string
+
+#### Quality asserts
+
+- A protected file cannot be opened by `pdftotext` without the password, and can with it
+- Unlock refuses a wrong password with a dedicated message and never reveals whether the file had
+  an owner password, a user password or both
+- No code path takes more than one password attempt per request, proven by a test
+
+### S6.6 Edit — mostly skipped, deliberately
+
+- [ ] Add page numbers (*Inserir números de página*) — `pdfcpu stamp`, position, format and range
+- [ ] Add watermark (*Inserir marca d'água*) — text or image, opacity, rotation, position, range
+- [ ] PDF forms (*Formulários PDF*) — **part**: list the fields, fill them from JSON, and flatten.
+      Not a visual form designer
+- [ ] **Skip** Edit PDF (*Editar PDF*) — adding text, images and shapes on a canvas is an
+      application, not a conversion: it needs a client-side PDF renderer, a content-stream editor
+      and a document model with undo. It does not belong in a pipeline whose unit of work is "one
+      file in, one file out", and half of it would be worse than none
+- [ ] **Skip** Scan to PDF (*Digitalize e transforme em PDF*) — it is a phone camera feature:
+      capture, edge detection, perspective correction. The useful half we already have, as
+      "images to PDF"
+
+#### Quality asserts
+
+- A watermark on a 500-page document is applied in one pass, with peak memory independent of the
+  page count, recorded in `docs/benchmarks.md`
+- Filling a form and flattening it produces text `pdftotext` can read at the field's position
+- A page range that names a page the document does not have is a validation error, not a silently
+  skipped page
+
+### S6.7 Not in scope — AI tools
+
+- [ ] **Skip** Summarise with AI (*Resumir com IA*), Translate PDF (*Traduzir PDF*) — both need a
+      language model. A self-hosted toolbox cannot ship one of a useful size, and routing a user's
+      document to a third-party API contradicts the point of self-hosting. If this is ever wanted,
+      it belongs behind an explicit, per-user opt-in with the provider named on the page
+
+#### Quality asserts
+
+- `/licenses` lists Ghostscript as AGPL-3.0 and Poppler as GPL-2.0, with what that means for
+  anyone self-hosting this, before any tool that uses them ships
+- Every skipped tool above appears on the tools page as "not available", with the reason in one
+  sentence, rather than being silently absent: a visitor comparing us with iLovePDF should find the
+  answer here, not wonder
 
 ---
 

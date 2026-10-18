@@ -16,9 +16,14 @@ import (
 	"time"
 
 	vukem "github.com/AlexGalhardo/vukem"
+	"github.com/AlexGalhardo/vukem/config"
+	"github.com/AlexGalhardo/vukem/drivers/s3"
+	"github.com/AlexGalhardo/vukem/signed"
 	"github.com/AlexGalhardo/vukem/sse"
+	"github.com/AlexGalhardo/vukem/storage"
 
 	"github.com/AlexGalhardo/vukem-tools/app/tools"
+	"github.com/AlexGalhardo/vukem-tools/internal/files"
 	"github.com/AlexGalhardo/vukem-tools/internal/ids"
 	"github.com/AlexGalhardo/vukem-tools/internal/jobs"
 	"github.com/AlexGalhardo/vukem-tools/internal/pgbroker"
@@ -39,6 +44,9 @@ type Conversions struct {
 	store  *jobs.Store
 	pipe   *jobs.Pipeline
 	reaper *jobs.Reaper
+	files  *files.Store
+	signer *signed.Signer
+	disk   storage.Disk
 }
 
 // NewConversions returns an unresolved Conversions. Nothing is built until
@@ -65,10 +73,27 @@ func (c *Conversions) Pipeline() *jobs.Pipeline { return c.pipe }
 // succeeded.
 func (c *Conversions) Reaper() *jobs.Reaper { return c.reaper }
 
+// Files returns the file store. Resolve must have succeeded.
+func (c *Conversions) Files() *files.Store { return c.files }
+
+// Signer signs and verifies download links. Resolve must have succeeded.
+func (c *Conversions) Signer() *signed.Signer { return c.signer }
+
 // Default settings, used when the matching variable is unset.
 const (
-	defaultResultTTLMinutes = 60
+	defaultResultTTLMinutes = 5
 	defaultWorkRoot         = "storage/work"
+	// defaultUploadRoot holds partial resumable uploads. It is scratch
+	// space: a finished upload is moved to the bucket and the partial data
+	// deleted, so nothing here has to survive a restart.
+	defaultUploadRoot = "storage/uploads"
+	// defaultMaxUploadMB is the largest file accepted, matching the figure
+	// in .env.example and the one the interface advertises.
+	defaultMaxUploadMB = 500
+	// uploadExpiry is how long an unfinished resumable upload is kept before
+	// the cleanup deletes it. Long enough to survive a bad connection and a
+	// night's sleep, short enough that abandoned bytes do not accumulate.
+	uploadExpiry = 24 * time.Hour
 	// reapAfter is how long a conversion may go without progress before it is
 	// treated as abandoned. It must stay comfortably above the longest tool
 	// timeout plus the queue's reclaim grace, or a slow conversion would be
@@ -146,9 +171,111 @@ func (c *Conversions) build(app *vukem.App) error {
 		Log:   app.Log,
 		Now:   app.Now,
 	})
+	if err != nil {
+		return err
+	}
+
+	return c.buildFiles(app, ttl)
+}
+
+// buildFiles wires the file store: the bucket, the signer for download links,
+// and the lifetime a result keeps.
+func (c *Conversions) buildFiles(app *vukem.App, ttl time.Duration) error {
+	db, err := app.DB()
+	if err != nil {
+		return fmt.Errorf("services: database: %w", err)
+	}
+
+	if c.disk, err = openDisk(app); err != nil {
+		return err
+	}
+
+	// A separate key for signing links, derived from APP_KEY: a link
+	// signature must not be made with the same key that encrypts cookies, so
+	// that leaking one does not forge the other. The previous keys keep links
+	// made before a key rotation working until they expire.
+	key, err := app.DeriveKey("signed.urls", 32)
+	if err != nil {
+		return fmt.Errorf("services: derive the URL signing key: %w", err)
+	}
+
+	c.signer = signed.New(key).
+		WithPreviousKeys(app.DerivePreviousKeys("signed.urls", 32)...).
+		WithClock(app.Now)
+
+	c.files, err = files.New(files.Options{
+		DB:      db,
+		Disk:    c.disk,
+		IDs:     ids.NewGenerator(),
+		Signer:  c.signer,
+		BaseURL: app.Config.URL,
+		TTL:     ttl,
+		Now:     app.Now,
+		Log:     app.Log,
+	})
 
 	return err
 }
+
+// openDisk returns the bucket results live in.
+//
+// Production must have a bucket: the web service and the worker are separate
+// containers with separate filesystems, so a local disk there would mean a
+// worker writing a result nobody can download. Outside production a local
+// directory keeps `vukem serve` working with no cloud account, and the log
+// says which one is in use so nobody is surprised by it.
+func openDisk(app *vukem.App) (storage.Disk, error) {
+	bucket := app.Source.Get("S3_BUCKET")
+	if bucket == "" {
+		if app.Config.IsProduction() {
+			return nil, errors.New("services: S3_BUCKET is required in production: " +
+				"the web and worker services share no filesystem, so results must live in a bucket")
+		}
+
+		dir := app.Source.Get("STORAGE_DIR")
+		if dir == "" {
+			dir = defaultStorageDir
+		}
+
+		app.Log.Warn("services: no S3_BUCKET, keeping results on local disk", "dir", dir)
+
+		// No public base URL: every download goes through a signed app
+		// route, so the disk must not hand out URLs of its own.
+		return storage.NewLocal(dir, "")
+	}
+
+	cfg, err := config.Load[s3.Config](app.Source)
+	if err != nil {
+		return nil, fmt.Errorf("services: S3 configuration: %w", err)
+	}
+
+	disk, err := s3.New(cfg)
+	if err != nil {
+		return nil, fmt.Errorf("services: object storage: %w", err)
+	}
+
+	return disk, nil
+}
+
+// defaultStorageDir is where results go without a bucket (development only).
+const defaultStorageDir = "storage/app"
+
+// UploadRoot is where partial resumable uploads are kept.
+func UploadRoot(app *vukem.App) string {
+	if dir := app.Source.Get("UPLOAD_DIR"); dir != "" {
+		return dir
+	}
+
+	return defaultUploadRoot
+}
+
+// MaxUploadBytes is the largest file accepted.
+func MaxUploadBytes(app *vukem.App) int64 {
+	return int64(intFrom(app, "MAX_UPLOAD_SIZE_MB", defaultMaxUploadMB)) << 20
+}
+
+// UploadExpiry is how long an unfinished resumable upload is kept.
+func UploadExpiry() time.Duration { return uploadExpiry }
 
 // ReapEvery is how often the scheduled sweep should run.
 func ReapEvery() time.Duration { return reapEvery }

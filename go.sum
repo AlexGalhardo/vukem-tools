@@ -2,6 +2,8 @@ github.com/AlexGalhardo/vukem v0.28.0 h1:AQEh4C3OKCCo8T3gx2JUKpXoGzqMAarnon9ZudK
 github.com/AlexGalhardo/vukem v0.28.0/go.mod h1:I1SNhde10HmdHxvnDHCRf7GOQ4POIM36pFYUGPkLlFI=
 github.com/AlexGalhardo/vukem/drivers/postgres v0.4.0 h1:1LZo9IMbfLUrV5f2vn5KzDxMJBJudQrwRE5txAmNkmY=
 github.com/AlexGalhardo/vukem/drivers/postgres v0.4.0/go.mod h1:DYXTl6+wYdG/+EnMsnLTxQxDpxyi38Axa4JE7140SUI=
+github.com/AlexGalhardo/vukem/drivers/s3 v0.3.0 h1:bwPBpYcubXieRuC4GFvgMrq739BRfZK+7Ed9rQyuwlk=
+github.com/AlexGalhardo/vukem/drivers/s3 v0.3.0/go.mod h1:cUnXHvLv+v4MiEVhiDDTzUfW8LNXsysrjCM5dFz4wWM=
 github.com/davecgh/go-spew v1.1.0/go.mod h1:J7Y8YcW2NihsgmVo/mv3lAwl/skON4iLHjSsI+c5H38=
 github.com/davecgh/go-spew v1.1.1 h1:vj9j/u1bqnvCEfJOwUhtlOARqs3+rkHYY13jYWTU97c=
 github.com/davecgh/go-spew v1.1.1/go.mod h1:J7Y8YcW2NihsgmVo/mv3lAwl/skON4iLHjSsI+c5H38=

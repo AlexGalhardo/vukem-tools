@@ -5,6 +5,14 @@
 const MIN_LENGTH = 8;
 const MAX_LENGTH = 64;
 
+// The server counts runes: z.String().Min/.Max use utf8.RuneCountInString,
+// while JavaScript's String.length counts UTF-16 code units. They disagree for
+// anything outside the Basic Multilingual Plane — an emoji is one rune and two
+// code units — so a naive mirror would tell someone their 8-emoji password is
+// long enough when the server sees 8 runes, or refuse one the server accepts.
+// Counting code points is what makes the two agree.
+const runes = (value: string) => Array.from(value).length;
+
 // A special character is anything that is not a letter, not a digit and not
 // whitespace — the same definition the server uses. Unicode-aware, so an
 // accented letter counts as a letter rather than as a symbol.
@@ -27,7 +35,7 @@ function requiredRules(password: string, confirmation?: string): Rule[] {
   const rules: Rule[] = [
     {
       label: `Between ${MIN_LENGTH} and ${MAX_LENGTH} characters`,
-      ok: password.length >= MIN_LENGTH && password.length <= MAX_LENGTH,
+      ok: runes(password) >= MIN_LENGTH && runes(password) <= MAX_LENGTH,
     },
     { label: "An upper-case letter", ok: hasUpper(password) },
     { label: "A lower-case letter", ok: hasLower(password) },
@@ -52,9 +60,11 @@ function strength(password: string): number {
 
   let score = 0;
 
-  if (password.length >= MIN_LENGTH) score++;
-  if (password.length >= 16) score++;
-  if (password.length >= 24) score++;
+  const length = runes(password);
+
+  if (length >= MIN_LENGTH) score++;
+  if (length >= 16) score++;
+  if (length >= 24) score++;
   if (hasUpper(password) && hasLower(password) && hasDigit(password) && hasSpecial(password)) {
     score++;
   }

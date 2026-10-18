@@ -31,8 +31,10 @@ export default function ResetPassword({ token, email }: { token: string; email: 
           <PasswordField
             label="New password"
             autoComplete="new-password"
-            minLength={8}
-            maxLength={64}
+            // No minLength or maxLength: the browser counts UTF-16 code units
+            // while the server counts runes, so the attribute would refuse a
+            // password the API accepts. PasswordStrength does the counting
+            // the server's way, and the server has the final word.
             required
             value={form.data.password}
             onChange={(e) => form.setData("password", e.target.value)}

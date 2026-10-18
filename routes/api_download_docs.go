@@ -11,10 +11,14 @@ import (
 // calls applyDomainExamples once per domain, which is one line per domain
 // instead of a conflict per tool.
 //
-// workaround(vukem): openapi.MediaType carries a schema and nothing else, and
-// no struct tag feeds an example, so an example can only go in the JSON
-// Schema `examples` keyword of the schema itself. That is also why these are
-// written by hand rather than derived from the Go types.
+// The examples go into the schema's JSON Schema `examples` keyword, which is
+// what tests/openapi_test.go asserts on. This is *not* a framework
+// limitation: vukem v0.29.0's openapi.MediaType carries Example and Examples
+// (proper OpenAPI Example Objects), and openapi.Parameter fills Example from
+// an `example:"..."` struct tag, so a body example belongs on the media type
+// and a parameter example on the field. Moving to MediaType.Example means
+// changing hasExample in tests/openapi_test.go at the same time, which is
+// repo-wide: see the note in the S3 hand-off.
 
 // DomainExamples is one domain's contribution to the document: examples for
 // its component schemas and for its request bodies.

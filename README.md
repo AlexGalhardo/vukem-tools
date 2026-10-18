@@ -24,8 +24,10 @@ demanding on top of it.
 
 ## Status
 
-Phase S1 of the [ROADMAP](ROADMAP.md): the foundation — the app skeleton, accounts, API keys, the
-job pipeline, uploads, storage and the deploy. No tool ships until that is done.
+Phase S3 of the [ROADMAP](ROADMAP.md). The foundation (S1) and Pixels to SVG (S2) are in; S3 adds
+downloading from a URL, cutting and cropping, and compression. A tool whose engine is missing from
+the image is not registered at all, so the tool index shows it as planned rather than offering a
+form that cannot work — `GET /api/v1/capabilities` reports which engines a given deployment has.
 
 ## Tools
 
@@ -107,6 +109,20 @@ deserve the credit for the approach.
 
 The full list, engine by engine, is on the `/licenses` page and in
 [docs/web-research.md](docs/web-research.md).
+
+### Downloading from a platform
+
+The video download tool fetches from YouTube, Instagram, X and TikTok with
+[yt-dlp](https://github.com/yt-dlp/yt-dlp). **Downloading a video may breach the platform's terms
+of service, and you are responsible for what you download and for what you do with it.** This
+project provides a tool; it grants no right to the material the tool fetches. Copyright in a video
+belongs to whoever made it, and neither the project nor whoever runs an instance of it can give you
+permission you do not already have.
+
+Downloading is restricted to those four platforms by design. yt-dlp's `generic` extractor will
+fetch any URL at all, which would turn the endpoint into an open proxy inside whatever network it
+runs in, so the URL is matched against a closed list of platforms and yt-dlp is restricted to that
+platform's own extractors.
 
 ## Contributing
 

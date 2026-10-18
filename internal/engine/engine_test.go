@@ -59,7 +59,7 @@ func TestMain(m *testing.M) {
 		time.Sleep(60 * time.Second)
 		os.Exit(0)
 	case "env":
-		for _, name := range []string{"DATABASE_URL", "APP_KEY", "PATH"} {
+		for _, name := range []string{"DATABASE_URL", "APP_KEY", "PATH", "HOME", "TMPDIR", "TEMP", "TMP"} {
 			os.Stdout.WriteString(name + "=" + os.Getenv(name) + "\n")
 		}
 
@@ -290,6 +290,35 @@ func TestTheEngineDoesNotInheritTheServerEnvironment(t *testing.T) {
 
 	if !strings.Contains(printed, "PATH=") {
 		t.Fatalf("the engine has no PATH:\n%s", printed)
+	}
+}
+
+// Every scratch file an engine writes has to land in the directory that is
+// deleted when the job ends.
+//
+// This is a containment boundary rather than tidiness. Ghostscript's -dSAFER
+// permits writing to the temp directory, so with the default TMPDIR a hostile
+// PostScript program can write anywhere under /tmp — verified against
+// Ghostscript 10.05.1, where the same document is refused with
+// /invalidfileaccess once TMPDIR is the job's own directory. ffmpeg's muxers
+// and yt-dlp's fragment handling put their scratch files there too.
+func TestTheEnginesTemporaryDirectoryIsItsOwnWorkingDirectory(t *testing.T) {
+	t.Parallel()
+
+	dir := t.TempDir()
+
+	var out strings.Builder
+
+	if _, err := run(t, newRunner(t, engine.Limits{}), "env", engine.Command{Dir: dir, Stdout: &out}); err != nil {
+		t.Fatalf("run: %v", err)
+	}
+
+	printed := out.String()
+
+	for _, name := range []string{"TMPDIR", "TEMP", "TMP", "HOME"} {
+		if want := name + "=" + dir; !strings.Contains(printed, want) {
+			t.Errorf("the engine has no %s:\n%s", want, printed)
+		}
 	}
 }
 

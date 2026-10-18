@@ -17,20 +17,6 @@ import (
 	"github.com/AlexGalhardo/vukem-tools/internal/jobs"
 )
 
-// audioTools is the audio conversion and transcription domain (S4.4 and
-// S4.5).
-//
-// It returns nothing because the tools need the engine registry and the
-// runner, and the signature All calls it with carries only the file store.
-// AudioTools below is the real constructor; wiring it up is a change to
-// app/tools/tools.go and app/services/conversions.go, which this domain does
-// not own. See the report that accompanies this branch.
-//
-// Transcription (S4.5) is not here: whisper.cpp and its model are not in the
-// production image, and a transcription tool without a model is a tool that
-// accepts work it cannot do.
-func audioTools(*files.Store) []jobs.Tool { return nil }
-
 // AudioTools is the audio domain's tools.
 func AudioTools(f *files.Store, m *Media) []jobs.Tool {
 	if !m.HasFFmpeg() {

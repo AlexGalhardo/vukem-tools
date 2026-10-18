@@ -16,16 +16,6 @@ import (
 	"github.com/AlexGalhardo/vukem-tools/internal/jobs"
 )
 
-// imageTools is the raster images: convert, compress, resize, crop, rotate
-// domain (S4.1 to S4.3).
-//
-// It returns nothing because the tools need the engine registry and the
-// runner, and the signature All calls it with carries only the file store.
-// ImageTools below is the real constructor; wiring it up is a change to
-// app/tools/tools.go and app/services/conversions.go, which this domain does
-// not own. See the report that accompanies this branch.
-func imageTools(*files.Store) []jobs.Tool { return nil }
-
 // ImageTools is the image domain's tools.
 //
 // Without an engine it returns nothing rather than a tool that fails on its

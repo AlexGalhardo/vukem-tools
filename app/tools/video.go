@@ -17,15 +17,6 @@ import (
 	"github.com/AlexGalhardo/vukem-tools/internal/video"
 )
 
-// videoTools is the video conversion domain (S4.4).
-//
-// It returns nothing because the tools need the engine registry and the
-// runner, and the signature All calls it with carries only the file store.
-// VideoTools below is the real constructor; wiring it up is a change to
-// app/tools/tools.go and app/services/conversions.go, which this domain does
-// not own. See the report that accompanies this branch.
-func videoTools(*files.Store) []jobs.Tool { return nil }
-
 // VideoTools is the video domain's tools.
 func VideoTools(f *files.Store, m *Media) []jobs.Tool {
 	if !m.HasFFmpeg() {

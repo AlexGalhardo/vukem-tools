@@ -12,6 +12,8 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"os"
+	"path/filepath"
 	"strconv"
 	"strings"
 	"sync"
@@ -54,6 +56,7 @@ type Conversions struct {
 
 	engines *engine.Registry
 	runner  *engine.Runner
+	media   *tools.Media
 
 	// telemetry is set before Resolve, so the pipeline can record into
 	// instruments the telemetry provider owns. It may be nil in a test that
@@ -94,6 +97,10 @@ func (c *Conversions) Reaper() *jobs.Reaper { return c.reaper }
 
 // Files returns the file store. Resolve must have succeeded.
 func (c *Conversions) Files() *files.Store { return c.files }
+
+// Media is the probed media capability set, so a route can publish what this
+// build can actually read and write without probing a second time.
+func (c *Conversions) Media() *tools.Media { return c.media }
 
 // SetTelemetry gives the pipeline the conversion instruments. It is called
 // during wiring, before Resolve, because the telemetry provider is registered
@@ -144,6 +151,10 @@ func (c *Conversions) SweepUploads(ctx context.Context) (int, error) {
 const (
 	defaultResultTTLMinutes = 5
 	defaultWorkRoot         = "storage/work"
+	// mediaProbeTimeout bounds the boot-time capability probe. It is nine
+	// small subprocesses, so a minute is generous; the point is that a wedged
+	// engine fails the boot rather than hanging it.
+	mediaProbeTimeout = time.Minute
 	// defaultUploadRoot holds partial resumable uploads. It is scratch
 	// space: a finished upload is moved to the bucket and the partial data
 	// deleted, so nothing here has to survive a restart.
@@ -255,13 +266,30 @@ func (c *Conversions) build(app *vukem.App) error {
 		return err
 	}
 
+	// Probing is a boot cost on purpose: it trial-encodes four pixels per
+	// candidate format, because libvips having heifsave compiled in and
+	// libheif shipping an encoder are different facts. Bounded so a wedged
+	// engine fails the boot instead of hanging it forever.
+	probeCtx, cancelProbe := context.WithTimeout(context.Background(), mediaProbeTimeout)
+	defer cancelProbe()
+
+	probeDir := filepath.Join(root, "capability-probe")
+	if err := os.MkdirAll(probeDir, 0o700); err != nil {
+		return fmt.Errorf("services: capability probe directory: %w", err)
+	}
+
+	c.media, err = tools.ResolveMedia(probeCtx, c.engines, c.runner, probeDir)
+	if err != nil {
+		return err
+	}
+
 	c.pipe, err = jobs.NewPipeline(jobs.PipelineOptions{
 		Store: c.store,
 		// Resolved on demand: app.Queue() asks for the job registrations,
 		// which ask for this pipeline, so resolving it here would be a
 		// circular build.
 		Queue:    app.Queue,
-		Tools:    tools.All(c.files),
+		Tools:    tools.All(c.files, tools.Engines{Registry: c.engines, Runner: c.runner, Config: app.Source}, c.media),
 		Quota:    c.quota,
 		WorkRoot: root,
 		Log:      app.Log,

@@ -148,6 +148,57 @@ type AbilityList struct {
 	Data []string `json:"data,omitempty"`
 }
 
+type EngineView struct {
+	// The engine, as the configuration names it.
+	Name *string `json:"name,omitempty"`
+	// Whether it was resolved at startup.
+	Present *bool `json:"present,omitempty"`
+	// The version it reported, empty when absent.
+	Version *string `json:"version,omitempty"`
+}
+
+type LimitsView struct {
+	// The longest clip a split produces.
+	MaxClipSeconds *int64 `json:"max_clip_seconds,omitempty"`
+	// The most clips one conversion delivers.
+	MaxClips *int64 `json:"max_clips,omitempty"`
+	// The largest download allowed, 0 for no cap.
+	MaxDownloadBytes *int64 `json:"max_download_bytes,omitempty"`
+	// The longest output a cut produces, 0 for no cap.
+	MaxOutputSeconds *int64 `json:"max_output_seconds,omitempty"`
+}
+
+type CapabilitiesView struct {
+	// Every external program, and whether this server has it.
+	Engines []EngineView `json:"engines,omitempty"`
+	// The numbers this server enforces.
+	Limits *LimitsView `json:"limits,omitempty"`
+	// Every tool that can be submitted.
+	Tools []string `json:"tools,omitempty"`
+}
+
+type Crop struct {
+	Height *int64 `json:"height,omitempty"`
+	Width  *int64 `json:"width,omitempty"`
+	X      *int64 `json:"x,omitempty"`
+	Y      *int64 `json:"y,omitempty"`
+}
+
+type ClipOptions struct {
+	// Clip length in seconds for split mode, 1 to 60. Default 60.
+	ClipSeconds *int64 `json:"clip_seconds,omitempty"`
+	// The area to keep, in pixels. Leave it out to keep the whole frame.
+	Crop *Crop `json:"crop,omitempty"`
+	// How much to keep, in seconds. 0 means to the end.
+	DurationSeconds *float64 `json:"duration_seconds,omitempty"`
+	// Cut exactly, by re-encoding. Slower; off by default, which cuts at the nearest keyframe.
+	FrameAccurate *bool `json:"frame_accurate,omitempty"`
+	// trim keeps one range, split cuts the whole video into clips. Default trim.
+	Mode *string `json:"mode,omitempty"`
+	// Where the cut starts, in seconds. Default 0.
+	StartSeconds *float64 `json:"start_seconds,omitempty"`
+}
+
 type ConversionView struct {
 	// Size of the input in bytes.
 	BytesIn *int64 `json:"bytes_in,omitempty"`
@@ -182,6 +233,21 @@ type ConversionList struct {
 	Data []ConversionView `json:"data,omitempty"`
 }
 
+type DownloadOptions struct {
+	// Clip length in seconds, 1 to 60. Default 60.
+	ClipSeconds *int64 `json:"clip_seconds,omitempty"`
+	// Split the result into consecutive clips, delivered individually and as a zip.
+	Clips *bool `json:"clips,omitempty"`
+	// Compress afterwards and keep whichever file is smaller.
+	Compress *bool `json:"compress,omitempty"`
+	// video keeps the picture, audio gives MP3. Default video.
+	Kind *string `json:"kind,omitempty"`
+	// best or smallest. Default best.
+	Quality *string `json:"quality,omitempty"`
+	// A YouTube, Instagram, X or TikTok URL.
+	URL string `json:"url"`
+}
+
 type ErrorCatalogEntry struct {
 	// What to tell the user.
 	Message *string `json:"message,omitempty"`
@@ -196,141 +262,49 @@ type ErrorCatalog struct {
 	Data []ErrorCatalogEntry `json:"data,omitempty"`
 }
 
-type ImagesToPDFOptions struct {
-	// contain fits inside the margins, fill covers the page, exact makes the page the image's own size. Default contain.
-	Fit *string `json:"fit,omitempty"`
-	// Points of space around the image, 0 to 144. Default 0.
-	Margin *float64 `json:"margin,omitempty"`
-	// auto turns each page to match its image. Also portrait or landscape. Default auto.
-	Orientation *string `json:"orientation,omitempty"`
-	// a4, a3, a5, letter or legal. Default a4.
-	PageSize *string `json:"page_size,omitempty"`
-	// Quality for images that have to be converted, 1 to 100. Default 90. A JPEG input is never re-encoded.
-	Quality *int64 `json:"quality,omitempty"`
+type MediaFormat struct {
+	// Its audio codec, or none.
+	Acodec *string `json:"acodec,omitempty"`
+	// Its total bitrate in kilobits per second.
+	BitrateKbps *float64 `json:"bitrate_kbps,omitempty"`
+	// Its size, 0 when the platform does not say.
+	Bytes *int64 `json:"bytes,omitempty"`
+	// Its container extension.
+	Ext *string `json:"ext,omitempty"`
+	// The platform's own format id.
+	ID *string `json:"id,omitempty"`
+	// Its frame size, empty for an audio-only stream.
+	Resolution *string `json:"resolution,omitempty"`
+	// Its video codec, or none.
+	Vcodec *string `json:"vcodec,omitempty"`
 }
 
-type PDFCompareOptions map[string]any
-
-type PDFCompressOptions struct {
-	// light keeps every page's appearance, balanced is the default, strong is for email.
-	Level *string `json:"level,omitempty"`
+type MediaView struct {
+	// How long it is.
+	DurationSeconds *float64 `json:"duration_seconds,omitempty"`
+	// The expected size at best quality. The cap is checked against this for quality=best.
+	EstimatedBytes *int64 `json:"estimated_bytes,omitempty"`
+	// Every stream the platform offers.
+	Formats []MediaFormat `json:"formats,omitempty"`
+	// The largest download this server allows.
+	MaxBytes *int64 `json:"max_bytes,omitempty"`
+	// youtube, instagram, x or tiktok.
+	Platform *string `json:"platform,omitempty"`
+	// The expected size at quality=smallest, 0 when the platform declares none.
+	SmallestBytes *int64 `json:"smallest_bytes,omitempty"`
+	// A link to the platform's own thumbnail.
+	Thumbnail *string `json:"thumbnail,omitempty"`
+	// The video's title, as the platform gives it.
+	Title *string `json:"title,omitempty"`
+	// Whether even the smallest stream is past the cap.
+	TooLarge *bool `json:"too_large,omitempty"`
+	// Who posted it.
+	Uploader *string `json:"uploader,omitempty"`
 }
 
-type PDFCropOptions struct {
-	// Points to trim from the bottom edge.
-	Bottom *float64 `json:"bottom,omitempty"`
-	// Points to trim from the left edge.
-	Left *float64 `json:"left,omitempty"`
-	// Pages to crop, as 1-3,5. Empty crops every page.
-	Pages *string `json:"pages,omitempty"`
-	// Points to trim from the right edge.
-	Right *float64 `json:"right,omitempty"`
-	// Points to trim from the top edge.
-	Top *float64 `json:"top,omitempty"`
-}
-
-type PDFMergeOptions map[string]any
-
-type PDFPageNumberOptions struct {
-	// The label, with {n} for the number and {total} for the count. Default {n}.
-	Format *string `json:"format,omitempty"`
-	// Pages to number, as 2-z. Empty numbers every page.
-	Pages *string `json:"pages,omitempty"`
-	// top-left to bottom-right. Default bottom-center.
-	Position *string `json:"position,omitempty"`
-	// Font size in points, 4 to 144. Default 10.
-	Size *float64 `json:"size,omitempty"`
-	// The number on the first numbered page. Default 1.
-	StartAt *int64 `json:"start_at,omitempty"`
-}
-
-type PDFPagesOptions struct {
-	// Pages, as 1-3,5,8-z. z is the last page.
-	Pages string `json:"pages"`
-}
-
-type PDFProtectOptions struct {
-	// Allow text to be copied out. Screen-reader access is always allowed.
-	AllowExtract *bool `json:"allow_extract,omitempty"`
-	// all, annotate, form, assembly or none. Default all.
-	Modify *string `json:"modify,omitempty"`
-	// The password that lifts the restrictions. Required, and must differ from the opening password.
-	OwnerPassword string `json:"owner_password"`
-	// full, low or none. Default full.
-	Print *string `json:"print,omitempty"`
-	// The password needed to open the document. Leave empty to restrict permissions only.
-	UserPassword *string `json:"user_password,omitempty"`
-}
-
-type PDFRepairOptions map[string]any
-
-type PDFRotateOptions struct {
-	// Set the rotation rather than add to the page's current one.
-	Absolute *bool `json:"absolute,omitempty"`
-	// 90, 180 or 270, clockwise. Default 90.
-	Degrees *int64 `json:"degrees,omitempty"`
-	// Pages to rotate, as 1-3,5. Empty rotates every page.
-	Pages *string `json:"pages,omitempty"`
-}
-
-type PDFSplitOptions struct {
-	// Pages per file, for the every mode. Default 1.
-	Every *int64 `json:"every,omitempty"`
-	// every splits into groups of n pages; ranges uses the ranges given. Default every.
-	Mode *string `json:"mode,omitempty"`
-	// One range per output file, for the ranges mode.
-	Ranges []string `json:"ranges,omitempty"`
-}
-
-type PDFToImageOptions struct {
-	// Resolution, 36 to 600. Default 150.
-	Dpi *int64 `json:"dpi,omitempty"`
-	// png or jpeg. Default png.
-	Format *string `json:"format,omitempty"`
-	// Pages to render, as 1-3,5. Empty renders every page.
-	Pages *string `json:"pages,omitempty"`
-	// JPEG quality, 1 to 100. Default 85.
-	Quality *int64 `json:"quality,omitempty"`
-}
-
-type PDFToPDFAOptions struct {
-	// PDF/A conformance: 1 for 1b, 2 for 2b, 3 for 3b. Default 2.
-	Part *int64 `json:"part,omitempty"`
-}
-
-type PDFToTextOptions struct {
-	// text or markdown. Default text.
-	Format *string `json:"format,omitempty"`
-	// Keep the page's column spacing, for the text format.
-	Layout *bool `json:"layout,omitempty"`
-	// Write a rule between pages, for the markdown format.
-	PageRules *bool `json:"page_rules,omitempty"`
-	// One continuous range such as 1-20. Empty reads the whole document.
-	Pages *string `json:"pages,omitempty"`
-}
-
-type PDFUnlockOptions struct {
-	// The password that opens the document. It is tried once; there is no recovery of a password you do not have.
-	Password string `json:"password"`
-}
-
-type PDFWatermarkOptions struct {
-	// Use the bold face.
-	Bold *bool `json:"bold,omitempty"`
-	// 0 black to 1 white. Default 0.
-	Gray *float64 `json:"gray,omitempty"`
-	// 0 invisible to 1 opaque. Default 0.18.
-	Opacity *float64 `json:"opacity,omitempty"`
-	// Pages to stamp, as 1-3,5. Empty stamps every page.
-	Pages *string `json:"pages,omitempty"`
-	// top-left to bottom-right, or center. Default center.
-	Position *string `json:"position,omitempty"`
-	// Angle in degrees anticlockwise. 45 is the usual diagonal.
-	Rotate *float64 `json:"rotate,omitempty"`
-	// Font size in points, 4 to 144. 0 picks a size from the page width.
-	Size *float64 `json:"size,omitempty"`
-	// The text to stamp. Unaccented Latin letters, digits and punctuation.
-	Text string `json:"text"`
+type NameList struct {
+	// The accepted values, in the order to show them.
+	Data []string `json:"data,omitempty"`
 }
 
 type PixelSVGOptions struct {
@@ -346,6 +320,20 @@ type PixelSVGOptions struct {
 	Simplify *float64 `json:"simplify,omitempty"`
 	// Merge colours closer than this (0 to 255). 0 disables merging.
 	Tolerance *int64 `json:"tolerance,omitempty"`
+}
+
+type PlatformView struct {
+	// The domains a URL may be on.
+	Hosts []string `json:"hosts,omitempty"`
+	// What to call it in an interface.
+	Label *string `json:"label,omitempty"`
+	// The stable id, as a conversion reports it.
+	Name *string `json:"name,omitempty"`
+}
+
+type PlatformList struct {
+	// Every platform a URL may belong to.
+	Data []PlatformView `json:"data,omitempty"`
 }
 
 type ResultFile struct {
@@ -460,168 +448,6 @@ type TokensStoreBody struct {
 	RecoveryCode *string `json:"recovery_code,omitempty"`
 }
 
-type ToolsImagesToPdfBody struct {
-	// The images, in page order. One to fifty.
-	FileIds []string `json:"file_ids"`
-	// Repeat a submission safely.
-	IdempotencyKey *string `json:"idempotency_key,omitempty"`
-	// Page size, orientation, fit and margin.
-	Options *ImagesToPDFOptions `json:"options,omitempty"`
-}
-
-type ToolsPdfCompareBody struct {
-	// Exactly two uploads: the earlier document first.
-	FileIds []string `json:"file_ids"`
-	// Repeat a submission safely: the same key returns the same conversion.
-	IdempotencyKey *string `json:"idempotency_key,omitempty"`
-	// Comparison has no options.
-	Options PDFCompareOptions `json:"options,omitempty"`
-}
-
-type ToolsPdfCompressBody struct {
-	// The id of an upload of yours.
-	FileID string `json:"file_id"`
-	// Repeat a submission safely.
-	IdempotencyKey *string `json:"idempotency_key,omitempty"`
-	// Which compression level to use.
-	Options *PDFCompressOptions `json:"options,omitempty"`
-}
-
-type ToolsPdfCropBody struct {
-	// The id of an upload of yours.
-	FileID string `json:"file_id"`
-	// Repeat a submission safely.
-	IdempotencyKey *string `json:"idempotency_key,omitempty"`
-	// How many points to trim from each edge.
-	Options PDFCropOptions `json:"options"`
-}
-
-type ToolsPdfExtractPagesBody struct {
-	// The id of an upload of yours.
-	FileID string `json:"file_id"`
-	// Repeat a submission safely.
-	IdempotencyKey *string `json:"idempotency_key,omitempty"`
-	// Which pages to keep.
-	Options PDFPagesOptions `json:"options"`
-}
-
-type ToolsPdfMergeBody struct {
-	// The uploads to join, in order. Two to fifty.
-	FileIds []string `json:"file_ids"`
-	// Repeat a submission safely: the same key returns the same conversion.
-	IdempotencyKey *string `json:"idempotency_key,omitempty"`
-	// Merging has no options; the order of file_ids is the order of the pages.
-	Options PDFMergeOptions `json:"options,omitempty"`
-}
-
-type ToolsPdfOrganiseBody struct {
-	// The id of an upload of yours.
-	FileID string `json:"file_id"`
-	// Repeat a submission safely.
-	IdempotencyKey *string `json:"idempotency_key,omitempty"`
-	// The pages in the order they should appear.
-	Options PDFPagesOptions `json:"options"`
-}
-
-type ToolsPdfPageNumbersBody struct {
-	// The id of an upload of yours.
-	FileID string `json:"file_id"`
-	// Repeat a submission safely.
-	IdempotencyKey *string `json:"idempotency_key,omitempty"`
-	// The label, the position and which pages.
-	Options *PDFPageNumberOptions `json:"options,omitempty"`
-}
-
-type ToolsPdfProtectBody struct {
-	// The id of an upload of yours.
-	FileID string `json:"file_id"`
-	// Repeat a submission safely.
-	IdempotencyKey *string `json:"idempotency_key,omitempty"`
-	// The passwords and the permissions.
-	Options PDFProtectOptions `json:"options"`
-}
-
-type ToolsPdfRemovePagesBody struct {
-	// The id of an upload of yours.
-	FileID string `json:"file_id"`
-	// Repeat a submission safely.
-	IdempotencyKey *string `json:"idempotency_key,omitempty"`
-	// Which pages to remove.
-	Options PDFPagesOptions `json:"options"`
-}
-
-type ToolsPdfRepairBody struct {
-	// The id of an upload of yours.
-	FileID string `json:"file_id"`
-	// Repeat a submission safely.
-	IdempotencyKey *string `json:"idempotency_key,omitempty"`
-	// Repair has no options.
-	Options PDFRepairOptions `json:"options,omitempty"`
-}
-
-type ToolsPdfRotateBody struct {
-	// The id of an upload of yours.
-	FileID string `json:"file_id"`
-	// Repeat a submission safely.
-	IdempotencyKey *string `json:"idempotency_key,omitempty"`
-	// How far to rotate, and which pages.
-	Options *PDFRotateOptions `json:"options,omitempty"`
-}
-
-type ToolsPdfSplitBody struct {
-	// The id of an upload of yours.
-	FileID string `json:"file_id"`
-	// Repeat a submission safely.
-	IdempotencyKey *string `json:"idempotency_key,omitempty"`
-	// How to split. Every field is optional.
-	Options *PDFSplitOptions `json:"options,omitempty"`
-}
-
-type ToolsPdfToImageBody struct {
-	// The id of an upload of yours.
-	FileID string `json:"file_id"`
-	// Repeat a submission safely.
-	IdempotencyKey *string `json:"idempotency_key,omitempty"`
-	// Format, resolution and which pages.
-	Options *PDFToImageOptions `json:"options,omitempty"`
-}
-
-type ToolsPdfToPdfaBody struct {
-	// The id of an upload of yours.
-	FileID string `json:"file_id"`
-	// Repeat a submission safely.
-	IdempotencyKey *string `json:"idempotency_key,omitempty"`
-	// Which conformance level to target.
-	Options *PDFToPDFAOptions `json:"options,omitempty"`
-}
-
-type ToolsPdfToTextBody struct {
-	// The id of an upload of yours.
-	FileID string `json:"file_id"`
-	// Repeat a submission safely.
-	IdempotencyKey *string `json:"idempotency_key,omitempty"`
-	// Text or Markdown, and which pages.
-	Options *PDFToTextOptions `json:"options,omitempty"`
-}
-
-type ToolsPdfUnlockBody struct {
-	// The id of an upload of yours.
-	FileID string `json:"file_id"`
-	// Repeat a submission safely.
-	IdempotencyKey *string `json:"idempotency_key,omitempty"`
-	// The password that opens the document.
-	Options PDFUnlockOptions `json:"options"`
-}
-
-type ToolsPdfWatermarkBody struct {
-	// The id of an upload of yours.
-	FileID string `json:"file_id"`
-	// Repeat a submission safely.
-	IdempotencyKey *string `json:"idempotency_key,omitempty"`
-	// The text and how to draw it.
-	Options PDFWatermarkOptions `json:"options"`
-}
-
 type ToolsPixelsToSvgBody struct {
 	// The id of an upload of yours, from the resumable upload endpoint.
 	FileID string `json:"file_id"`
@@ -631,10 +457,46 @@ type ToolsPixelsToSvgBody struct {
 	Options *PixelSVGOptions `json:"options,omitempty"`
 }
 
+type ToolsVideoClipBody struct {
+	// The id of an upload of yours, from the resumable upload endpoint.
+	FileID string `json:"file_id"`
+	// Repeat a submission safely: the same key returns the same conversion.
+	IdempotencyKey *string `json:"idempotency_key,omitempty"`
+	// How to cut. Every field is optional.
+	Options *ClipOptions `json:"options,omitempty"`
+}
+
+type ToolsVideoCompressBody struct {
+	// The id of an upload of yours, from the resumable upload endpoint.
+	FileID string `json:"file_id"`
+	// Repeat a submission safely: the same key returns the same conversion.
+	IdempotencyKey *string `json:"idempotency_key,omitempty"`
+}
+
+type ToolsVideoDownloadBody struct {
+	// Repeat a submission safely: the same key returns the same conversion.
+	IdempotencyKey *string `json:"idempotency_key,omitempty"`
+	// What to download and how.
+	Options *DownloadOptions `json:"options,omitempty"`
+}
+
+type ToolsVideoDownloadMetadataBody struct {
+	// A YouTube, Instagram, X or TikTok URL.
+	URL string `json:"url"`
+}
+
 // Abilities calls GET /api/v1/abilities: List the abilities a key may be granted.
 func (c *Client) Abilities(ctx context.Context) (AbilityList, error) {
 	var out AbilityList
 	err := c.do(ctx, "GET", "/api/v1/abilities", nil, nil, &out)
+
+	return out, err
+}
+
+// Capabilities calls GET /api/v1/capabilities: Report which engines this server has and what its limits are.
+func (c *Client) Capabilities(ctx context.Context) (CapabilitiesView, error) {
+	var out CapabilitiesView
+	err := c.do(ctx, "GET", "/api/v1/capabilities", nil, nil, &out)
 
 	return out, err
 }
@@ -679,6 +541,22 @@ func (c *Client) ConversionsShow(ctx context.Context, id string) (ConversionView
 	return out, err
 }
 
+// DownloadsClipModes calls GET /api/v1/clip-modes: List the cut modes.
+func (c *Client) DownloadsClipModes(ctx context.Context) (NameList, error) {
+	var out NameList
+	err := c.do(ctx, "GET", "/api/v1/clip-modes", nil, nil, &out)
+
+	return out, err
+}
+
+// DownloadsPlatforms calls GET /api/v1/download-platforms: List the platforms a video can be downloaded from.
+func (c *Client) DownloadsPlatforms(ctx context.Context) (PlatformList, error) {
+	var out PlatformList
+	err := c.do(ctx, "GET", "/api/v1/download-platforms", nil, nil, &out)
+
+	return out, err
+}
+
 // Me calls GET /api/v1/me: Show the authenticated account.
 func (c *Client) Me(ctx context.Context) (User, error) {
 	var out User
@@ -713,14 +591,6 @@ func (c *Client) TokensStore(ctx context.Context, body TokensStoreBody) (TokenIs
 	return out, err
 }
 
-// ToolsImagesToPdf calls POST /api/v1/tools/images-to-pdf: Bind images into a PDF, one per page.
-func (c *Client) ToolsImagesToPdf(ctx context.Context, body ToolsImagesToPdfBody) (ConversionView, error) {
-	var out ConversionView
-	err := c.do(ctx, "POST", "/api/v1/tools/images-to-pdf", nil, body, &out)
-
-	return out, err
-}
-
 // ToolsIndex calls GET /api/v1/tools: List the conversions on offer.
 func (c *Client) ToolsIndex(ctx context.Context) (ToolList, error) {
 	var out ToolList
@@ -729,146 +599,42 @@ func (c *Client) ToolsIndex(ctx context.Context) (ToolList, error) {
 	return out, err
 }
 
-// ToolsPdfCompare calls POST /api/v1/tools/pdf-compare: Compare two PDFs' text, page by page.
-func (c *Client) ToolsPdfCompare(ctx context.Context, body ToolsPdfCompareBody) (ConversionView, error) {
-	var out ConversionView
-	err := c.do(ctx, "POST", "/api/v1/tools/pdf-compare", nil, body, &out)
-
-	return out, err
-}
-
-// ToolsPdfCompress calls POST /api/v1/tools/pdf-compress: Make a PDF smaller.
-func (c *Client) ToolsPdfCompress(ctx context.Context, body ToolsPdfCompressBody) (ConversionView, error) {
-	var out ConversionView
-	err := c.do(ctx, "POST", "/api/v1/tools/pdf-compress", nil, body, &out)
-
-	return out, err
-}
-
-// ToolsPdfCrop calls POST /api/v1/tools/pdf-crop: Trim a PDF's margins.
-func (c *Client) ToolsPdfCrop(ctx context.Context, body ToolsPdfCropBody) (ConversionView, error) {
-	var out ConversionView
-	err := c.do(ctx, "POST", "/api/v1/tools/pdf-crop", nil, body, &out)
-
-	return out, err
-}
-
-// ToolsPdfExtractPages calls POST /api/v1/tools/pdf-extract-pages: Keep only the pages you name.
-func (c *Client) ToolsPdfExtractPages(ctx context.Context, body ToolsPdfExtractPagesBody) (ConversionView, error) {
-	var out ConversionView
-	err := c.do(ctx, "POST", "/api/v1/tools/pdf-extract-pages", nil, body, &out)
-
-	return out, err
-}
-
-// ToolsPdfMerge calls POST /api/v1/tools/pdf-merge: Join several PDFs into one.
-func (c *Client) ToolsPdfMerge(ctx context.Context, body ToolsPdfMergeBody) (ConversionView, error) {
-	var out ConversionView
-	err := c.do(ctx, "POST", "/api/v1/tools/pdf-merge", nil, body, &out)
-
-	return out, err
-}
-
-// ToolsPdfOrganise calls POST /api/v1/tools/pdf-organise: Reorder or duplicate pages.
-func (c *Client) ToolsPdfOrganise(ctx context.Context, body ToolsPdfOrganiseBody) (ConversionView, error) {
-	var out ConversionView
-	err := c.do(ctx, "POST", "/api/v1/tools/pdf-organise", nil, body, &out)
-
-	return out, err
-}
-
-// ToolsPdfPageNumbers calls POST /api/v1/tools/pdf-page-numbers: Stamp page numbers onto a PDF.
-func (c *Client) ToolsPdfPageNumbers(ctx context.Context, body ToolsPdfPageNumbersBody) (ConversionView, error) {
-	var out ConversionView
-	err := c.do(ctx, "POST", "/api/v1/tools/pdf-page-numbers", nil, body, &out)
-
-	return out, err
-}
-
-// ToolsPdfProtect calls POST /api/v1/tools/pdf-protect: Encrypt a PDF with a password.
-func (c *Client) ToolsPdfProtect(ctx context.Context, body ToolsPdfProtectBody) (ConversionView, error) {
-	var out ConversionView
-	err := c.do(ctx, "POST", "/api/v1/tools/pdf-protect", nil, body, &out)
-
-	return out, err
-}
-
-// ToolsPdfRemovePages calls POST /api/v1/tools/pdf-remove-pages: Remove the pages you name.
-func (c *Client) ToolsPdfRemovePages(ctx context.Context, body ToolsPdfRemovePagesBody) (ConversionView, error) {
-	var out ConversionView
-	err := c.do(ctx, "POST", "/api/v1/tools/pdf-remove-pages", nil, body, &out)
-
-	return out, err
-}
-
-// ToolsPdfRepair calls POST /api/v1/tools/pdf-repair: Rebuild a damaged PDF's structure.
-func (c *Client) ToolsPdfRepair(ctx context.Context, body ToolsPdfRepairBody) (ConversionView, error) {
-	var out ConversionView
-	err := c.do(ctx, "POST", "/api/v1/tools/pdf-repair", nil, body, &out)
-
-	return out, err
-}
-
-// ToolsPdfRotate calls POST /api/v1/tools/pdf-rotate: Rotate pages by 90, 180 or 270 degrees.
-func (c *Client) ToolsPdfRotate(ctx context.Context, body ToolsPdfRotateBody) (ConversionView, error) {
-	var out ConversionView
-	err := c.do(ctx, "POST", "/api/v1/tools/pdf-rotate", nil, body, &out)
-
-	return out, err
-}
-
-// ToolsPdfSplit calls POST /api/v1/tools/pdf-split: Split a PDF into several files.
-func (c *Client) ToolsPdfSplit(ctx context.Context, body ToolsPdfSplitBody) (ConversionView, error) {
-	var out ConversionView
-	err := c.do(ctx, "POST", "/api/v1/tools/pdf-split", nil, body, &out)
-
-	return out, err
-}
-
-// ToolsPdfToImage calls POST /api/v1/tools/pdf-to-image: Render pages to PNG or JPEG.
-func (c *Client) ToolsPdfToImage(ctx context.Context, body ToolsPdfToImageBody) (ConversionView, error) {
-	var out ConversionView
-	err := c.do(ctx, "POST", "/api/v1/tools/pdf-to-image", nil, body, &out)
-
-	return out, err
-}
-
-// ToolsPdfToPdfa calls POST /api/v1/tools/pdf-to-pdfa: Convert to the archival PDF/A format.
-func (c *Client) ToolsPdfToPdfa(ctx context.Context, body ToolsPdfToPdfaBody) (ConversionView, error) {
-	var out ConversionView
-	err := c.do(ctx, "POST", "/api/v1/tools/pdf-to-pdfa", nil, body, &out)
-
-	return out, err
-}
-
-// ToolsPdfToText calls POST /api/v1/tools/pdf-to-text: Extract a PDF's text, as text or Markdown.
-func (c *Client) ToolsPdfToText(ctx context.Context, body ToolsPdfToTextBody) (ConversionView, error) {
-	var out ConversionView
-	err := c.do(ctx, "POST", "/api/v1/tools/pdf-to-text", nil, body, &out)
-
-	return out, err
-}
-
-// ToolsPdfUnlock calls POST /api/v1/tools/pdf-unlock: Remove a password you know.
-func (c *Client) ToolsPdfUnlock(ctx context.Context, body ToolsPdfUnlockBody) (ConversionView, error) {
-	var out ConversionView
-	err := c.do(ctx, "POST", "/api/v1/tools/pdf-unlock", nil, body, &out)
-
-	return out, err
-}
-
-// ToolsPdfWatermark calls POST /api/v1/tools/pdf-watermark: Stamp text across a PDF's pages.
-func (c *Client) ToolsPdfWatermark(ctx context.Context, body ToolsPdfWatermarkBody) (ConversionView, error) {
-	var out ConversionView
-	err := c.do(ctx, "POST", "/api/v1/tools/pdf-watermark", nil, body, &out)
-
-	return out, err
-}
-
 // ToolsPixelsToSvg calls POST /api/v1/tools/pixels-to-svg: Turn pixel art into SVG.
 func (c *Client) ToolsPixelsToSvg(ctx context.Context, body ToolsPixelsToSvgBody) (ConversionView, error) {
 	var out ConversionView
 	err := c.do(ctx, "POST", "/api/v1/tools/pixels-to-svg", nil, body, &out)
+
+	return out, err
+}
+
+// ToolsVideoClip calls POST /api/v1/tools/video-clip: Cut, crop or split a video.
+func (c *Client) ToolsVideoClip(ctx context.Context, body ToolsVideoClipBody) (ConversionView, error) {
+	var out ConversionView
+	err := c.do(ctx, "POST", "/api/v1/tools/video-clip", nil, body, &out)
+
+	return out, err
+}
+
+// ToolsVideoCompress calls POST /api/v1/tools/video-compress: Make a video or an audio file smaller.
+func (c *Client) ToolsVideoCompress(ctx context.Context, body ToolsVideoCompressBody) (ConversionView, error) {
+	var out ConversionView
+	err := c.do(ctx, "POST", "/api/v1/tools/video-compress", nil, body, &out)
+
+	return out, err
+}
+
+// ToolsVideoDownload calls POST /api/v1/tools/video-download: Download a video from a URL.
+func (c *Client) ToolsVideoDownload(ctx context.Context, body ToolsVideoDownloadBody) (ConversionView, error) {
+	var out ConversionView
+	err := c.do(ctx, "POST", "/api/v1/tools/video-download", nil, body, &out)
+
+	return out, err
+}
+
+// ToolsVideoDownloadMetadata calls POST /api/v1/tools/video-download/metadata: Report what a platform says about a URL.
+func (c *Client) ToolsVideoDownloadMetadata(ctx context.Context, body ToolsVideoDownloadMetadataBody) (MediaView, error) {
+	var out MediaView
+	err := c.do(ctx, "POST", "/api/v1/tools/video-download/metadata", nil, body, &out)
 
 	return out, err
 }

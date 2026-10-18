@@ -4,6 +4,7 @@ package bootstrap
 
 import (
 	vukem "github.com/AlexGalhardo/vukem"
+	"github.com/AlexGalhardo/vukem/drivers/postgres"
 	"github.com/AlexGalhardo/vukem/inertia"
 
 	"github.com/AlexGalhardo/vukem-tools/app/jobs"
@@ -17,6 +18,10 @@ import (
 // New builds the application; cmd/app and the tests call it.
 func New(opts ...vukem.Option) (*vukem.App, error) {
 	base := []vukem.Option{
+		// PostgreSQL in every environment: the queue, sessions, cache and the
+		// conversion tables all live there, and SQLite would not survive the
+		// web and worker services being separate processes.
+		vukem.WithDatabaseDrivers(postgres.Driver()),
 		vukem.WithProviders(Providers()...),
 		vukem.WithMigrations(migrations.All()),
 		vukem.WithSeeders(seeders.All()...),

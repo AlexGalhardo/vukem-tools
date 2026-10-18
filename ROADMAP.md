@@ -156,9 +156,13 @@ and a `/up` route. What is left is below.
 - [ ] Email and password with verification
   - [ ] Register, login, logout, password reset through `vukem/auth`
   - [ ] Email verification required before any conversion (`auth.Verified`)
-  - [ ] Mail through `vukem/mail`, Mailtrap sandbox in development. **Production is on
-        `MAIL_MAILER=log` today**, so verification and reset emails are written to the log and
-        nobody receives them: no account can complete verification until this is configured
+  - [x] Mail through `vukem/mail` on the Mailtrap **sandbox** in production and development:
+        `MAIL_MAILER=mailtrap` with `MAILTRAP_API_TOKEN` and `MAILTRAP_INBOX_ID` on both services
+        (the worker sends the queued mail, so it needs them too)
+  - [ ] Verify a real sending domain before the site is announced. On the sandbox the mail is
+        captured in the Mailtrap inbox and never delivered, and every tool requires a verified
+        email — so nobody but the owner can get past registration. Needs `tools.vukem.dev` (or
+        `vukem.dev`) verified in Mailtrap plus SPF/DKIM in the Vercel DNS zone
 - [ ] Google OAuth through `vukem/social`
   - [ ] Account linking when the email already exists
   - [ ] Redirect URIs registered in the Google console for `tools.vukem.dev`

@@ -108,9 +108,17 @@ deserve the credit for the approach.
 The full list, engine by engine, is on the `/licenses` page and in
 [docs/web-research.md](docs/web-research.md).
 
+## Contributing
+
+Read [CONTRIBUTING.md](.github/CONTRIBUTING.md) first: it covers the setup, the quality bar every
+commit holds, and the two documents whose decisions a pull request is expected to respect. By
+taking part you agree to the [code of conduct](.github/CODE_OF_CONDUCT.md).
+
 ## Security
 
-Found a vulnerability? Open a private security advisory on GitHub rather than a public issue.
+This app accepts arbitrary files from the internet and feeds them to decoders written in C, so it
+takes that seriously. The policy, the scope and how to report privately are in
+[SECURITY.md](.github/SECURITY.md) — **do not open a public issue** for a vulnerability.
 
 ## License
 

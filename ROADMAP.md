@@ -125,19 +125,31 @@ and a `/up` route. What is left is below.
 
 ### S1.3 Database and migrations
 
-- [ ] Postgres wired through `vukem/database` and `drivers/postgres`
-  - [ ] Migrations for `users`, `api_tokens`, `jobs`, `job_events`, `files`, `usage_counters`
-  - [ ] `vukem/queue` tables created by its own migration (`CreateTables`)
-  - [ ] Factories and seeders for local development
-  - [ ] A `db:migrate` and `db:seed` app command
-- [ ] Add Postgres to the Railway project (owner-authorised)
+- [x] Postgres wired through `vukem/database` and `drivers/postgres` v0.4.0
+      (`vukem.WithDatabaseDrivers(postgres.Driver())`), in every environment: SQLite would not
+      survive `web` and `worker` being separate processes
+- [ ] App-owned migrations
+  - [x] `users`, `remember_tokens`, `access_tokens` (with `abilities`) and `password_resets` come
+        from `install:auth`
+  - [ ] `conversions` and `conversion_events` — **not** `jobs`/`job_events`: the framework's queue
+        already owns a table called `jobs` (audit A83)
+  - [ ] `files`: one row per uploaded input and per produced output, with its storage key and TTL
+  - [ ] `usage_counters`: CPU milliseconds and bytes per user per day, for the quota in S1.8
+- [x] `sessions`, `cache`, `jobs`, `failed_jobs` and the webhook delivery log need **no** migration:
+      the framework creates them at boot with `CREATE TABLE IF NOT EXISTS` (audit A84). Do not
+      write migrations for them, and do not read their absence as an oversight
+- [ ] Factories and seeders for local development
+- [x] `migrate` and `db:seed` come from the framework
+- [x] Postgres added to the Railway project (owner-authorised), referenced as
+      `${{Postgres.DATABASE_URL}}` by both services
 
 #### Quality asserts
 
-- `go run ./cmd/vukem-tools db:migrate` is idempotent: running it twice changes nothing
-- `go test -race ./database/...` green against a real Postgres via `drivers/postgres/pgtest`
-- Every table has the indexes the queries actually use, proven by an `EXPLAIN` in a test or a
-  comment citing the query
+- `go run ./cmd/app migrate` is idempotent: running it twice reports nothing left to apply
+- `migrate` then `migrate:rollback` then `migrate` round-trips without error
+- Tests green against a real Postgres via `drivers/postgres/pgtest`, asserting that every
+  app-owned table and index exists after `migrate`
+- Every index is justified by a query in the code, named in a comment on the migration
 
 ### S1.4 Authentication
 

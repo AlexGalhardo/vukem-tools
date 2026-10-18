@@ -292,7 +292,7 @@ func TestTheBotsErrorsComeFromThePublishedTaxonomy(t *testing.T) {
 	}
 }
 
-func TestTheDownloadToolHasItsOwnPage(t *testing.T) {
+func TestEveryS3ToolHasItsOwnPage(t *testing.T) {
 	t.Parallel()
 
 	// "/tools/{name}" renders one component for every tool, so without a
@@ -306,15 +306,17 @@ func TestTheDownloadToolHasItsOwnPage(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	var found bool
+	served := map[string]bool{}
 
 	for _, rt := range app.Router.Routes() {
-		if rt.Method == http.MethodGet && rt.Path == "/tools/video-download" {
-			found = true
+		if rt.Method == http.MethodGet {
+			served[rt.Path] = true
 		}
 	}
 
-	if !found {
-		t.Fatal("no route serves /tools/video-download, so it would render another tool's page")
+	for _, path := range []string{"/tools/video-download", "/tools/video-clip", "/tools/video-compress"} {
+		if !served[path] {
+			t.Errorf("no route serves %s, so it would render another tool's page", path)
+		}
 	}
 }

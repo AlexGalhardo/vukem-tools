@@ -11,11 +11,13 @@ import (
 	"github.com/AlexGalhardo/vukem/openapi"
 	"github.com/AlexGalhardo/vukem/ratelimit"
 	"github.com/AlexGalhardo/vukem/router"
+	"github.com/AlexGalhardo/vukem/web"
 
 	"github.com/AlexGalhardo/vukem-tools/app/accounts"
 	"github.com/AlexGalhardo/vukem-tools/app/controllers"
 	"github.com/AlexGalhardo/vukem-tools/app/controllers/apiv1"
 	"github.com/AlexGalhardo/vukem-tools/app/services"
+	"github.com/AlexGalhardo/vukem-tools/app/tools"
 	"github.com/AlexGalhardo/vukem-tools/internal/httpx"
 )
 
@@ -45,7 +47,22 @@ func Downloads(c *services.Conversions) func(r *router.Router, app *vukem.App) e
 
 		h := apiv1.NewConversions(c.Pipeline(), c.Store(), c.Files(), c.Quota(), c.Hub())
 		capabilities := apiv1.NewCapabilities(c.Engines(), c.Pipeline())
-		pages := controllers.NewDownloadPages(c.Pipeline().Tools())
+		// The cut's output limit comes off the registered tool, so the page
+		// and the engine cannot disagree about it.
+		var clipLimit time.Duration
+
+		if registered, ok := c.Pipeline().Tool("video-clip"); ok {
+			if clip, ok := registered.(*tools.VideoClip); ok {
+				clipLimit = clip.MaxOutputDuration()
+			}
+		}
+
+		pages := controllers.NewDownloadPages(
+			c.Pipeline().Tools(),
+			services.MaxUploadBytes(app),
+			TusPath,
+			clipLimit,
+		)
 
 		perIP := ratelimit.Middleware(limiters("api.ip", 120, time.Minute), ratelimit.ByIP)
 		perToken := ratelimit.Middleware(limiters("api.token", 60, time.Minute), ratelimit.ByToken)
@@ -173,10 +190,20 @@ func Downloads(c *services.Conversions) func(r *router.Router, app *vukem.App) e
 		// openapi.Build refuse the whole document for a duplicate
 		// operationId. The same reason routes/conversions.go hides the event
 		// stream.
-		r.Get("/tools/video-download", pages.VideoDownload).
-			Name("page.video-download").
-			Use(auth.Required(acc.Web)).
-			Doc(openapi.Skip{})
+		for _, page := range []struct {
+			path    string
+			name    string
+			handler func(*web.Ctx) error
+		}{
+			{"/tools/video-download", "page.video-download", pages.VideoDownload},
+			{"/tools/video-clip", "page.video-clip", pages.VideoClip},
+			{"/tools/video-compress", "page.video-compress", pages.VideoCompress},
+		} {
+			r.Get(page.path, page.handler).
+				Name(page.name).
+				Use(auth.Required(acc.Web)).
+				Doc(openapi.Skip{})
+		}
 
 		return nil
 	}

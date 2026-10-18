@@ -8,13 +8,34 @@
 package tools
 
 import (
+	"slices"
+
 	"github.com/AlexGalhardo/vukem-tools/internal/files"
 	"github.com/AlexGalhardo/vukem-tools/internal/jobs"
 )
 
-// All returns every registered tool. Adding one here is what makes it
+// All returns every registered tool. Registering one is what makes it
 // submittable, listed by GET /api/v1/tools and described in the OpenAPI
 // document.
+//
+// One function per domain, each in its own file, rather than one slice
+// literal here: domains are built in parallel, and a single literal makes
+// every tool a conflict with every other tool being added at the same time.
+// Adding a domain is one line here and one new file.
 func All(f *files.Store) []jobs.Tool {
+	return slices.Concat(
+		pixelTools(f),
+		imageTools(f),
+		videoTools(f),
+		audioTools(f),
+		downloadTools(f),
+		editTools(f),
+		pdfTools(f),
+		spriteTools(f),
+	)
+}
+
+// pixelTools is the pixel-art domain (S2).
+func pixelTools(f *files.Store) []jobs.Tool {
 	return []jobs.Tool{NewPixelSVG(f)}
 }

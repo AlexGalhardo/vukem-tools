@@ -70,7 +70,24 @@ const (
 // This is the list the ROADMAP decided, with the S6 skips carrying the reason
 // the owner recorded. Keeping the reasons here rather than only in the ROADMAP
 // is what lets the site answer the comparison question itself.
-var tools = []Tool{
+// tools is the catalogue.
+//
+// Built from one slice per domain so domains can be added in parallel without
+// every entry conflicting with every other. Display order is Groups, not the
+// order here, so a domain's position in this list does not matter.
+var tools = slices.Concat(
+	pixelCatalog,
+	imageCatalog,
+	videoCatalog,
+	audioCatalog,
+	downloadCatalog,
+	editCatalog,
+	pdfCatalog,
+	spriteCatalog,
+)
+
+// pixelCatalog is the pixel-art domain (S2).
+var pixelCatalog = []Tool{
 	{
 		Name:     "pixels-to-svg",
 		Title:    "Pixel art to SVG",

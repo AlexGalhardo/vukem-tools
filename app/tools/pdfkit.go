@@ -484,12 +484,20 @@ func classifyPDF(err error) error {
 	)
 
 	switch {
-	case errors.Is(err, context.Canceled), errors.Is(err, context.DeadlineExceeded):
-		// Returned unwrapped on purpose. Neither is the input's fault and
-		// neither is a bug: the owner cancelled, or the attempt ran out of
-		// time, and jobs.Classify recognises both. Wrapping them as Internal
-		// — which the default branch would — would report a cancellation as
-		// "something went wrong on our side" and retry it three times.
+	case errors.Is(err, context.Canceled):
+		// Classified rather than returned bare, and the shape matters as much
+		// as the code. The pipeline tells "the owner cancelled" from "the
+		// worker is shutting down" by looking for exactly this — a
+		// *ConversionError carrying CancelledByUser — so a bare
+		// context.Canceled would read as a shutdown and be released back to
+		// the queue instead of settled as cancelled.
+		return jobs.Fail(jobs.CancelledByUser, err, "the owner cancelled the conversion")
+	case errors.Is(err, context.DeadlineExceeded):
+		// Returned unwrapped: jobs.Classify gives Timeout, which is
+		// retryable, and an attempt that ran out of time genuinely may
+		// succeed on a worker that is not as busy. Wrapping it as Internal —
+		// which the default branch would — would report "something went wrong
+		// on our side" for a document that is merely slow.
 		return err
 	case errors.Is(err, pdf.ErrEncrypted):
 		// A refusal, not a crash: ROADMAP S6.1 asks for unsupported_input

@@ -143,11 +143,50 @@ func TestEveryPDFFailureIsClassifiedOntoTheTaxonomy(t *testing.T) {
 // A cancellation is the owner stopping the conversion, not a failure of the
 // input, and it must survive classification as such: reporting it as
 // unsupported_input would tell somebody their file was wrong when they had
-// simply pressed cancel.
+// simply pressed cancel, and reporting it as internal would retry it three
+// times.
+//
+// The shape matters as much as the code. The pipeline distinguishes "the
+// owner cancelled" from "the worker is shutting down" by looking for a
+// *jobs.ConversionError carrying CancelledByUser, so a bare context.Canceled
+// classifies correctly and is still handled wrongly — released back to the
+// queue rather than settled. That is what the second half asserts.
 func TestACancellationIsNotBlamedOnTheInput(t *testing.T) {
 	t.Parallel()
 
-	if kind := jobs.Classify(classifyPDF(context.Canceled)); kind != jobs.CancelledByUser {
+	cancelled := classifyPDF(context.Canceled)
+
+	if kind := jobs.Classify(cancelled); kind != jobs.CancelledByUser {
 		t.Errorf("a cancelled context classified as %q, want %q", kind, jobs.CancelledByUser)
+	}
+
+	if jobs.Retryable(cancelled) {
+		t.Error("a cancellation is retryable, so a conversion the owner stopped would run again")
+	}
+
+	converted, ok := errors.AsType[*jobs.ConversionError](cancelled)
+	if !ok {
+		t.Fatalf("a cancellation is a %T, but the pipeline looks for a *jobs.ConversionError to "+
+			"tell it from a shutdown", cancelled)
+	}
+
+	if converted.Type != jobs.CancelledByUser {
+		t.Errorf("the conversion error carries %q, want %q", converted.Type, jobs.CancelledByUser)
+	}
+}
+
+// A deadline is the attempt running out of time, which is a different answer:
+// retryable, because the same document on a less busy worker may finish.
+func TestADeadlineIsATimeoutAndIsWorthRetrying(t *testing.T) {
+	t.Parallel()
+
+	expired := classifyPDF(context.DeadlineExceeded)
+
+	if kind := jobs.Classify(expired); kind != jobs.Timeout {
+		t.Errorf("an expired deadline classified as %q, want %q", kind, jobs.Timeout)
+	}
+
+	if !jobs.Retryable(expired) {
+		t.Error("a timeout is not retryable, so a document that is merely slow never gets a second attempt")
 	}
 }

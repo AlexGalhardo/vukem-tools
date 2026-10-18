@@ -49,3 +49,6 @@ storage/*
 # Vite: dev server marker and build output
 /resources/public/hot
 /resources/public/build/
+
+# Owner-local notes for the developer; questions raised while working alone.
+questions-to-dev.md

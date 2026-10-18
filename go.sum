@@ -1,7 +1,7 @@
-github.com/AlexGalhardo/vukem v0.28.0 h1:AQEh4C3OKCCo8T3gx2JUKpXoGzqMAarnon9ZudKxtfo=
-github.com/AlexGalhardo/vukem v0.28.0/go.mod h1:I1SNhde10HmdHxvnDHCRf7GOQ4POIM36pFYUGPkLlFI=
-github.com/AlexGalhardo/vukem/drivers/postgres v0.4.0 h1:1LZo9IMbfLUrV5f2vn5KzDxMJBJudQrwRE5txAmNkmY=
-github.com/AlexGalhardo/vukem/drivers/postgres v0.4.0/go.mod h1:DYXTl6+wYdG/+EnMsnLTxQxDpxyi38Axa4JE7140SUI=
+github.com/AlexGalhardo/vukem v0.29.0 h1:nQoaugk0GSu+PL/k7FGCdXGBF6yDgO6U4ZO60nuwiYQ=
+github.com/AlexGalhardo/vukem v0.29.0/go.mod h1:I1SNhde10HmdHxvnDHCRf7GOQ4POIM36pFYUGPkLlFI=
+github.com/AlexGalhardo/vukem/drivers/postgres v0.5.0 h1:BJXr2Cvqz2guRE9zgPimtbmuakgvOclAfaL9eI+BuBM=
+github.com/AlexGalhardo/vukem/drivers/postgres v0.5.0/go.mod h1:K+u1h+k1Bj55LXdt/5ZXPHAW+NgLr+cZIO1Qi9ymKl0=
 github.com/AlexGalhardo/vukem/drivers/s3 v0.3.0 h1:bwPBpYcubXieRuC4GFvgMrq739BRfZK+7Ed9rQyuwlk=
 github.com/AlexGalhardo/vukem/drivers/s3 v0.3.0/go.mod h1:cUnXHvLv+v4MiEVhiDDTzUfW8LNXsysrjCM5dFz4wWM=
 github.com/davecgh/go-spew v1.1.0/go.mod h1:J7Y8YcW2NihsgmVo/mv3lAwl/skON4iLHjSsI+c5H38=

@@ -29,11 +29,11 @@ import (
 	"github.com/AlexGalhardo/vukem/orm"
 	"github.com/AlexGalhardo/vukem/signed"
 	"github.com/AlexGalhardo/vukem/storage"
+	"github.com/AlexGalhardo/vukem/ulid"
 	"github.com/AlexGalhardo/vukem/upload"
 
 	"github.com/AlexGalhardo/vukem-tools/app/models"
 	"github.com/AlexGalhardo/vukem-tools/internal/detect"
-	"github.com/AlexGalhardo/vukem-tools/internal/ids"
 )
 
 // ErrNotFound is returned when no file matches. It is the ORM's own 404, so
@@ -46,7 +46,7 @@ var ErrNotFound = orm.ErrNotFound
 type Store struct {
 	db     *database.DB
 	disk   storage.Disk
-	ids    *ids.Generator
+	ids    *ulid.Generator
 	signer *signed.Signer
 	base   string
 	ttl    time.Duration
@@ -58,7 +58,7 @@ type Store struct {
 type Options struct {
 	DB   *database.DB
 	Disk storage.Disk
-	IDs  *ids.Generator
+	IDs  *ulid.Generator
 	// Signer signs download URLs. A download goes through the app rather
 	// than straight to the bucket, so the bucket stays private and a link
 	// can be made to expire without touching the object.
@@ -256,7 +256,7 @@ func diskKey(userID, role, id, ext string) (string, error) {
 func (s *Store) Find(ctx context.Context, userID, id string) (models.File, error) {
 	// A value that cannot be an id does not need a database round trip, and
 	// answering it the same way as a real miss keeps ids unguessable.
-	if !ids.Valid(id) {
+	if !ulid.Valid(id) {
 		return models.File{}, ErrNotFound
 	}
 
@@ -274,7 +274,7 @@ func (s *Store) Find(ctx context.Context, userID, id string) (models.File, error
 // Find, which does scope by owner, and nothing but a verified signature may
 // reach this.
 func (s *Store) ByID(ctx context.Context, id string) (models.File, error) {
-	if !ids.Valid(id) {
+	if !ulid.Valid(id) {
 		return models.File{}, ErrNotFound
 	}
 
@@ -286,7 +286,7 @@ func (s *Store) ByID(ctx context.Context, id string) (models.File, error) {
 // path that serves a request reaches a conversion through its own scoped
 // lookup first.
 func (s *Store) ForConversion(ctx context.Context, conversionID, role string) ([]models.File, error) {
-	if !ids.Valid(conversionID) {
+	if !ulid.Valid(conversionID) {
 		return nil, ErrNotFound
 	}
 
@@ -315,7 +315,7 @@ func (s *Store) AttachTx(
 	ex database.Executor,
 	userID, fileID, conversionID string,
 ) (bool, error) {
-	if !ids.Valid(fileID) || !ids.Valid(conversionID) {
+	if !ulid.Valid(fileID) || !ulid.Valid(conversionID) {
 		return false, ErrNotFound
 	}
 

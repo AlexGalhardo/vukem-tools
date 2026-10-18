@@ -3,11 +3,10 @@ module github.com/AlexGalhardo/vukem-tools
 go 1.27.2
 
 require (
-	github.com/AlexGalhardo/vukem v0.28.0
-	github.com/AlexGalhardo/vukem/drivers/postgres v0.4.0
+	github.com/AlexGalhardo/vukem v0.29.0
+	github.com/AlexGalhardo/vukem/drivers/postgres v0.5.0
 	github.com/AlexGalhardo/vukem/drivers/s3 v0.3.0
 	github.com/gabriel-vasile/mimetype v1.4.16
-	github.com/jackc/pgx/v5 v5.11.0
 )
 
 require (
@@ -15,6 +14,7 @@ require (
 	github.com/google/uuid v1.6.0 // indirect
 	github.com/jackc/pgpassfile v1.0.0 // indirect
 	github.com/jackc/pgservicefile v0.0.0-20240606120523-5a60cdf6a761 // indirect
+	github.com/jackc/pgx/v5 v5.11.0 // indirect
 	github.com/jackc/puddle/v2 v2.2.2 // indirect
 	github.com/mattn/go-isatty v0.0.24 // indirect
 	github.com/ncruces/go-strftime v1.0.0 // indirect

@@ -21,12 +21,12 @@ import (
 	"github.com/AlexGalhardo/vukem/schema"
 	"github.com/AlexGalhardo/vukem/signed"
 	"github.com/AlexGalhardo/vukem/storage"
+	"github.com/AlexGalhardo/vukem/ulid"
 
 	"github.com/AlexGalhardo/vukem-tools/app/models"
 	"github.com/AlexGalhardo/vukem-tools/database/migrations"
 	"github.com/AlexGalhardo/vukem-tools/internal/detect"
 	"github.com/AlexGalhardo/vukem-tools/internal/files"
-	"github.com/AlexGalhardo/vukem-tools/internal/ids"
 )
 
 const (
@@ -159,7 +159,7 @@ func newRig(t *testing.T) *rig {
 	store, err := files.New(files.Options{
 		DB:      db,
 		Disk:    disk,
-		IDs:     ids.NewGenerator(),
+		IDs:     ulid.NewGenerator(),
 		Signer:  sign,
 		BaseURL: baseURL,
 		TTL:     fileTTL,
@@ -368,7 +368,7 @@ func TestAnInputAttachesToExactlyOneConversion(t *testing.T) {
 	r := newRig(t)
 	f := r.put(t, files.Incoming{Name: "sprite.png"}, "x")
 
-	gen := ids.NewGenerator()
+	gen := ulid.NewGenerator()
 	first, second := gen.New(), gen.New()
 
 	attached, err := r.store.Attach(t.Context(), owner, f.ID, first)
@@ -406,7 +406,7 @@ func TestAttachIsScopedToTheOwner(t *testing.T) {
 	r := newRig(t)
 	f := r.put(t, files.Incoming{Name: "sprite.png"}, "x")
 
-	attached, err := r.store.Attach(t.Context(), otherOwner, f.ID, ids.NewGenerator().New())
+	attached, err := r.store.Attach(t.Context(), otherOwner, f.ID, ulid.NewGenerator().New())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -444,7 +444,7 @@ func TestDownloadURLIsSignedAndVerifies(t *testing.T) {
 
 	// Tampering with the id must break the signature, or anyone could read
 	// any file by editing a link.
-	tampered := strings.Replace(link, f.ID, ids.NewGenerator().New(), 1)
+	tampered := strings.Replace(link, f.ID, ulid.NewGenerator().New(), 1)
 	if err := r.sign.Verify(httptest.NewRequest(http.MethodGet, tampered, http.NoBody)); err == nil {
 		t.Fatal("a tampered link verified")
 	}
@@ -652,7 +652,7 @@ func TestNewValidatesItsOptions(t *testing.T) {
 	t.Parallel()
 
 	r := newRig(t)
-	gen := ids.NewGenerator()
+	gen := ulid.NewGenerator()
 	sign := signed.New(bytes.Repeat([]byte{7}, 32))
 	disk := storage.NewMemory("")
 

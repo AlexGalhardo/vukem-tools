@@ -238,3 +238,31 @@ func TestKnown(t *testing.T) {
 		t.Error("an invented type is known")
 	}
 }
+
+// The image carries OpenEXR because libvips depends on it, and OpenEXR has
+// two critical CVEs with no fixed version released (CVE-2026-42216 and
+// CVE-2026-42217: information disclosure and denial of service from a
+// malformed EXR file). Neither is reachable while EXR is not a type this
+// service recognises, because an unrecognised type is refused before any
+// engine sees the bytes.
+//
+// This test is that mitigation, not a note about it: adding EXR turns two
+// unreachable criticals into reachable ones, so it has to fail until somebody
+// has read them and said why it is acceptable. docs/deployment.md records the
+// same reasoning for an operator.
+func TestEXRIsNotARecognisedType(t *testing.T) {
+	t.Parallel()
+
+	if _, err := detect.Check(bytes.NewReader(exrMagic), "frame.exr", nil); err == nil {
+		t.Fatal("an EXR file was accepted; OpenEXR has unfixed critical CVEs")
+	}
+
+	for _, mime := range []string{"image/x-exr", "image/aces", "image/exr"} {
+		if detect.Known(mime) {
+			t.Errorf("%s is a recognised type; read this test's comment before adding it", mime)
+		}
+	}
+}
+
+// exrMagic is the OpenEXR file signature.
+var exrMagic = []byte{0x76, 0x2f, 0x31, 0x01, 0x02, 0x00, 0x00, 0x00}

@@ -12,11 +12,11 @@ import (
 	"time"
 
 	"github.com/AlexGalhardo/vukem/orm"
+	"github.com/AlexGalhardo/vukem/ulid"
 	"github.com/AlexGalhardo/vukem/vukemtest"
 
 	"github.com/AlexGalhardo/vukem-tools/app/models"
 	"github.com/AlexGalhardo/vukem-tools/bootstrap"
-	"github.com/AlexGalhardo/vukem-tools/internal/ids"
 	"github.com/AlexGalhardo/vukem-tools/internal/jobs"
 	"github.com/AlexGalhardo/vukem-tools/routes"
 )
@@ -35,7 +35,7 @@ func seedConversion(t *testing.T, app *vukemtest.App, userID string, status jobs
 	at := time.Now().UTC()
 
 	c := models.Conversion{
-		ID:        ids.NewGenerator().At(at),
+		ID:        ulid.NewGenerator().At(at),
 		UserID:    userID,
 		Tool:      "pixels-to-svg",
 		Status:    string(status),
@@ -117,7 +117,7 @@ func TestTheConversionRoutesNeedAKey(t *testing.T) {
 	t.Parallel()
 
 	app := vukemtest.New(t, bootstrap.New)
-	id := ids.NewGenerator().New()
+	id := ulid.NewGenerator().New()
 
 	for _, path := range []string{
 		"/api/v1/conversions",
@@ -172,7 +172,7 @@ func TestAnotherAccountsConversionIsAPlainMiss(t *testing.T) {
 	key := issueKey(t, app, "nosy@example.com", "image:convert")
 
 	theirs := seedConversion(t, app, "99999", jobs.Running)
-	missing := ids.NewGenerator().New()
+	missing := ulid.NewGenerator().New()
 
 	for _, id := range []string{theirs.ID, missing} {
 		app.Client(t).WithHeader("Authorization", "Bearer "+key).

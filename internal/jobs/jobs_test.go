@@ -16,10 +16,10 @@ import (
 	"github.com/AlexGalhardo/vukem/orm"
 	"github.com/AlexGalhardo/vukem/queue"
 	"github.com/AlexGalhardo/vukem/schema"
+	"github.com/AlexGalhardo/vukem/ulid"
 
 	"github.com/AlexGalhardo/vukem-tools/app/models"
 	"github.com/AlexGalhardo/vukem-tools/database/migrations"
-	"github.com/AlexGalhardo/vukem-tools/internal/ids"
 	"github.com/AlexGalhardo/vukem-tools/internal/jobs"
 )
 
@@ -180,7 +180,7 @@ func newRig(t *testing.T, tl *tool) *rig {
 
 	store, err := jobs.NewStore(jobs.StoreOptions{
 		DB:        db,
-		IDs:       ids.NewGenerator(),
+		IDs:       ulid.NewGenerator(),
 		ResultTTL: resultTTL,
 		Publisher: pub,
 		Now:       clk.Now,
@@ -946,7 +946,7 @@ func TestNewStoreValidatesItsOptions(t *testing.T) {
 	t.Parallel()
 
 	db := openDB(t)
-	gen := ids.NewGenerator()
+	gen := ulid.NewGenerator()
 
 	cases := map[string]jobs.StoreOptions{
 		"no database":       {IDs: gen, ResultTTL: time.Hour},

@@ -19,16 +19,17 @@ import (
 
 	vukem "github.com/AlexGalhardo/vukem"
 	"github.com/AlexGalhardo/vukem/config"
+	"github.com/AlexGalhardo/vukem/drivers/postgres"
 	"github.com/AlexGalhardo/vukem/drivers/s3"
 	"github.com/AlexGalhardo/vukem/signed"
 	"github.com/AlexGalhardo/vukem/sse"
 	"github.com/AlexGalhardo/vukem/storage"
+	"github.com/AlexGalhardo/vukem/ulid"
 
 	"github.com/AlexGalhardo/vukem-tools/app/tools"
+	"github.com/AlexGalhardo/vukem-tools/internal/engine"
 	"github.com/AlexGalhardo/vukem-tools/internal/files"
-	"github.com/AlexGalhardo/vukem-tools/internal/ids"
 	"github.com/AlexGalhardo/vukem-tools/internal/jobs"
-	"github.com/AlexGalhardo/vukem-tools/internal/pgbroker"
 	"github.com/AlexGalhardo/vukem-tools/internal/quota"
 )
 
@@ -49,8 +50,11 @@ type Conversions struct {
 	reaper *jobs.Reaper
 	files  *files.Store
 	signer *signed.Signer
-	disk   storage.Disk
-	quota  *quota.Counter
+
+	engines *engine.Registry
+	runner  *engine.Runner
+	disk    storage.Disk
+	quota   *quota.Counter
 
 	// uploadCleanup is set by the routes once the resumable-upload handler
 	// exists, so the scheduler can sweep abandoned uploads without the
@@ -149,6 +153,13 @@ func splitList(raw string) []string {
 
 // build wires the pipeline from the app's configuration.
 func (c *Conversions) build(app *vukem.App) error {
+	// The engines first: a deploy missing a required one should fail here,
+	// before anything else is wired, and every engine's version belongs in
+	// the boot log whatever else happens.
+	if err := c.resolveEngines(app); err != nil {
+		return err
+	}
+
 	db, err := app.DB()
 	if err != nil {
 		return fmt.Errorf("services: database: %w", err)
@@ -161,7 +172,7 @@ func (c *Conversions) build(app *vukem.App) error {
 	var broker sse.Broker
 
 	if app.Config.Env == "production" || db.Dialect().Name() == "postgres" {
-		broker, err = pgbroker.New(db, app.Log)
+		broker, err = postgres.NewBroker(db, postgres.WithBrokerLogger(app.Log))
 		if err != nil {
 			return fmt.Errorf("services: progress broker: %w", err)
 		}
@@ -178,7 +189,7 @@ func (c *Conversions) build(app *vukem.App) error {
 
 	c.store, err = jobs.NewStore(jobs.StoreOptions{
 		DB:        db,
-		IDs:       ids.NewGenerator(),
+		IDs:       ulid.NewGenerator(),
 		ResultTTL: ttl,
 		Publisher: jobs.NewHubPublisher(c.hub),
 		Now:       app.Now,
@@ -278,7 +289,7 @@ func (c *Conversions) buildFiles(app *vukem.App, ttl time.Duration) error {
 	c.files, err = files.New(files.Options{
 		DB:      db,
 		Disk:    c.disk,
-		IDs:     ids.NewGenerator(),
+		IDs:     ulid.NewGenerator(),
 		Signer:  c.signer,
 		BaseURL: app.Config.URL,
 		TTL:     ttl,

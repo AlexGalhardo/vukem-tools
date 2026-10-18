@@ -10,9 +10,9 @@ import (
 
 	"github.com/AlexGalhardo/vukem/database"
 	"github.com/AlexGalhardo/vukem/orm"
+	"github.com/AlexGalhardo/vukem/ulid"
 
 	"github.com/AlexGalhardo/vukem-tools/app/models"
-	"github.com/AlexGalhardo/vukem-tools/internal/ids"
 )
 
 // ErrNotFound is returned when no conversion matches. It is deliberately the
@@ -31,7 +31,7 @@ var ErrNotFound = orm.ErrNotFound
 // the row count says whether this caller was the one that moved it.
 type Store struct {
 	db  *database.DB
-	ids *ids.Generator
+	ids *ulid.Generator
 	now func() time.Time
 	ttl time.Duration
 	pub Publisher
@@ -41,7 +41,7 @@ type Store struct {
 // StoreOptions configures a Store. DB, IDs and ResultTTL are required.
 type StoreOptions struct {
 	DB  *database.DB
-	IDs *ids.Generator
+	IDs *ulid.Generator
 	// ResultTTL is how long a result stays downloadable once it exists.
 	ResultTTL time.Duration
 	// Publisher broadcasts progress. Optional: without one, progress is
@@ -136,7 +136,7 @@ func (s *Store) Create(ctx context.Context, ex database.Executor, in Submission)
 func (s *Store) Find(ctx context.Context, userID, id string) (models.Conversion, error) {
 	// A value that cannot be an id does not need a database round trip, and
 	// answering it the same way as a real miss keeps ids unguessable.
-	if !ids.Valid(id) {
+	if !ulid.Valid(id) {
 		return models.Conversion{}, ErrNotFound
 	}
 
@@ -355,7 +355,7 @@ const maxErrorDetail = 4000
 // cancelled. A conversion that already finished is not cancellable, which is
 // why false is a normal answer and not an error.
 func (s *Store) Cancel(ctx context.Context, userID, id string) (bool, error) {
-	if !ids.Valid(id) {
+	if !ulid.Valid(id) {
 		return false, ErrNotFound
 	}
 
@@ -411,7 +411,7 @@ func (s *Store) Abandoned(ctx context.Context, cutoff time.Time, limit int) ([]m
 // is what makes Last-Event-ID resumable: the stream is the fast path, this
 // table is the truth.
 func (s *Store) Events(ctx context.Context, conversionID string, after int64) ([]models.ConversionEvent, error) {
-	if !ids.Valid(conversionID) {
+	if !ulid.Valid(conversionID) {
 		return nil, ErrNotFound
 	}
 

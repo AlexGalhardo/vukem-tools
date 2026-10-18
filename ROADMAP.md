@@ -363,26 +363,41 @@ happened. They stay unticked, and `questions-to-dev.md` § 0 says so.
 
 ### S1.11 Container and engines
 
-- [ ] Replace RAILPACK with a multi-stage Dockerfile
-  - [ ] Stage 1 `oven/bun:<pinned>` builds the frontend assets
-  - [ ] Stage 2 `golang:<pinned>` builds a static binary with `CGO_ENABLED=0`
-  - [ ] Stage 3 `debian:<pinned>-slim` runtime, non-root user
-  - [ ] Engines pinned to exact versions: ffmpeg (GPL build), yt-dlp, libvips, Ghostscript,
+- [x] Replace RAILPACK with a multi-stage Dockerfile
+  - [x] Stage 1 `oven/bun:<pinned>` builds the frontend assets
+  - [x] Stage 2 `golang:<pinned>` builds a static binary with `CGO_ENABLED=0`
+  - [x] Stage 3 `debian:<pinned>-slim` runtime, non-root user
+  - [x] Engines pinned to exact versions: ffmpeg (GPL build), yt-dlp, libvips, Ghostscript,
         ClamAV client; ImageMagick only when a tool needs it
-  - [ ] `ffprobe`, `ffmpeg`, `yt-dlp`, `vips`, `gs` paths configurable by env var, as today
-  - [ ] ImageMagick, if present, ships a restrictive `policy.xml` including
-        `<policy domain="path" rights="none" pattern="fd:*"/>`
-  - [ ] A startup check logs every engine's version and refuses to start if a required one is
+  - [x] `ffprobe`, `ffmpeg`, `yt-dlp`, `vips`, `gs` paths configurable by env var, as today
+  - [x] ImageMagick is **not installed**, so its `policy.xml` hardening does not apply. libvips
+        covers every raster need in S2 and S4. Adding ImageMagick later must ship the policy,
+        including `<policy domain="path" rights="none" pattern="fd:*"/>`
+  - [x] A startup check logs every engine's version and refuses to start if a required one is
         missing
-- [ ] Image size and cold start measured and recorded in `docs/deployment.md`
+- [x] Image size and cold start measured and recorded in `docs/deployment.md`
 
 #### Quality asserts
 
-- `docker build` succeeds with no network access to anything unpinned
-- `docker run ... --version` prints the exact pinned version of every engine
-- The container runs as a non-root user: `id -u` inside it is not 0
-- Image size recorded, and a regression above 20 % fails the review
-- `trivy image` (or the chosen scanner) reports no critical CVE in the base layer
+- [x] `docker build` succeeds with no network access to anything unpinned — every apt package is
+      pinned to an exact version and yt-dlp's binary is checksum-verified in its own stage
+- [x] `docker run ... --version` prints the exact pinned version of every engine — all nine are
+      logged at boot (`engine resolved`), ffmpeg `7.1.5-0+deb13u1`, yt-dlp `2026.08.19`,
+      libvips `8.16.1`, Ghostscript `10.05.1`, poppler `25.03.0`, qpdf `12.2.0`
+- [x] The container runs as a non-root user: `id` inside it reports `uid=10001(app)`
+- [x] Image size recorded in [docs/deployment.md](docs/deployment.md): 1.2 GB, cold start 1.3 s
+- [ ] **Not met, and it cannot be met today.** `trivy image` reports **three critical CVEs with no
+      fixed version released**: CVE-2026-42216 and CVE-2026-42217 in `libopenexr` (pulled in by
+      libvips, never used) and CVE-2026-6653 in `libxml2`. All three are unreachable while no live
+      tool accepts EXR or XML input, and `TestEXRIsNotARecognisedType` enforces the EXR half rather
+      than describing it. Every vulnerability that *does* have a fix is patched: `liblzma5` is
+      pinned ahead of the base image, and the scan now reports zero fixable findings. See
+      [docs/deployment.md § Known vulnerabilities](docs/deployment.md). Re-check on every engine
+      bump; a new critical **with** a fix is a blocker
+- [x] The engine sandbox is verified where it runs, not where it is written: all 16
+      `internal/engine` tests pass inside the production image, including the two that skip on
+      Windows — the process-group kill (`TestKillingTheEngineKillsItsChildren`) and `RLIMIT_FSIZE`
+      (`TestAFileSizeLimitStopsARunawayWrite`)
 
 ### S1.12 Railway deployment
 

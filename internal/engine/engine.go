@@ -135,15 +135,20 @@ func probe(ctx context.Context, path string, args []string) string {
 	ctx, cancel := context.WithTimeout(ctx, versionTimeout)
 	defer cancel()
 
-	out, err := exec.CommandContext(ctx, path, args...).Output()
+	// Combined output, because several engines print their version to
+	// stderr: poppler's pdftotext and pdftoppm answer -v there with exit 0,
+	// and reading only stdout logged them as "unknown" while they worked.
+	out, err := exec.CommandContext(ctx, path, args...).CombinedOutput()
 	if err != nil && len(out) == 0 {
 		return "unknown"
 	}
 
-	line, _, _ := bytes.Cut(out, []byte{'\n'})
-
-	if v := strings.TrimSpace(string(line)); v != "" {
-		return v
+	// The first non-blank line, not line one: an engine that opens with a
+	// blank line would otherwise report an empty version.
+	for line := range bytes.SplitSeq(out, []byte{'\n'}) {
+		if v := strings.TrimSpace(string(line)); v != "" {
+			return v
+		}
 	}
 
 	return "unknown"

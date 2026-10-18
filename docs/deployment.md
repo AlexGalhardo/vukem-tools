@@ -9,6 +9,7 @@ Railway builds it from [`Dockerfile`](../Dockerfile); so does plain `docker buil
 | --- | --- |
 | Runtime base | `debian:trixie-slim`, pinned by digest |
 | Size | 1.2 GB |
+| Cold start | 1.3 s, process start to the first 200 on `/health` |
 | User | `app`, uid 10001, non-root |
 | Working directory | `/app`, with `storage/` and `work/` owned by `app` |
 
@@ -125,6 +126,26 @@ docker run --rm -v /tmp:/s aquasec/trivy:0.69.1 image --input /s/img.tar   --sev
 
 A new critical with a fix available is a blocker. A new critical without one needs the same
 reachability argument as the three above, written down here.
+
+## Measurements
+
+Both figures come from the image built from this `Dockerfile`, and both are here so a regression is
+visible rather than gradual. The ROADMAP treats a size increase above 20 % as a review blocker.
+
+| Measure | Value | How |
+| --- | --- | --- |
+| Image size | 1.2 GB | `docker images --format '{{.Size}}'` |
+| Cold start | 1.3 s | container start to the first `200` on `/health`, SQLite and local disk |
+
+Cold start is dominated by engine resolution: the app runs each engine's version command at boot
+(nine programs), which is the cost of knowing at startup rather than at the first conversion.
+
+```bash
+cid=$(docker run -d -p 18080:3000 -e APP_ENV=development -e APP_KEY=...   -e DATABASE_URL=sqlite:/app/storage/app.db -e MAIL_MAILER=log vukem-tools:local serve)
+start=$(date +%s%3N)
+until [ "$(curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:18080/health)" = 200 ]; do :; done
+echo "$(( $(date +%s%3N) - start )) ms"
+```
 
 ## Startup behaviour
 

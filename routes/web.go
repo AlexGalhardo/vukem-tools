@@ -76,7 +76,12 @@ func registerWeb(conversions *services.Conversions, r *router.Router, app *vukem
 	// must not depend on the page pipeline it is meant to outlive. The
 	// shallow one is what a load balancer polls; the deep one touches every
 	// dependency and is for an operator, a deploy gate and an alert.
-	r.Get("/health", health.Shallow).Name("health")
+	//
+	// The name is health.live, not health: vukem already registers GET /up
+	// under that name, and a collision makes the router refuse to boot. /up
+	// stays for platforms that probe it by convention; /health is the
+	// documented one and also reports uptime and the build.
+	r.Get("/health", health.Shallow).Name("health.live")
 	r.Get("/health/deep", health.Deep).Name("health.deep")
 
 	r.Get("/", pages.Index).Name("home")

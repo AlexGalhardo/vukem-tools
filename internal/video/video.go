@@ -46,6 +46,104 @@ const (
 	AV1  Codec = "av1"
 )
 
+// Dither is a paletteuse dithering mode.
+//
+// It is a typed enum rather than a string for a reason that is not obvious
+// from the outside: `-lavfi` is its own language, and ffmpeg parses that
+// string itself. internal/engine passes argv directly, so there is no shell
+// to inject into, but argv safety says nothing about a sub-language the
+// engine interprets on its own. A dither value of
+// "none,movie=/app/work/something" is a filter chain, not a dither mode — the
+// comma, the semicolon and the brackets are all syntax inside a filtergraph.
+//
+// The only constraint that holds for a sub-language is an allowlist that can
+// be enumerated, which is what this is. The same rule applies to everything
+// this package splices into -lavfi, -vf, -af, -filter_complex or a codec
+// parameter string: either it is an integer, or it is one of these.
+type Dither string
+
+// The dithering modes, read out of `ffmpeg -h filter=paletteuse` in the
+// production image and each one confirmed to encode there, rather than copied
+// from documentation: getting the list wrong means refusing a mode that works.
+const (
+	DitherNone           Dither = "none"
+	DitherBayer          Dither = "bayer"
+	DitherHeckbert       Dither = "heckbert"
+	DitherFloydSteinberg Dither = "floyd_steinberg"
+	DitherSierra2        Dither = "sierra2"
+	DitherSierra2Lite    Dither = "sierra2_4a"
+	DitherSierra3        Dither = "sierra3"
+	DitherBurkes         Dither = "burkes"
+	DitherAtkinson       Dither = "atkinson"
+)
+
+// dithers is the closed set, in the order the engine lists it.
+var dithers = []Dither{
+	DitherNone,
+	DitherBayer,
+	DitherHeckbert,
+	DitherFloydSteinberg,
+	DitherSierra2,
+	DitherSierra2Lite,
+	DitherSierra3,
+	DitherBurkes,
+	DitherAtkinson,
+}
+
+// Dithers returns every accepted mode, for the API documentation and the
+// interface.
+func Dithers() []Dither { return slices.Clone(dithers) }
+
+// Valid reports whether d is one of the accepted modes. The empty value is
+// not valid: "use the default" is the caller's choice to make explicitly,
+// through Normalise, rather than something this type decides.
+func (d Dither) Valid() bool { return slices.Contains(dithers, d) }
+
+// DitherNames returns the accepted modes as strings, for a message.
+func DitherNames() []string {
+	out := make([]string, 0, len(dithers))
+	for _, d := range dithers {
+		out = append(out, string(d))
+	}
+
+	return out
+}
+
+// UnknownDitherError reports a dithering mode that is not in the allowlist.
+//
+// A refusal rather than a silent fall back to the default, and that is the
+// important half. Quietly substituting a default means somebody who asked for
+// sierra3 and got bayer has no way to find out, and the difference shows up
+// as banding on a gradient they will not look at closely until much later.
+type UnknownDitherError struct {
+	// Asked is what the caller sent. It is echoed back in the public
+	// message, which is safe: it is the caller's own input, and it is the
+	// only thing that makes the message useful.
+	Asked string
+}
+
+// Error implements error.
+func (e *UnknownDitherError) Error() string {
+	return "video: " + e.Asked + " is not a dithering mode"
+}
+
+// Message is the sentence to show the user: what was wrong and what is
+// accepted.
+func (e *UnknownDitherError) Message() string {
+	return "There is no dithering mode called " + quote(e.Asked) + ". Use one of: " +
+		strings.Join(DitherNames(), ", ") + "."
+}
+
+// quote renders a value for a message without letting it run into the
+// surrounding sentence.
+func quote(s string) string {
+	if s == "" {
+		return `""`
+	}
+
+	return `"` + s + `"`
+}
+
 // AudioCodec is an audio encoder.
 type AudioCodec string
 

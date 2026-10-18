@@ -57,6 +57,10 @@ func (m Metadata) Animated() bool { return m.Pages > 1 }
 // milliseconds and buys the guarantee that a decompression bomb is refused
 // rather than merely limited.
 func Probe(ctx context.Context, e Engine, r Runner, dir, path string) (Metadata, error) {
+	if err := checkPath(path); err != nil {
+		return Metadata{}, err
+	}
+
 	var out strings.Builder
 
 	_, err := r.Run(ctx, engine.Command{

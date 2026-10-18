@@ -395,3 +395,66 @@ func TestAnInvalidRotationIsRefusedBeforeAnyProcessStarts(t *testing.T) {
 		t.Errorf("%d processes were started for an invalid rotation", len(fake.commands))
 	}
 }
+
+// TestAPathCannotSmuggleLibvipsLoadOptions is the image-side half of the
+// filtergraph finding.
+//
+// libvips takes its options inside the filename — `in.jpg[access=sequential]`
+// is the documented interface — so a filename is a sub-language, and a path
+// containing a bracket is one libvips parses options out of. argv safety is
+// irrelevant: there is no shell, and libvips interprets the string itself.
+// libvips offers no escape for the syntax, so such a path is refused.
+func TestAPathCannotSmuggleLibvipsLoadOptions(t *testing.T) {
+	hostile := []string{
+		"holiday[shrink=8].jpg",
+		"in.jpg[access=random",
+		"/app/work/x[page=3].gif",
+	}
+
+	for _, path := range hostile {
+		t.Run(path, func(t *testing.T) {
+			fake := &recorder{}
+
+			_, err := Convert(context.Background(),
+				Engine{Vips: "vips", VipsHeader: "vipsheader"}, fake, t.TempDir(), path,
+				Options{To: PNG})
+
+			if !errors.Is(err, ErrPathHasOptionSyntax) {
+				t.Fatalf("want ErrPathHasOptionSyntax, got %v", err)
+			}
+
+			if len(fake.commands) != 0 {
+				t.Errorf("%d processes were started for a hostile path", len(fake.commands))
+			}
+		})
+	}
+
+	// An ordinary path still works, or the guard would refuse everything.
+	fake := &recorder{stdout: []string{headerOf(10, 10), "", headerOf(10, 10)}}
+
+	if _, err := Convert(context.Background(),
+		Engine{Vips: "vips", VipsHeader: "vipsheader"}, fake, t.TempDir(),
+		"/app/work/input.png", Options{To: PNG}); err != nil {
+		t.Errorf("an ordinary path was refused: %v", err)
+	}
+}
+
+// TestEverySaveOptionIsBuiltFromATableOrAClampedInteger is the sweep result,
+// as an assertion: nothing caller-supplied reaches the libvips option
+// sub-language as a free string.
+func TestEverySaveOptionIsBuiltFromATableOrAClampedInteger(t *testing.T) {
+	// The option list is built from the format's own defaults plus Quality
+	// and Effort, both integers clamped to the saver's range. An absurd
+	// value therefore becomes a number in range rather than anything else.
+	for _, quality := range []int{-5000, 0, 1, 50, 100, 999999} {
+		got := saveSuffix(Options{To: JPEG, Quality: quality, Effort: quality})
+
+		if strings.ContainsAny(got, " \t\n\"'`$;") {
+			t.Errorf("Q=%d produced option syntax: %q", quality, got)
+		}
+
+		if !strings.HasPrefix(got, "[") || !strings.HasSuffix(got, "]") {
+			t.Errorf("Q=%d produced a malformed option list: %q", quality, got)
+		}
+	}
+}

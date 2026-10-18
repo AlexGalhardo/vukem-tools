@@ -117,8 +117,10 @@ type GIFOptions struct {
 	// video, bounded by MaxGIFDuration.
 	Start    time.Duration
 	Duration time.Duration
-	// Dither chooses the dithering. Empty uses a sensible default.
-	Dither string
+	// Dither chooses the dithering mode. Empty takes the default; anything
+	// outside the enum is refused rather than defaulted, because the value
+	// goes into a filtergraph that ffmpeg parses itself.
+	Dither Dither
 }
 
 // MaxGIFDuration is the longest range this package will turn into a GIF.
@@ -133,7 +135,7 @@ const MaxGIFDuration = 15 * time.Second
 const (
 	defaultGIFFPS    = 12
 	defaultGIFWidth  = 480
-	defaultGIFDither = "sierra2_4a"
+	defaultGIFDither = DitherSierra2Lite
 )
 
 // ToGIF turns a range of a video into a GIF, in two passes.
@@ -183,6 +185,15 @@ func ToGIF(
 		dither = defaultGIFDither
 	}
 
+	// Checked again here even though the tool layer validates it at
+	// submission, because this package is also called from a benchmark and
+	// from the command line, and a filtergraph assembled from an
+	// unconstrained string is the one thing that must not depend on somebody
+	// else having checked first.
+	if !dither.Valid() {
+		return Result{}, &UnknownDitherError{Asked: string(dither)}
+	}
+
 	// The same filter chain in both passes, so the palette is computed from
 	// exactly the frames it will be applied to. A palette built from the
 	// full-resolution frames and applied to scaled ones is subtly wrong, and
@@ -211,7 +222,7 @@ func ToGIF(
 		"-i", input,
 		"-i", palette,
 		"-progress", "pipe:1",
-		"-lavfi", chain+"[x];[x][1:v]paletteuse=dither="+dither,
+		"-lavfi", chain+"[x];[x][1:v]paletteuse=dither="+string(dither),
 		// A GIF loops forever by convention, and a GIF that plays once is
 		// almost never what somebody wanted.
 		"-loop", "0",

@@ -2,6 +2,7 @@ package image
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"path/filepath"
 	"strconv"
@@ -57,6 +58,40 @@ func (e Engine) env() []string {
 // an image in memory. Below the address-space limit on purpose: spilling is
 // slower, and hitting RLIMIT_AS is a failed conversion.
 const discThresholdMB = 256
+
+// ErrPathHasOptionSyntax reports an input path libvips would misread.
+//
+// libvips takes its loader and saver options *inside the filename*:
+// `in.jpg[access=sequential]` is the documented interface, not a quirk. That
+// makes a filename a sub-language, exactly like an ffmpeg filtergraph, and a
+// path containing a bracket is a path libvips will parse options out of. A
+// file called `holiday[shrink=8].jpg` would be decoded at an eighth scale;
+// one with a crafted name could set any load option the build has.
+//
+// internal/engine passes argv directly, so there is no shell to inject into —
+// and that is irrelevant here, because libvips interprets the string itself.
+// So a path with the syntax in it is refused rather than escaped: libvips
+// offers no escape for it.
+//
+// Callers avoid this by construction: a tool copies its input to a fixed
+// local name rather than to the name the file was uploaded under. This is the
+// backstop for when one forgets.
+var ErrPathHasOptionSyntax = errors.New(
+	"image: the file path contains libvips option syntax, which would change how it is decoded")
+
+// optionSyntax is the character that begins a libvips option list. The
+// closing bracket is not checked: an unbalanced open bracket is already
+// enough to change the parse.
+const optionSyntax = "["
+
+// checkPath refuses a path libvips would read options out of.
+func checkPath(path string) error {
+	if strings.Contains(path, optionSyntax) {
+		return ErrPathHasOptionSyntax
+	}
+
+	return nil
+}
 
 // MaxPixels is the largest frame this package will decode, in pixels.
 //
@@ -203,6 +238,10 @@ type Result struct {
 // image's own size and downsizing only, which is a re-encode with the
 // orientation and the colour profile handled correctly.
 func Convert(ctx context.Context, e Engine, r Runner, dir, input string, o Options) (Result, error) {
+	if err := checkPath(input); err != nil {
+		return Result{}, err
+	}
+
 	source, err := Probe(ctx, e, r, dir, input)
 	if err != nil {
 		return Result{}, err

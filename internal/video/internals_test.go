@@ -383,3 +383,97 @@ func TestAnUnknownContainerIsRefusedByName(t *testing.T) {
 		t.Errorf("the error should name the container, got %v", err)
 	}
 }
+
+// TestADitheringModeCannotSmuggleFiltersIntoTheGraph is the regression test
+// for a real finding: `-lavfi` is its own language, and internal/engine's
+// argv safety says nothing about a sub-language ffmpeg parses itself.
+//
+// The values below are not shell injection — there is no shell — they are
+// filtergraph syntax. A comma starts the next filter in a chain, a semicolon
+// starts the next chain, and brackets name a pad, so a dither value carrying
+// any of them adds filters to the graph rather than choosing a dither mode.
+func TestADitheringModeCannotSmuggleFiltersIntoTheGraph(t *testing.T) {
+	hostile := []string{
+		"none,movie=/app/work/input.mp4",
+		"sierra2_4a;[x]null[y]",
+		"none[a];[a]scale=1:1",
+		"none=1",
+		"",
+		"NONE",
+		"sierra4",
+	}
+
+	for _, value := range hostile {
+		t.Run(value, func(t *testing.T) {
+			if Dither(value).Valid() {
+				t.Fatalf("%q was accepted as a dithering mode", value)
+			}
+
+			// And the refusal has to say what is accepted, because a bare
+			// "invalid" leaves somebody guessing through nine names.
+			message := (&UnknownDitherError{Asked: value}).Message()
+
+			for _, want := range []string{"sierra2_4a", "bayer", "none"} {
+				if !strings.Contains(message, want) {
+					t.Errorf("the refusal does not name %q: %q", want, message)
+				}
+			}
+		})
+	}
+}
+
+func TestEveryDitherModeInTheEnumIsAccepted(t *testing.T) {
+	// The complement of the test above: an allowlist that refuses a mode
+	// that works is a bug too, so every name here was confirmed against
+	// `ffmpeg -h filter=paletteuse` in the production image.
+	for _, d := range Dithers() {
+		if !d.Valid() {
+			t.Errorf("%q is in the list and not valid", d)
+		}
+	}
+
+	if len(Dithers()) != 9 {
+		t.Errorf("the enum has %d modes; the engine lists nine", len(Dithers()))
+	}
+
+	// The default has to be one of them, or every GIF conversion that named
+	// no mode would be refused.
+	if !defaultGIFDither.Valid() {
+		t.Errorf("the default mode %q is not in the enum", defaultGIFDither)
+	}
+}
+
+// TestNoFilterGraphIsBuiltFromAnUnconstrainedString is the sweep this finding
+// prompted, written down as an assertion rather than as a note.
+//
+// Every value this package splices into -vf, -lavfi or -af is either an
+// integer formatted with %d, a float formatted by strconv, or a member of a
+// typed enum. The test covers the integer paths: a geometry built from
+// Options cannot contain filtergraph syntax, because the fields are ints.
+func TestNoFilterGraphIsBuiltFromAnUnconstrainedString(t *testing.T) {
+	p, err := buildPlan("in.mp4", "out.mp4",
+		Options{Container: MP4, Height: 720, FrameRate: 29.97}, gplBuild, withBoth)
+	if err != nil {
+		t.Fatalf("build a plan: %v", err)
+	}
+
+	filter := valueAfter(p.args, "-vf")
+
+	// One filter, no chain and no pad labels. The comma inside min(720,ih)
+	// is expression syntax rather than a chain separator, which is why this
+	// asserts on the filter's name and the graph characters rather than
+	// counting commas.
+	if !strings.HasPrefix(filter, "scale=") {
+		t.Errorf("the geometry filter is not a scale: %q", filter)
+	}
+
+	if strings.ContainsAny(filter, ";[]") {
+		t.Errorf("the scale filter has graph syntax in it: %q", filter)
+	}
+
+	// The frame rate goes to -r, which is a codec option rather than part of
+	// the graph, so a float there cannot reach the filtergraph at all.
+	if rate := valueAfter(p.args, "-r"); strings.ContainsAny(rate, ",;[]=") {
+		t.Errorf("the frame rate carries syntax: %q", rate)
+	}
+}

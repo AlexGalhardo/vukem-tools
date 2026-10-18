@@ -127,6 +127,10 @@ func Edit(ctx context.Context, e Engine, r Runner, dir, input string, o EditOpti
 		return Result{}, fmt.Errorf("image: %q is not a flip this tool applies", string(o.Flip))
 	}
 
+	if err := checkPath(input); err != nil {
+		return Result{}, err
+	}
+
 	source, err := Probe(ctx, e, r, dir, input)
 	if err != nil {
 		return Result{}, err
@@ -147,7 +151,7 @@ func Edit(ctx context.Context, e Engine, r Runner, dir, input string, o EditOpti
 			return Result{}, err
 		}
 
-		current, err = e.geometry(ctx, r, dir, current, &step, "crop",
+		current, err = e.geometry(ctx, r, dir, current, &step, opCrop,
 			strconv.Itoa(o.Crop.Left), strconv.Itoa(o.Crop.Top),
 			strconv.Itoa(o.Crop.Width), strconv.Itoa(o.Crop.Height))
 		if err != nil {
@@ -156,14 +160,14 @@ func Edit(ctx context.Context, e Engine, r Runner, dir, input string, o EditOpti
 	}
 
 	if o.Rotate != Rotate0 {
-		current, err = e.geometry(ctx, r, dir, current, &step, "rot", o.Rotate.vipsAngle())
+		current, err = e.geometry(ctx, r, dir, current, &step, opRot, o.Rotate.vipsAngle())
 		if err != nil {
 			return Result{}, err
 		}
 	}
 
 	if o.Flip != FlipNone {
-		current, err = e.geometry(ctx, r, dir, current, &step, "flip", string(o.Flip))
+		current, err = e.geometry(ctx, r, dir, current, &step, opFlip, string(o.Flip))
 		if err != nil {
 			return Result{}, err
 		}
@@ -201,6 +205,23 @@ func checkCrop(c Rect, source Metadata) error {
 	return nil
 }
 
+// vipsOp is a libvips operation name this package runs.
+//
+// A type with three constants rather than a string parameter, for the same
+// reason the dithering mode in internal/video is an enum: the operation name
+// is the first word of a command line the engine parses, and the only
+// constraint on a sub-language that holds is one that can be enumerated.
+// Nothing caller-supplied reaches it today, and this is what keeps that true
+// after somebody adds a fourth operation.
+type vipsOp string
+
+// The geometry operations.
+const (
+	opCrop vipsOp = "crop"
+	opRot  vipsOp = "rot"
+	opFlip vipsOp = "flip"
+)
+
 // geometry runs one libvips geometry operation, writing a `.v` intermediate,
 // and returns its path.
 func (e Engine) geometry(
@@ -208,14 +229,14 @@ func (e Engine) geometry(
 	r Runner,
 	dir, input string,
 	step *int,
-	op string,
+	op vipsOp,
 	args ...string,
 ) (string, error) {
 	*step++
 
-	out := filepath.Join(dir, fmt.Sprintf("step%d-%s.v", *step, op))
+	out := filepath.Join(dir, fmt.Sprintf("step%d-%s.v", *step, string(op)))
 
-	argv := append([]string{op, input + "[access=sequential]", out}, args...)
+	argv := append([]string{string(op), input + "[access=sequential]", out}, args...)
 
 	if _, err := r.Run(ctx, engine.Command{
 		Path: e.Vips,
@@ -223,7 +244,7 @@ func (e Engine) geometry(
 		Dir:  dir,
 		Env:  e.env(),
 	}); err != nil {
-		return "", classify(err, "apply "+op)
+		return "", classify(err, "apply "+string(op))
 	}
 
 	return out, nil

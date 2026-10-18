@@ -330,12 +330,14 @@ and a `/up` route. What is left is below.
   - [x] Layout: header, tool search, footer with the licence notice
   - [x] Dark mode following the system preference, with a manual override
   - [x] English only; no i18n layer
-- [ ] Shared conversion UI
-  - [ ] Drag-and-drop zone accepting several files
-  - [ ] A visible job queue: one row per file, progress bar fed by SSE, cancel button
-  - [ ] Before/after panel: size in MB, percentage saved, side-by-side preview where it makes sense
-  - [ ] Download individually or everything as a `.zip`
-  - [ ] Error states that explain the cause in plain English, mapped from `error_type`
+- [x] Shared conversion UI
+  - [x] Drag-and-drop zone accepting several files
+  - [x] A visible job queue: one row per file, progress bar fed by SSE, cancel button
+  - [~] Before/after panel: size and percentage saved are shown; the side-by-side preview waits
+        for a tool where it means something (an SVG beside its source needs a renderer)
+  - [~] Download individually. The `.zip` of everything waits for the archive tool, so one
+        implementation serves both
+  - [x] Error states that explain the cause in plain English, mapped from `error_type`
 - [ ] Account area: profile, password, API keys, usage and quota
 - [x] Public pages: home with tool search, `/licenses`, `/api` overview
 - [x] Password fields: a show/hide toggle inside the field on the right, and the policy checked

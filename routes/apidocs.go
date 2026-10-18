@@ -277,6 +277,10 @@ func componentExamples() map[string]any {
 		"AbilityList":       map[string]any{"data": toAny(abilities.All())},
 		"ToolList":          map[string]any{"data": []any{"pixels-to-svg"}},
 		"TypeList":          map[string]any{"data": toAny(detect.Types())},
+		"UploadList":        map[string]any{"data": []any{uploadExample()}},
+		"UploadView":        uploadExample(),
+		"ResultList":        map[string]any{"data": []any{resultExample()}},
+		"ResultFile":        resultExample(),
 		"ConversionView":    conversionExample(),
 		"ConversionList":    map[string]any{"data": []any{conversionExample()}},
 		"ErrorCatalog":      map[string]any{"data": errorCatalogExample()},
@@ -309,6 +313,33 @@ func conversionExample() map[string]any {
 		"finished_at":   nil,
 		"expires_at":    "2026-02-03T11:00:02Z",
 		"created_at":    "2026-02-03T10:00:00Z",
+	}
+}
+
+// uploadExample is one stored upload, shown with the size and type the server
+// detected rather than the ones a client claimed.
+func uploadExample() map[string]any {
+	return map[string]any{
+		"id":         "01JQ8Z5X0K7M3N9P2R4T6V8W0Y",
+		"name":       "sprite.png",
+		"mime":       "image/png",
+		"size_bytes": 18_452,
+		"expires_at": "2026-02-04T10:00:00Z",
+		"created_at": "2026-02-03T10:00:00Z",
+	}
+}
+
+// resultExample is a finished conversion's output. The URL shows the shape of
+// a signed link without being one: the signature is a placeholder, and
+// TestNoExampleLeaksACredential asserts no example is usable.
+func resultExample() map[string]any {
+	return map[string]any{
+		"name":       "sprite.svg",
+		"mime":       "image/svg+xml",
+		"size_bytes": 2_914,
+		"url": "https://tools.example.com/files/01JQ8Z5X0K7M3N9P2R4T6V8W0Y" +
+			"?expires=1770199200&signature=replace-this-with-the-signature-you-receive",
+		"expires_at": "2026-02-03T10:05:02Z",
 	}
 }
 

@@ -211,6 +211,24 @@ type PixelSVGOptions struct {
 	Tolerance *int64 `json:"tolerance,omitempty"`
 }
 
+type ResultFile struct {
+	// When the file is deleted and the link stops working.
+	ExpiresAt *time.Time `json:"expires_at,omitempty"`
+	// Its media type.
+	Mime *string `json:"mime,omitempty"`
+	// The file name to save it as.
+	Name *string `json:"name,omitempty"`
+	// Its size.
+	SizeBytes *int64 `json:"size_bytes,omitempty"`
+	// A signed link, valid until expires_at and no longer.
+	URL *string `json:"url,omitempty"`
+}
+
+type ResultList struct {
+	// The files this conversion produced.
+	Data []ResultFile `json:"data,omitempty"`
+}
+
 type Token struct {
 	Abilities  []string   `json:"abilities,omitempty"`
 	ExpiresAt  *time.Time `json:"expires_at,omitempty"`
@@ -247,6 +265,26 @@ type ToolList struct {
 type TypeList struct {
 	// Every MIME type an upload may have.
 	Data []string `json:"data,omitempty"`
+}
+
+type UploadView struct {
+	// When it was accepted.
+	CreatedAt *time.Time `json:"created_at,omitempty"`
+	// When an unused upload is deleted.
+	ExpiresAt *time.Time `json:"expires_at,omitempty"`
+	// Use this as file_id when submitting a conversion.
+	ID *string `json:"id,omitempty"`
+	// The type detected from the bytes, not from the name.
+	Mime *string `json:"mime,omitempty"`
+	// The sanitised file name.
+	Name *string `json:"name,omitempty"`
+	// What was actually stored.
+	SizeBytes *int64 `json:"size_bytes,omitempty"`
+}
+
+type UploadList struct {
+	// Your uploads that no conversion has claimed yet, newest first.
+	Data []UploadView `json:"data,omitempty"`
 }
 
 type User struct {
@@ -326,6 +364,14 @@ func (c *Client) ConversionsIndex(ctx context.Context, query ConversionsIndexQue
 	return out, err
 }
 
+// ConversionsResult calls GET /api/v1/conversions/{id}/result: Get signed links to a conversion's result.
+func (c *Client) ConversionsResult(ctx context.Context, id string) (ResultList, error) {
+	var out ResultList
+	err := c.do(ctx, "GET", "/api/v1/conversions/"+url.PathEscape(queryString(id))+"/result", nil, nil, &out)
+
+	return out, err
+}
+
 // ConversionsShow calls GET /api/v1/conversions/{id}: Show one conversion.
 func (c *Client) ConversionsShow(ctx context.Context, id string) (ConversionView, error) {
 	var out ConversionView
@@ -380,6 +426,14 @@ func (c *Client) ToolsIndex(ctx context.Context) (ToolList, error) {
 func (c *Client) ToolsPixelsToSvg(ctx context.Context, body ToolsPixelsToSvgBody) (ConversionView, error) {
 	var out ConversionView
 	err := c.do(ctx, "POST", "/api/v1/tools/pixels-to-svg", nil, body, &out)
+
+	return out, err
+}
+
+// UploadsIndex calls GET /api/v1/uploads: List your unclaimed uploads.
+func (c *Client) UploadsIndex(ctx context.Context) (UploadList, error) {
+	var out UploadList
+	err := c.do(ctx, "GET", "/api/v1/uploads", nil, nil, &out)
 
 	return out, err
 }

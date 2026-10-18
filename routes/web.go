@@ -5,6 +5,7 @@ import (
 	"net/http"
 
 	vukem "github.com/AlexGalhardo/vukem"
+	"github.com/AlexGalhardo/vukem/auth"
 	"github.com/AlexGalhardo/vukem/inertia"
 	"github.com/AlexGalhardo/vukem/middleware"
 	"github.com/AlexGalhardo/vukem/router"
@@ -40,6 +41,11 @@ func registerWeb(conversions *services.Conversions, r *router.Router, app *vukem
 	// health probe included.
 	r.UseServer(httpx.DeployTarget(app.Source.Get("DEPLOY_TARGET")))
 	r.UseServer(middleware.StaticFS(resources.Public(), middleware.StaticConfig{Prefix: "/"}))
+	acc, err := accounts.New(app)
+	if err != nil {
+		return err
+	}
+
 	share, err := shareProps(app)
 	if err != nil {
 		return err
@@ -47,10 +53,17 @@ func registerWeb(conversions *services.Conversions, r *router.Router, app *vukem
 
 	r.Use(app.Inertia.Middleware, share)
 
-	pages := controllers.NewPages(conversions.Pipeline().Tools())
+	pages := controllers.NewPages(
+		conversions.Pipeline().Tools(),
+		services.MaxUploadBytes(app),
+		TusPath,
+	)
 
 	r.Get("/", pages.Index).Name("home")
 	r.Get("/licenses", pages.Licenses).Name("licenses")
+	// A tool page needs an account: every conversion does, so showing the
+	// form to somebody who cannot submit it would be a dead end.
+	r.Get("/tools/{name}", pages.Tool).Name("tools.show").Use(auth.Required(acc.Web))
 
 	return nil
 }

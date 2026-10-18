@@ -113,6 +113,15 @@ func Conversions(c *services.Conversions) func(r *router.Router, app *vukem.App)
 					Security: []string{SchemeBearer},
 				}, h.Show)
 
+				api.Register(p, "GET /conversions/{id}/result", api.Op{
+					Name:    "conversions.result",
+					Summary: "Get signed links to a conversion's result",
+					Description: "Signed, expiring links to the files a finished conversion produced. " +
+						"A link is signed when you ask for it, so it is never older than your request.",
+					Tags:     []string{tagConversions},
+					Security: []string{SchemeBearer},
+				}, h.Result)
+
 				api.Register(p, "DELETE /conversions/{id}", api.Op{
 					Name:    "conversions.cancel",
 					Summary: "Cancel a conversion",

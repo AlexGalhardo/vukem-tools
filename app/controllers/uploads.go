@@ -126,6 +126,55 @@ type UploadedResponse struct {
 	Size int64  `json:"size_bytes"`
 }
 
+// UploadView is one upload as the API reports it. The bucket key is
+// deliberately absent: a download goes through a signed link, so the key stays
+// private.
+type UploadView struct {
+	ID        string    `json:"id"         doc:"Use this as file_id when submitting a conversion."`
+	Name      string    `json:"name"       doc:"The sanitised file name."`
+	MIME      string    `json:"mime"       doc:"The type detected from the bytes, not from the name."`
+	SizeBytes int64     `json:"size_bytes" doc:"What was actually stored."`
+	ExpiresAt time.Time `json:"expires_at" doc:"When an unused upload is deleted."`
+	CreatedAt time.Time `json:"created_at" doc:"When it was accepted."`
+}
+
+// UploadList is the answer to GET /api/v1/uploads.
+type UploadList struct {
+	Data []UploadView `json:"data" doc:"Your uploads that no conversion has claimed yet, newest first."`
+}
+
+// Index lists the caller's unclaimed uploads: GET /api/v1/uploads.
+//
+// A resumable upload has no response body to carry the stored id, so this is
+// how a client finds the upload it just made. Two byte-identical files
+// uploaded at once are interchangeable here, which is harmless because they
+// are in fact identical.
+func (u *Uploads) Index(c *web.Ctx, _ struct{}) (UploadList, error) {
+	userID, err := u.owner(c.Context())
+	if err != nil {
+		return UploadList{}, err
+	}
+
+	rows, err := u.files.Unattached(c.Context(), userID, 0)
+	if err != nil {
+		return UploadList{}, err
+	}
+
+	out := UploadList{Data: make([]UploadView, 0, len(rows))}
+	for i := range rows {
+		out.Data = append(out.Data, UploadView{
+			ID:        rows[i].ID,
+			Name:      rows[i].Name,
+			MIME:      rows[i].MIME,
+			SizeBytes: rows[i].SizeBytes,
+			ExpiresAt: rows[i].ExpiresAt,
+			CreatedAt: rows[i].CreatedAt,
+		})
+	}
+
+	return out, nil
+}
+
 // Download streams a file to its owner: GET /files/{id}.
 //
 // The link is signed and short-lived, and the signature covers the id, so the

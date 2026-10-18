@@ -387,6 +387,81 @@ func (h *Conversions) Cancel(c *web.Ctx, in ConversionIDInput) (ConversionView, 
 	return viewOf(row), nil
 }
 
+// ResultFile is one output of a finished conversion, with a link to it.
+type ResultFile struct {
+	Name      string    `json:"name"       doc:"The file name to save it as."`
+	MIME      string    `json:"mime"       doc:"Its media type."`
+	SizeBytes int64     `json:"size_bytes" doc:"Its size."`
+	URL       string    `json:"url"        doc:"A signed link, valid until expires_at and no longer."`
+	ExpiresAt time.Time `json:"expires_at" doc:"When the file is deleted and the link stops working."`
+}
+
+// ResultList is the answer to GET /api/v1/conversions/{id}/result.
+type ResultList struct {
+	Data []ResultFile `json:"data" doc:"The files this conversion produced."`
+}
+
+// Result returns signed links to a finished conversion's output:
+// GET /api/v1/conversions/{id}/result.
+//
+// The link is made here rather than in the client because only the server can
+// sign one, and it is signed on request rather than stored so that it is never
+// older than the request that asked for it — a stored link would start
+// expiring the moment the conversion finished, whether anybody had read it or
+// not.
+func (h *Conversions) Result(c *web.Ctx, in ConversionIDInput) (ResultList, error) {
+	userID, err := callerID(c)
+	if err != nil {
+		return ResultList{}, err
+	}
+
+	// Scoped first: the conversion has to be the caller's before any of its
+	// files are named, let alone signed.
+	conversion, err := h.store.Find(c.Context(), userID, in.ID)
+	if err != nil {
+		return ResultList{}, err
+	}
+
+	if jobs.Status(conversion.Status) != jobs.Finished {
+		return ResultList{}, errs.NewKey(http.StatusConflict, "conversion.unfinished",
+			"That conversion has not produced a result.", nil)
+	}
+
+	outputs, err := h.files.ForConversion(c.Context(), conversion.ID, models.FileOutput)
+	if err != nil {
+		return ResultList{}, err
+	}
+
+	out := ResultList{Data: make([]ResultFile, 0, len(outputs))}
+
+	for i := range outputs {
+		f := outputs[i]
+
+		link, err := h.files.DownloadURL(f, 0)
+		if err != nil {
+			if errors.Is(err, files.ErrExpired) {
+				// The cleanup has reached it, or is about to. 410 rather than
+				// 404: it existed, and saying so is what tells the user to
+				// convert again rather than to look for a typo.
+				return ResultList{}, errs.NewKey(http.StatusGone, "conversion.expired",
+					"That result has expired. Convert the file again for a new one.", nil)
+			}
+
+			return ResultList{}, err
+		}
+
+		out.Data = append(out.Data, ResultFile{
+			Name:      f.Name,
+			MIME:      f.MIME,
+			SizeBytes: f.SizeBytes,
+			URL:       link,
+			ExpiresAt: f.ExpiresAt,
+		})
+	}
+
+	return out, nil
+}
+
 // ErrorCatalog is the answer to GET /api/v1/conversion-errors.
 type ErrorCatalog struct {
 	Data []ErrorCatalogEntry `json:"data" doc:"Every error code a conversion can end with."`

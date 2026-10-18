@@ -332,6 +332,32 @@ func (s *Store) AttachTx(
 	return n > 0, nil
 }
 
+// Unattached returns the caller's input files that no conversion has claimed
+// yet, newest first.
+//
+// It is how a client learns the id of the upload it just finished: the tus
+// protocol has no response body on a completed PATCH, and the framework's
+// OnComplete hook cannot set a header, so there is nowhere to put the id. It
+// is also what a page reloaded mid-flow reads to pick up where it was.
+func (s *Store) Unattached(ctx context.Context, userID string, limit int) ([]models.File, error) {
+	if limit <= 0 || limit > maxUnattached {
+		limit = maxUnattached
+	}
+
+	return orm.QueryOf[models.File](s.db).
+		Where("user_id", userID).
+		Where("role", models.FileInput).
+		WhereNull("conversion_id").
+		Where("expires_at", ">", s.now().UTC()).
+		OrderBy("id", orm.Desc).
+		Limit(limit).
+		Get(ctx)
+}
+
+// maxUnattached caps the listing. A client needs the last few, not all of
+// them.
+const maxUnattached = 20
+
 // Open streams a file's bytes out of the bucket. The caller closes the
 // reader.
 func (s *Store) Open(ctx context.Context, f models.File) (io.ReadCloser, error) {

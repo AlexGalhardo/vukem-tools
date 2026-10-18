@@ -7,6 +7,7 @@ import (
 	vukem "github.com/AlexGalhardo/vukem"
 	"github.com/AlexGalhardo/vukem/api"
 	"github.com/AlexGalhardo/vukem/auth"
+	"github.com/AlexGalhardo/vukem/middleware"
 	"github.com/AlexGalhardo/vukem/openapi"
 	"github.com/AlexGalhardo/vukem/ratelimit"
 	"github.com/AlexGalhardo/vukem/router"
@@ -85,13 +86,31 @@ func Uploads(c *services.Conversions) func(r *router.Router, app *vukem.App) err
 			Use(c.Signer().Middleware()).
 			Doc(openapi.Skip{})
 
+		perToken := ratelimit.Middleware(limiters("api.token", 60, time.Minute), ratelimit.ByToken)
+
 		r.Group("/api/v1", func(g *router.Group) {
+			g.Use(middleware.JSONOnly(), httpx.AcceptAPIKeyHeader)
+
 			api.Register(g, "GET /upload-types", api.Op{
 				Name:        "uploads.types",
 				Summary:     "List the file types an upload may have",
 				Description: "Every type the service accepts at the door, so a client does not hardcode them.",
 				Tags:        []string{tagCatalog},
 			}, h.Types)
+
+			g.Group("", func(p *router.Group) {
+				p.Use(auth.Required(acc.Web, acc.API), perToken)
+
+				api.Register(p, "GET /uploads", api.Op{
+					Name:    "uploads.index",
+					Summary: "List your unclaimed uploads",
+					Description: "Uploads of yours that no conversion has claimed yet, newest first. " +
+						"A resumable upload has no response body, so this is how a client learns the id " +
+						"of the upload it just finished.",
+					Tags:     []string{tagCatalog},
+					Security: []string{SchemeBearer},
+				}, h.Index)
+			})
 		}).Name("api.v1.")
 
 		return nil

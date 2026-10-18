@@ -53,6 +53,18 @@ export type Problem = {
   type?: string;
 };
 
+export type ResultFile = {
+  expires_at?: string;
+  mime?: string;
+  name?: string;
+  size_bytes?: number;
+  url?: string;
+};
+
+export type ResultList = {
+  data?: ResultFile[];
+};
+
 export type Token = {
   abilities?: string[];
   expires_at?: string | null;
@@ -83,6 +95,19 @@ export type TypeList = {
   data?: string[];
 };
 
+export type UploadList = {
+  data?: UploadView[];
+};
+
+export type UploadView = {
+  created_at?: string;
+  expires_at?: string;
+  id?: string;
+  mime?: string;
+  name?: string;
+  size_bytes?: number;
+};
+
 export type User = {
   created_at?: string;
   email?: string;
@@ -103,6 +128,8 @@ export type ConversionsIndexQuery = {
 };
 
 export type ConversionsIndexResponse = ConversionList;
+
+export type ConversionsResultResponse = ResultList;
 
 export type ConversionsShowResponse = ConversionView;
 
@@ -135,9 +162,15 @@ export type ToolsPixelsToSvgBody = {
 
 export type ToolsPixelsToSvgResponse = ConversionView;
 
+export type UploadsIndexResponse = UploadList;
+
 export type UploadsTypesResponse = TypeList;
 
 export type ConversionsCancelParams = {
+  id: string;
+};
+
+export type ConversionsResultParams = {
   id: string;
 };
 
@@ -287,6 +320,11 @@ export interface Client {
   conversionsIndex(args?: { query?: ConversionsIndexQuery }): Promise<ConversionsIndexResponse>;
 
   /**
+   * GET /api/v1/conversions/{id}/result: Get signed links to a conversion's result
+   */
+  conversionsResult(args: { params: ConversionsResultParams }): Promise<ConversionsResultResponse>;
+
+  /**
    * GET /api/v1/conversions/{id}: Show one conversion
    */
   conversionsShow(args: { params: ConversionsShowParams }): Promise<ConversionsShowResponse>;
@@ -327,6 +365,11 @@ export interface Client {
   toolsPixelsToSvg(args: { body: ToolsPixelsToSvgBody }): Promise<ToolsPixelsToSvgResponse>;
 
   /**
+   * GET /api/v1/uploads: List your unclaimed uploads
+   */
+  uploadsIndex(): Promise<UploadsIndexResponse>;
+
+  /**
    * GET /api/v1/upload-types: List the file types an upload may have
    */
   uploadsTypes(): Promise<UploadsTypesResponse>;
@@ -341,6 +384,7 @@ export function createClient(options: ClientOptions = {}): Client {
     conversionsCancel: (args) => request<ConversionsCancelResponse>("DELETE", "/api/v1/conversions/{id}", args),
     conversionsErrors: () => request<ConversionsErrorsResponse>("GET", "/api/v1/conversion-errors"),
     conversionsIndex: (args) => request<ConversionsIndexResponse>("GET", "/api/v1/conversions", args),
+    conversionsResult: (args) => request<ConversionsResultResponse>("GET", "/api/v1/conversions/{id}/result", args),
     conversionsShow: (args) => request<ConversionsShowResponse>("GET", "/api/v1/conversions/{id}", args),
     me: () => request<MeResponse>("GET", "/api/v1/me"),
     tokensDestroy: () => request<TokensDestroyResponse>("DELETE", "/api/v1/tokens/current"),
@@ -349,6 +393,7 @@ export function createClient(options: ClientOptions = {}): Client {
     tokensStore: (args) => request<TokensStoreResponse>("POST", "/api/v1/tokens", args),
     toolsIndex: () => request<ToolsIndexResponse>("GET", "/api/v1/tools"),
     toolsPixelsToSvg: (args) => request<ToolsPixelsToSvgResponse>("POST", "/api/v1/tools/pixels-to-svg", args),
+    uploadsIndex: () => request<UploadsIndexResponse>("GET", "/api/v1/uploads"),
     uploadsTypes: () => request<UploadsTypesResponse>("GET", "/api/v1/upload-types"),
   };
 }

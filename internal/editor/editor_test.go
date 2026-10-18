@@ -467,3 +467,33 @@ func TestAnEditorNeedsBothEngines(t *testing.T) {
 		t.Error("an editor was built without ffprobe")
 	}
 }
+
+func TestAnOutputNameThatIsAPathIsRefused(t *testing.T) {
+	t.Parallel()
+
+	for _, name := range []string{
+		"../escaped.mp4",
+		"../../etc/cron.d/x",
+		"sub/dir.mp4",
+		`sub\dir.mp4`,
+		"/absolute.mp4",
+		".",
+		"..",
+	} {
+		runner := &fakeRunner{handle: probeAnd(probeJSON(640, 360, 10), keyframeJSON(0), "out.mp4", 64)}
+		e := newEditor(t, runner, 0)
+		dir := t.TempDir()
+
+		if _, err := e.Trim(t.Context(), editor.TrimRequest{
+			Dir:    dir,
+			Input:  writeInput(t, dir),
+			Output: name,
+		}); err == nil {
+			t.Errorf("Trim accepted the output name %q", name)
+		}
+
+		if len(runner.ffmpegCalls()) != 0 {
+			t.Errorf("ffmpeg was started for the output name %q", name)
+		}
+	}
+}

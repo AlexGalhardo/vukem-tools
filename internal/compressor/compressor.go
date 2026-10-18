@@ -23,6 +23,7 @@ import (
 	"os"
 	"path/filepath"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/AlexGalhardo/vukem-tools/internal/editor"
@@ -334,6 +335,13 @@ func (in Request) validate() error {
 		return fail(ReasonEngine, "That file could not be compressed.", "no input was given", nil)
 	case in.Output == "":
 		return fail(ReasonEngine, "That file could not be compressed.", "no output name was given", nil)
+	case !plainName(in.Output):
+		// Output is joined onto the job's directory, so it has to be a plain
+		// file name. Every caller here passes a constant; the field is
+		// exported, and this is what keeps the first one that does not from
+		// writing outside the job.
+		return fail(ReasonEngine, "That file could not be compressed.",
+			"the output name is a path rather than a file name", nil)
 	case filepath.Base(in.Input) == in.Output:
 		// The engine would be reading and writing the same file. ffmpeg
 		// refuses this with a prompt that -y turns into a truncated input.
@@ -342,6 +350,20 @@ func (in Request) validate() error {
 	}
 
 	return nil
+}
+
+// plainName reports whether name is a bare file name, with no directory, no
+// traversal and no separator on either platform this builds for.
+func plainName(name string) bool {
+	if name == "" || name == "." || name == ".." {
+		return false
+	}
+
+	if strings.ContainsAny(name, `/\`) || filepath.IsAbs(name) {
+		return false
+	}
+
+	return filepath.Base(name) == name
 }
 
 // decide keeps the candidate when it is smaller and throws it away when it is

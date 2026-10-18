@@ -513,3 +513,40 @@ func TestGhostscriptFailuresAreClassifiedFromFixtures(t *testing.T) {
 		t.Error("a successful compression was classified as a failure")
 	}
 }
+
+func TestAnOutputNameThatIsAPathIsRefused(t *testing.T) {
+	t.Parallel()
+
+	// Output is joined onto the job's directory. Every caller in this
+	// repository passes a constant, which is why the field being exported is
+	// the hazard: the first caller to derive it from a title or an upload
+	// name must not be able to write outside the job.
+	for _, name := range []string{
+		"../escaped.mp4",
+		"../../etc/cron.d/x",
+		"sub/dir.mp4",
+		`sub\dir.mp4`,
+		"/absolute.mp4",
+		".",
+		"..",
+		"",
+	} {
+		runner := &fakeRunner{handle: writes(1024)}
+		c := newCompressor(t, runner, gsPath)
+
+		dir := t.TempDir()
+		input := writeInput(t, dir, "input.mp4", 1<<20)
+
+		if _, err := c.Video(t.Context(), compressor.Request{Dir: dir, Input: input, Output: name}); err == nil {
+			t.Errorf("Video accepted the output name %q", name)
+		}
+
+		if _, err := c.PDF(t.Context(), compressor.Request{Dir: dir, Input: input, Output: name}); err == nil {
+			t.Errorf("PDF accepted the output name %q", name)
+		}
+
+		if len(runner.calls) != 0 {
+			t.Errorf("an engine was started for the output name %q", name)
+		}
+	}
+}

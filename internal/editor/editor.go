@@ -182,6 +182,16 @@ func (e *Editor) Trim(ctx context.Context, in TrimRequest) (Result, error) {
 			"a trim needs a directory, an input and an output name", nil)
 	}
 
+	// Output is joined onto the job's directory, so it has to be a plain
+	// file name. Every caller in this repository passes a constant, which is
+	// exactly why this is worth checking: the field is exported, and the
+	// first caller to pass something derived from a title or an upload name
+	// would otherwise be writing wherever that name points.
+	if !plainName(in.Output) {
+		return Result{}, fail(ReasonEngine, "That video could not be edited.",
+			"the output name is a path rather than a file name", nil)
+	}
+
 	source, err := e.Probe(ctx, in.Dir, in.Input)
 	if err != nil {
 		return Result{}, err
@@ -583,6 +593,21 @@ func isClipName(name string) bool {
 	_, err := strconv.Atoi(middle)
 
 	return err == nil
+}
+
+// plainName reports whether name is a bare file name: no directory, no
+// traversal, no absolute path, and nothing a filesystem would read as a
+// separator on either platform this builds for.
+func plainName(name string) bool {
+	if name == "" || name == "." || name == ".." {
+		return false
+	}
+
+	if strings.ContainsAny(name, `/\`) || filepath.IsAbs(name) {
+		return false
+	}
+
+	return filepath.Base(name) == name
 }
 
 // sizeOf stats a file the engine was supposed to write.

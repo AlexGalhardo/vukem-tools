@@ -156,7 +156,9 @@ and a `/up` route. What is left is below.
 - [ ] Email and password with verification
   - [ ] Register, login, logout, password reset through `vukem/auth`
   - [ ] Email verification required before any conversion (`auth.Verified`)
-  - [ ] Mail through `vukem/mail`, Mailtrap sandbox in development
+  - [ ] Mail through `vukem/mail`, Mailtrap sandbox in development. **Production is on
+        `MAIL_MAILER=log` today**, so verification and reset emails are written to the log and
+        nobody receives them: no account can complete verification until this is configured
 - [ ] Google OAuth through `vukem/social`
   - [ ] Account linking when the email already exists
   - [ ] Redirect URIs registered in the Google console for `tools.vukem.dev`
@@ -333,11 +335,15 @@ and a `/up` route. What is left is below.
 
 ### S1.12 Railway deployment
 
-- [ ] Services
-  - [ ] `web` service: the HTTP app
-  - [ ] `worker` service: the queue consumer, same image, different command
-  - [ ] Postgres
-  - [ ] Object storage bucket
+- [~] Services
+  - [x] HTTP service (still named `backend`; the MCP cannot rename a service, so the rename to
+        `web` is a dashboard action), `serve`, healthcheck `/up`, `SCHEDULE_IN_SERVE=true`,
+        `QUEUE_IN_SERVE=false`
+  - [x] `worker` service: same image and repository, `startCommand: queue:work`,
+        `restartPolicyType: ALWAYS`, `QUEUE_CONCURRENCY=2`
+  - [x] Postgres, referenced by both services as `${{Postgres.DATABASE_URL}}`
+  - [x] Object storage bucket `vukem-tools-files` in `iad`, referenced as
+        `${{vukem-tools-files.*}}` so a credential reset does not break the services
 - [ ] Networking
   - [x] `tools.vukem.dev` added as a custom domain (2026-10-18; on the current `backend`
         service — move it to `web` when the services are split)
@@ -347,13 +353,18 @@ and a `/up` route. What is left is below.
         still presenting the `*.up.railway.app` wildcard for the host minutes later.
         Re-check that `https://tools.vukem.dev` serves its own certificate, and that the
         `*.up.railway.app` host keeps working
-  - [ ] Trusted-proxy variables set (`TRUSTED_PROXIES`, `CLIENT_IP_HEADER`,
-        `TRUST_FORWARDED_PROTO`), matching the other vukem apps
+  - [x] Trusted-proxy variables set (`TRUSTED_PROXIES=100.64.0.0/24`,
+        `CLIENT_IP_HEADER=X-Real-IP`, `TRUST_FORWARDED_PROTO=true`), matching the other vukem apps
+  - [x] `RAILWAY_DOCKERFILE_PATH=Dockerfile` on both services — it pointed at the old
+        `infra/docker/` path, which would have failed every build
 - [ ] CI/CD
   - [x] `ci.yml` and `release.yml` (see S1.1); the changelog section is extracted with a literal
         `index()` match, not a regex that treats `[` as a character class
   - [x] Dependabot for gomod, bun, docker and github-actions
-  - [ ] Deploys happen on push to `main`; a failed health check rolls back
+  - [x] Deploys happen on push to `main`; `/up` healthcheck with a 60 s timeout and
+        `ON_FAILURE` restarts on the HTTP service
+  - [ ] Confirm a failed health check actually rolls back instead of replacing the running
+        deployment
   - [x] Every third-party action pinned to a full commit SHA; `actions/checkout` with
         `persist-credentials: false`; no `id-token: write` on a job that does not use OIDC
 

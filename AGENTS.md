@@ -22,9 +22,11 @@ go test -race -count=1 ./...          # one package: ./internal/<pkg>/...
 golangci-lint fmt ./...               # gofumpt + gci + golines, 120 cols, tabs
 bun run typecheck && bun run build    # Inertia assets
 bun run lint:md                       # markdownlint-cli2
-go run ./cmd/app serve                # the app
+go run ./cmd/app serve                # the app; /docs is the API reference
 go run ./cmd/app migrate              # migrations
 ```
+
+Regenerate the API clients after any change to `/api/v1` ([docs/api.md](docs/api.md)).
 
 ## Rules
 
@@ -62,7 +64,8 @@ go run ./cmd/app migrate              # migrations
 | `resources/js/` | Inertia pages and components |
 | `routes/` | Route registry: web, auth, api, schedule |
 | `tests/` | HTTP and feature tests through `vukemtest` |
-| `docs/` | `brainstorming.md`, `web-research.md`, `benchmarks.md` |
+| `clients/` | Generated API clients (Go and TypeScript); never hand-edited, see `docs/api.md` |
+| `docs/` | `brainstorming.md`, `web-research.md`, `benchmarks.md`, `api.md` |
 | `.claude/rules/` | Path-scoped rules that load automatically |
 | `.claude/skills/` | Go skills, workflow skills and the project's own three |
 

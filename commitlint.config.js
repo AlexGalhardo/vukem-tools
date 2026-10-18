@@ -1,6 +1,6 @@
 // Conventional Commits 1.0.0 (https://www.conventionalcommits.org/en/v1.0.0/).
 // Scopes mirror .claude/rules/commits.md.
-module.exports = {
+export default {
 	extends: ["@commitlint/config-conventional"],
 	rules: {
 		"scope-enum": [

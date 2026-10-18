@@ -1,0 +1,69 @@
+package routes
+
+import (
+	"github.com/AlexGalhardo/vukem"
+	"github.com/AlexGalhardo/vukem/auth"
+	"github.com/AlexGalhardo/vukem/router"
+	"github.com/AlexGalhardo/vukem/web"
+
+	"github.com/AlexGalhardo/vukem-tools/app/accounts"
+)
+
+// socialProviders are the providers this app offers. A provider without
+// credentials is skipped by accounts.NewSocial, so listing one here costs
+// nothing until SOCIAL_<NAME>_CLIENT_ID is set.
+var socialProviders = []string{"google"}
+
+// Social registers "sign in with" routes (vukem install:auth --social).
+func Social(r *router.Router, app *vukem.App) error {
+	acc, err := accounts.New(app)
+	if err != nil {
+		return err
+	}
+
+	s, err := accounts.NewSocial(app, socialProviders...)
+	if err != nil {
+		return err
+	}
+
+	// Used OAuth states live in the cache store, so a replayed callback is
+	// refused on every instance: use a shared store (CACHE_STORE=database
+	// or Redis) when several instances run.
+	c, err := app.Cache()
+	if err != nil {
+		return err
+	}
+
+	s.States = c.Store()
+
+	r.Get("/auth/{provider}/redirect", func(c *web.Ctx) error {
+		return s.Redirect(c, c.Param("provider"))
+	}).Name("social.redirect").Use(auth.Guest(acc.Web))
+
+	callback := func(c *web.Ctx) error {
+		su, err := s.User(c, c.Param("provider"))
+		if err != nil {
+			return err
+		}
+
+		u, err := acc.FindOrCreateFromSocial(c.Context(), su)
+		if err != nil {
+			return err
+		}
+
+		if err := acc.Web.Login(c, u); err != nil {
+			return err
+		}
+
+		// Back to the page that asked for the login, such as a verification link.
+		target, _ := c.Session().Pull(auth.IntendedKey).(string)
+
+		return c.Redirect(web.SafeRedirect(c.Request(), target, "/dashboard"))
+	}
+
+	r.Get("/auth/{provider}/callback", callback).Name("social.callback")
+	// Apple answers with response_mode=form_post.
+	r.Post("/auth/{provider}/callback", callback)
+
+	return nil
+}

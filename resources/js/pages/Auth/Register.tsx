@@ -3,6 +3,7 @@ import type { FormEvent } from "react";
 
 import Field from "../../components/Field";
 import PasswordField from "../../components/PasswordField";
+import SocialSignIn from "../../components/SocialSignIn";
 import PasswordStrength from "../../components/PasswordStrength";
 
 export default function Register() {
@@ -67,6 +68,7 @@ export default function Register() {
           Create account
         </button>
       </form>
+      <SocialSignIn action="Sign up" />
       <p className="mt-6 text-sm">
         <Link href="/login" className="text-indigo-600 hover:underline dark:text-indigo-400">
           Already registered?

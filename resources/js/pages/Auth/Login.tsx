@@ -3,6 +3,7 @@ import type { FormEvent } from "react";
 
 import Field from "../../components/Field";
 import PasswordField from "../../components/PasswordField";
+import SocialSignIn from "../../components/SocialSignIn";
 
 export default function Login() {
   const form = useForm({ email: "", password: "", remember: false });
@@ -50,6 +51,7 @@ export default function Login() {
           Log in
         </button>
       </form>
+      <SocialSignIn action="Log in" />
       <p className="mt-6 flex gap-4 text-sm">
         <Link href="/forgot-password" className="text-indigo-600 hover:underline dark:text-indigo-400">
           Forgot your password?

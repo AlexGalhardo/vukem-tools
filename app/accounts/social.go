@@ -1,0 +1,201 @@
+package accounts
+
+import (
+	"context"
+	"crypto/rand"
+	"errors"
+	"os"
+	"strings"
+
+	"github.com/AlexGalhardo/vukem"
+	"github.com/AlexGalhardo/vukem/database"
+	"github.com/AlexGalhardo/vukem/errs"
+	"github.com/AlexGalhardo/vukem/orm"
+	"github.com/AlexGalhardo/vukem/social"
+
+	"github.com/AlexGalhardo/vukem-tools/app/models"
+)
+
+// NewSocial configures the providers listed in names from
+// SOCIAL_<NAME>_CLIENT_ID and SOCIAL_<NAME>_CLIENT_SECRET; the callback is
+// APP_URL/auth/<name>/callback. Providers without credentials are skipped.
+func NewSocial(app *vukem.App, names ...string) (*social.Social, error) {
+	key, err := app.DeriveKey("social.state", 32)
+	if err != nil {
+		return nil, err
+	}
+
+	// A sign-in started before an APP_KEY rotation can still finish.
+	s := social.New(key).WithPreviousKeys(app.DerivePreviousKeys("social.state", 32)...)
+	s.InsecureCookies = !app.Config.IsProduction() && !strings.HasPrefix(app.Config.URL, "https://")
+
+	base := strings.TrimSuffix(app.Config.URL, "/")
+
+	for _, name := range names {
+		env := "SOCIAL_" + strings.ToUpper(name) + "_"
+		cfg := social.Config{
+			ClientID:     app.Source.Get(env + "CLIENT_ID"),
+			ClientSecret: app.Source.Get(env + "CLIENT_SECRET"),
+			RedirectURL:  base + "/auth/" + name + "/callback",
+		}
+
+		if cfg.ClientID == "" {
+			continue
+		}
+
+		switch name {
+		case "github":
+			s.Use(social.GitHub(cfg))
+		case "gitlab":
+			s.Use(social.GitLab(cfg))
+		case "discord":
+			s.Use(social.Discord(cfg))
+		case "google":
+			s.Use(social.Google(cfg))
+		case "microsoft":
+			s.Use(social.Microsoft("common", cfg))
+		case "linkedin":
+			s.Use(social.LinkedIn(cfg))
+		case "apple":
+			// The callback is a cross-site POST: serve HTTPS and add
+			// https://appleid.apple.com to CSRF_TRUSTED_ORIGINS.
+			key, err := os.ReadFile(app.Source.Get(env + "PRIVATE_KEY_PATH"))
+			if err != nil {
+				app.Log.Warn("social: apple key not readable; Sign in with Apple disabled", "err", err)
+				continue
+			}
+
+			p, err := social.Apple(social.AppleConfig{
+				Config:     cfg,
+				TeamID:     app.Source.Get(env + "TEAM_ID"),
+				KeyID:      app.Source.Get(env + "KEY_ID"),
+				PrivateKey: key,
+			})
+			if err != nil {
+				app.Log.Warn("social: Sign in with Apple disabled", "err", err)
+				continue
+			}
+
+			s.Use(p)
+		}
+	}
+
+	// Tests (vukemtest.FakeSocial) sign in a fixed user; never in other kinds.
+	if app.Kind == vukem.KindTest {
+		if id := app.Source.Get("SOCIAL_FAKE_ID"); id != "" {
+			for _, name := range names {
+				s.Use(social.Fake(name, "/auth/"+name+"/callback", social.User{
+					ID: id, Email: app.Source.Get("SOCIAL_FAKE_EMAIL"), Name: app.Source.Get("SOCIAL_FAKE_NAME"),
+					EmailVerified: app.Source.Get("SOCIAL_FAKE_EMAIL_VERIFIED") == "true",
+				}))
+			}
+		}
+	}
+
+	return s, nil
+}
+
+// FindOrCreateFromSocial returns the user linked to su, linking by email
+// only when the provider verified it, or creating a new user.
+func (a *Accounts) FindOrCreateFromSocial(ctx context.Context, su social.User) (models.User, error) {
+	link, err := orm.QueryOf[models.SocialAccount](
+		a.DB,
+	).Where("provider", su.Provider).
+		Where("provider_id", su.ID).
+		First(ctx)
+	if err == nil {
+		return orm.QueryOf[models.User](a.DB).Find(ctx, link.UserID)
+	}
+
+	if !errors.Is(err, orm.ErrNotFound) {
+		return models.User{}, err
+	}
+
+	email := strings.ToLower(su.Email)
+	if email == "" {
+		return models.User{}, errs.New(422, a.T(ctx, "auth.social.no_email", "provider", su.Provider))
+	}
+
+	var (
+		u        models.User
+		squatted bool
+	)
+
+	err = a.DB.Tx(ctx, func(tx *database.Tx) error {
+		existing, err := orm.QueryOf[models.User](tx).Where("email", email).First(ctx)
+
+		switch {
+		case err == nil && su.EmailVerified:
+			u = existing
+
+			// The provider proves the address; the local account was never
+			// verified, so its password, sessions and tokens may belong to
+			// someone who signed up first with it. End them all, like a
+			// password reset: the owner signs in with the provider or resets.
+			if !u.EmailVerified() {
+				if err := a.updatePassword(ctx, tx, u.ID, rand.Text()+rand.Text()); err != nil {
+					return err
+				}
+
+				if err := a.revokeAccess(ctx, tx, u.ID); err != nil {
+					return err
+				}
+
+				u.SessionVersion++
+				squatted = true
+			}
+		case err == nil:
+			// An unverified email must never take over an existing account.
+			return errs.New(409, a.T(ctx, "auth.social.email_taken"))
+		case errors.Is(err, orm.ErrNotFound):
+			if u, err = a.createSocialUser(ctx, tx, su, email); err != nil {
+				return err
+			}
+		default:
+			return err
+		}
+
+		if su.EmailVerified {
+			if err := a.MarkVerified(ctx, tx, &u); err != nil {
+				return err
+			}
+		}
+
+		return orm.Create(ctx, tx, &models.SocialAccount{UserID: u.ID, Provider: su.Provider, ProviderID: su.ID})
+	})
+	if err != nil || !squatted {
+		return u, err
+	}
+
+	// After the commit: the session store may share SQLite's one writer.
+	return u, a.revokeServerSessions(ctx, u.ID, "")
+}
+
+func (a *Accounts) createSocialUser(
+	ctx context.Context,
+	tx database.Executor,
+	su social.User,
+	email string,
+) (models.User, error) {
+	name := su.Name
+	if name == "" {
+		name = su.Nickname
+	}
+
+	if name == "" {
+		name = email
+	}
+
+	// No usable password: these users sign in with the provider (or reset).
+	h, err := a.Hasher.Make(rand.Text() + rand.Text())
+	if err != nil {
+		return models.User{}, err
+	}
+
+	u := models.User{Name: name, Email: email, Password: h}
+	if err := orm.Create(ctx, tx, &u); err != nil {
+		return models.User{}, err
+	}
+
+	return u, nil
+}

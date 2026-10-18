@@ -9,6 +9,8 @@ export interface User {
 
 export interface SharedProps {
   appName: string;
+  // Only the providers the server has credentials for.
+  socialProviders?: string[];
   errors: Record<string, string>;
   auth?: { user: User | null };
   [key: string]: unknown;

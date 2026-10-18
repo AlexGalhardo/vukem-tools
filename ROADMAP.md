@@ -423,6 +423,24 @@ and a `/up` route. What is left is below.
 
 ---
 
+### S1.14 Release v0.1.0
+
+The gate that closes the phase. Nothing here is optional: a phase that ships without it leaves the
+next one building on an unversioned base.
+
+- [ ] Every S1 task above is `[x]` **and** its quality asserts actually hold, checked one by one
+- [ ] `git cliff --tag v0.1.0 -o CHANGELOG.md`, reviewed: an entry that reads badly means a commit
+      message that read badly
+- [ ] `package.json` bumped to `0.1.0` (CI checks the tag matches it)
+- [ ] `chore(release): v0.1.0`, annotated tag, pushed **on its own** — more than three tags in one
+      push and GitHub fires no event, so `release.yml` never runs
+- [ ] `gh run list --workflow=release.yml` shows it ran, and `gh release view v0.1.0` shows the
+      CHANGELOG section as the body, not the fallback
+- [ ] The GHCR image exists for the tag
+- [ ] The framework-feedback ritual below
+
+See the `vukem-tools-release` skill for the exact sequence.
+
 ## Phase S2 — Pixels → SVG
 
 Independent of S3 and S4. Target version: `v0.2.0`.

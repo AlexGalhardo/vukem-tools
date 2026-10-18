@@ -89,6 +89,14 @@ func (c *Conversions) Reaper() *jobs.Reaper { return c.reaper }
 // Files returns the file store. Resolve must have succeeded.
 func (c *Conversions) Files() *files.Store { return c.files }
 
+// Disk is the object store results are written to. Resolve must have
+// succeeded.
+//
+// Exposed so the health check can prove the bucket actually works rather than
+// assume it: with the wrong credentials several S3 implementations answer
+// "false" for a missing object instead of failing.
+func (c *Conversions) Disk() storage.Disk { return c.disk }
+
 // Quota returns the daily usage counter. Resolve must have succeeded.
 func (c *Conversions) Quota() *quota.Counter { return c.quota }
 

@@ -59,6 +59,26 @@ func registerWeb(conversions *services.Conversions, r *router.Router, app *vukem
 		TusPath,
 	)
 
+	db, err := app.DB()
+	if err != nil {
+		return err
+	}
+
+	health := controllers.NewHealth(controllers.HealthOptions{
+		DB:      db,
+		Disk:    conversions.Disk(),
+		Engines: conversions.Engines(),
+		Now:     app.Now,
+		Version: app.Source.Get("APP_VERSION"),
+	})
+
+	// Registered before the Inertia middleware runs on them: a health probe
+	// must not depend on the page pipeline it is meant to outlive. The
+	// shallow one is what a load balancer polls; the deep one touches every
+	// dependency and is for an operator, a deploy gate and an alert.
+	r.Get("/health", health.Shallow).Name("health")
+	r.Get("/health/deep", health.Deep).Name("health.deep")
+
 	r.Get("/", pages.Index).Name("home")
 	r.Get("/licenses", pages.Licenses).Name("licenses")
 	// A tool page needs an account: every conversion does, so showing the

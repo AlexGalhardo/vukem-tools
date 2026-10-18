@@ -223,14 +223,27 @@ func Check(r io.Reader, name string, accepted []string) (Kind, error) {
 
 // Known reports whether this service recognises the MIME type, which is what
 // a tool's accepted list is validated against at boot.
+//
+// Only the types that may be uploaded: a result type is not something a tool
+// accepts, and reporting it as known here would let one into an accepted
+// list. See results.go.
 func Known(mime string) bool {
 	_, ok := known[mime]
 	return ok
 }
 
-// KindOf returns the Kind for a MIME type.
+// KindOf returns the Kind for a MIME type, whether it is a type that may be
+// uploaded or one this service only produces.
+//
+// Both, because this is the lookup used when a file is stored, and a
+// conversion's result has to be storable without being uploadable.
 func KindOf(mime string) (Kind, bool) {
-	k, ok := known[mime]
+	if k, ok := known[mime]; ok {
+		return k, true
+	}
+
+	k, ok := resultOnly[mime]
+
 	return k, ok
 }
 

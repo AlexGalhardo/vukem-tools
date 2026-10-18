@@ -240,7 +240,7 @@ func (c *Conversions) build(app *vukem.App) error {
 		// which ask for this pipeline, so resolving it here would be a
 		// circular build.
 		Queue:    app.Queue,
-		Tools:    tools.All(c.files),
+		Tools:    tools.All(c.files, tools.Engines{Registry: c.engines, Runner: c.runner, Config: app.Source}),
 		Quota:    c.quota,
 		WorkRoot: root,
 		Log:      app.Log,

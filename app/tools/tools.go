@@ -22,14 +22,19 @@ import (
 // literal here: domains are built in parallel, and a single literal makes
 // every tool a conflict with every other tool being added at the same time.
 // Adding a domain is one line here and one new file.
-func All(f *files.Store) []jobs.Tool {
+//
+// Engines carries the resolved external programs, the runner that applies
+// their limits and the configuration they are tuned from. It is passed only
+// to the domains that drive a subprocess; a domain whose conversions are
+// in-process (the pixel tools) does not take it.
+func All(f *files.Store, e Engines) []jobs.Tool {
 	return slices.Concat(
 		pixelTools(f),
 		imageTools(f),
 		videoTools(f),
 		audioTools(f),
-		downloadTools(f),
-		editTools(f),
+		downloadTools(f, e),
+		editTools(f, e),
 		pdfTools(f),
 		spriteTools(f),
 	)

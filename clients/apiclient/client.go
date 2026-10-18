@@ -148,6 +148,57 @@ type AbilityList struct {
 	Data []string `json:"data,omitempty"`
 }
 
+type EngineView struct {
+	// The engine, as the configuration names it.
+	Name *string `json:"name,omitempty"`
+	// Whether it was resolved at startup.
+	Present *bool `json:"present,omitempty"`
+	// The version it reported, empty when absent.
+	Version *string `json:"version,omitempty"`
+}
+
+type LimitsView struct {
+	// The longest clip a split produces.
+	MaxClipSeconds *int64 `json:"max_clip_seconds,omitempty"`
+	// The most clips one conversion delivers.
+	MaxClips *int64 `json:"max_clips,omitempty"`
+	// The largest download allowed, 0 for no cap.
+	MaxDownloadBytes *int64 `json:"max_download_bytes,omitempty"`
+	// The longest output a cut produces, 0 for no cap.
+	MaxOutputSeconds *int64 `json:"max_output_seconds,omitempty"`
+}
+
+type CapabilitiesView struct {
+	// Every external program, and whether this server has it.
+	Engines []EngineView `json:"engines,omitempty"`
+	// The numbers this server enforces.
+	Limits *LimitsView `json:"limits,omitempty"`
+	// Every tool that can be submitted.
+	Tools []string `json:"tools,omitempty"`
+}
+
+type Crop struct {
+	Height *int64 `json:"height,omitempty"`
+	Width  *int64 `json:"width,omitempty"`
+	X      *int64 `json:"x,omitempty"`
+	Y      *int64 `json:"y,omitempty"`
+}
+
+type ClipOptions struct {
+	// Clip length in seconds for split mode, 1 to 60. Default 60.
+	ClipSeconds *int64 `json:"clip_seconds,omitempty"`
+	// The area to keep, in pixels. Leave it out to keep the whole frame.
+	Crop *Crop `json:"crop,omitempty"`
+	// How much to keep, in seconds. 0 means to the end.
+	DurationSeconds *float64 `json:"duration_seconds,omitempty"`
+	// Cut exactly, by re-encoding. Slower; off by default, which cuts at the nearest keyframe.
+	FrameAccurate *bool `json:"frame_accurate,omitempty"`
+	// trim keeps one range, split cuts the whole video into clips. Default trim.
+	Mode *string `json:"mode,omitempty"`
+	// Where the cut starts, in seconds. Default 0.
+	StartSeconds *float64 `json:"start_seconds,omitempty"`
+}
+
 type ConversionView struct {
 	// Size of the input in bytes.
 	BytesIn *int64 `json:"bytes_in,omitempty"`
@@ -182,6 +233,21 @@ type ConversionList struct {
 	Data []ConversionView `json:"data,omitempty"`
 }
 
+type DownloadOptions struct {
+	// Clip length in seconds, 1 to 60. Default 60.
+	ClipSeconds *int64 `json:"clip_seconds,omitempty"`
+	// Split the result into consecutive clips, delivered individually and as a zip.
+	Clips *bool `json:"clips,omitempty"`
+	// Compress afterwards and keep whichever file is smaller.
+	Compress *bool `json:"compress,omitempty"`
+	// video keeps the picture, audio gives MP3. Default video.
+	Kind *string `json:"kind,omitempty"`
+	// best or smallest. Default best.
+	Quality *string `json:"quality,omitempty"`
+	// A YouTube, Instagram, X or TikTok URL.
+	URL string `json:"url"`
+}
+
 type ErrorCatalogEntry struct {
 	// What to tell the user.
 	Message *string `json:"message,omitempty"`
@@ -194,6 +260,49 @@ type ErrorCatalogEntry struct {
 type ErrorCatalog struct {
 	// Every error code a conversion can end with.
 	Data []ErrorCatalogEntry `json:"data,omitempty"`
+}
+
+type MediaFormat struct {
+	// Its audio codec, or none.
+	Acodec *string `json:"acodec,omitempty"`
+	// Its total bitrate in kilobits per second.
+	BitrateKbps *float64 `json:"bitrate_kbps,omitempty"`
+	// Its size, 0 when the platform does not say.
+	Bytes *int64 `json:"bytes,omitempty"`
+	// Its container extension.
+	Ext *string `json:"ext,omitempty"`
+	// The platform's own format id.
+	ID *string `json:"id,omitempty"`
+	// Its frame size, empty for an audio-only stream.
+	Resolution *string `json:"resolution,omitempty"`
+	// Its video codec, or none.
+	Vcodec *string `json:"vcodec,omitempty"`
+}
+
+type MediaView struct {
+	// How long it is.
+	DurationSeconds *float64 `json:"duration_seconds,omitempty"`
+	// The expected download size. The cap is checked against this.
+	EstimatedBytes *int64 `json:"estimated_bytes,omitempty"`
+	// Every stream the platform offers.
+	Formats []MediaFormat `json:"formats,omitempty"`
+	// The largest download this server allows.
+	MaxBytes *int64 `json:"max_bytes,omitempty"`
+	// youtube, instagram, x or tiktok.
+	Platform *string `json:"platform,omitempty"`
+	// A link to the platform's own thumbnail.
+	Thumbnail *string `json:"thumbnail,omitempty"`
+	// The video's title, as the platform gives it.
+	Title *string `json:"title,omitempty"`
+	// Whether the estimate is already past the cap.
+	TooLarge *bool `json:"too_large,omitempty"`
+	// Who posted it.
+	Uploader *string `json:"uploader,omitempty"`
+}
+
+type NameList struct {
+	// The accepted values, in the order to show them.
+	Data []string `json:"data,omitempty"`
 }
 
 type PixelSVGOptions struct {
@@ -209,6 +318,20 @@ type PixelSVGOptions struct {
 	Simplify *float64 `json:"simplify,omitempty"`
 	// Merge colours closer than this (0 to 255). 0 disables merging.
 	Tolerance *int64 `json:"tolerance,omitempty"`
+}
+
+type PlatformView struct {
+	// The domains a URL may be on.
+	Hosts []string `json:"hosts,omitempty"`
+	// What to call it in an interface.
+	Label *string `json:"label,omitempty"`
+	// The stable id, as a conversion reports it.
+	Name *string `json:"name,omitempty"`
+}
+
+type PlatformList struct {
+	// Every platform a URL may belong to.
+	Data []PlatformView `json:"data,omitempty"`
 }
 
 type ResultFile struct {
@@ -332,10 +455,46 @@ type ToolsPixelsToSvgBody struct {
 	Options *PixelSVGOptions `json:"options,omitempty"`
 }
 
+type ToolsVideoClipBody struct {
+	// The id of an upload of yours, from the resumable upload endpoint.
+	FileID string `json:"file_id"`
+	// Repeat a submission safely: the same key returns the same conversion.
+	IdempotencyKey *string `json:"idempotency_key,omitempty"`
+	// How to cut. Every field is optional.
+	Options *ClipOptions `json:"options,omitempty"`
+}
+
+type ToolsVideoCompressBody struct {
+	// The id of an upload of yours, from the resumable upload endpoint.
+	FileID string `json:"file_id"`
+	// Repeat a submission safely: the same key returns the same conversion.
+	IdempotencyKey *string `json:"idempotency_key,omitempty"`
+}
+
+type ToolsVideoDownloadBody struct {
+	// Repeat a submission safely: the same key returns the same conversion.
+	IdempotencyKey *string `json:"idempotency_key,omitempty"`
+	// What to download and how.
+	Options *DownloadOptions `json:"options,omitempty"`
+}
+
+type ToolsVideoDownloadMetadataBody struct {
+	// A YouTube, Instagram, X or TikTok URL.
+	URL string `json:"url"`
+}
+
 // Abilities calls GET /api/v1/abilities: List the abilities a key may be granted.
 func (c *Client) Abilities(ctx context.Context) (AbilityList, error) {
 	var out AbilityList
 	err := c.do(ctx, "GET", "/api/v1/abilities", nil, nil, &out)
+
+	return out, err
+}
+
+// Capabilities calls GET /api/v1/capabilities: Report which engines this server has and what its limits are.
+func (c *Client) Capabilities(ctx context.Context) (CapabilitiesView, error) {
+	var out CapabilitiesView
+	err := c.do(ctx, "GET", "/api/v1/capabilities", nil, nil, &out)
 
 	return out, err
 }
@@ -376,6 +535,22 @@ func (c *Client) ConversionsResult(ctx context.Context, id string) (ResultList, 
 func (c *Client) ConversionsShow(ctx context.Context, id string) (ConversionView, error) {
 	var out ConversionView
 	err := c.do(ctx, "GET", "/api/v1/conversions/"+url.PathEscape(queryString(id)), nil, nil, &out)
+
+	return out, err
+}
+
+// DownloadsClipModes calls GET /api/v1/clip-modes: List the cut modes.
+func (c *Client) DownloadsClipModes(ctx context.Context) (NameList, error) {
+	var out NameList
+	err := c.do(ctx, "GET", "/api/v1/clip-modes", nil, nil, &out)
+
+	return out, err
+}
+
+// DownloadsPlatforms calls GET /api/v1/download-platforms: List the platforms a video can be downloaded from.
+func (c *Client) DownloadsPlatforms(ctx context.Context) (PlatformList, error) {
+	var out PlatformList
+	err := c.do(ctx, "GET", "/api/v1/download-platforms", nil, nil, &out)
 
 	return out, err
 }
@@ -426,6 +601,38 @@ func (c *Client) ToolsIndex(ctx context.Context) (ToolList, error) {
 func (c *Client) ToolsPixelsToSvg(ctx context.Context, body ToolsPixelsToSvgBody) (ConversionView, error) {
 	var out ConversionView
 	err := c.do(ctx, "POST", "/api/v1/tools/pixels-to-svg", nil, body, &out)
+
+	return out, err
+}
+
+// ToolsVideoClip calls POST /api/v1/tools/video-clip: Cut, crop or split a video.
+func (c *Client) ToolsVideoClip(ctx context.Context, body ToolsVideoClipBody) (ConversionView, error) {
+	var out ConversionView
+	err := c.do(ctx, "POST", "/api/v1/tools/video-clip", nil, body, &out)
+
+	return out, err
+}
+
+// ToolsVideoCompress calls POST /api/v1/tools/video-compress: Make a video or an audio file smaller.
+func (c *Client) ToolsVideoCompress(ctx context.Context, body ToolsVideoCompressBody) (ConversionView, error) {
+	var out ConversionView
+	err := c.do(ctx, "POST", "/api/v1/tools/video-compress", nil, body, &out)
+
+	return out, err
+}
+
+// ToolsVideoDownload calls POST /api/v1/tools/video-download: Download a video from a URL.
+func (c *Client) ToolsVideoDownload(ctx context.Context, body ToolsVideoDownloadBody) (ConversionView, error) {
+	var out ConversionView
+	err := c.do(ctx, "POST", "/api/v1/tools/video-download", nil, body, &out)
+
+	return out, err
+}
+
+// ToolsVideoDownloadMetadata calls POST /api/v1/tools/video-download/metadata: Report what a platform says about a URL.
+func (c *Client) ToolsVideoDownloadMetadata(ctx context.Context, body ToolsVideoDownloadMetadataBody) (MediaView, error) {
+	var out MediaView
+	err := c.do(ctx, "POST", "/api/v1/tools/video-download/metadata", nil, body, &out)
 
 	return out, err
 }

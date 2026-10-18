@@ -21,6 +21,7 @@ func All(conversions *services.Conversions) []func(r *router.Router, app *vukem.
 		Social,
 		APIDocs,
 		Conversions(conversions),
+		Downloads(conversions),
 		Uploads(conversions),
 	}
 }

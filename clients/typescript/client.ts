@@ -4,6 +4,21 @@ export type AbilityList = {
   data?: string[];
 };
 
+export type CapabilitiesView = {
+  engines?: EngineView[];
+  limits?: LimitsView;
+  tools?: string[];
+};
+
+export type ClipOptions = {
+  clip_seconds?: number;
+  crop?: Crop;
+  duration_seconds?: number;
+  frame_accurate?: boolean;
+  mode?: string;
+  start_seconds?: number;
+};
+
 export type ConversionList = {
   data?: ConversionView[];
 };
@@ -24,6 +39,28 @@ export type ConversionView = {
   tool?: string;
 };
 
+export type Crop = {
+  height?: number;
+  width?: number;
+  x?: number;
+  y?: number;
+};
+
+export type DownloadOptions = {
+  clip_seconds?: number;
+  clips?: boolean;
+  compress?: boolean;
+  kind?: string;
+  quality?: string;
+  url: string;
+};
+
+export type EngineView = {
+  name?: string;
+  present?: boolean;
+  version?: string;
+};
+
 export type ErrorCatalog = {
   data?: ErrorCatalogEntry[];
 };
@@ -34,6 +71,39 @@ export type ErrorCatalogEntry = {
   type?: string;
 };
 
+export type LimitsView = {
+  max_clip_seconds?: number;
+  max_clips?: number;
+  max_download_bytes?: number;
+  max_output_seconds?: number;
+};
+
+export type MediaFormat = {
+  acodec?: string;
+  bitrate_kbps?: number;
+  bytes?: number;
+  ext?: string;
+  id?: string;
+  resolution?: string;
+  vcodec?: string;
+};
+
+export type MediaView = {
+  duration_seconds?: number;
+  estimated_bytes?: number;
+  formats?: MediaFormat[];
+  max_bytes?: number;
+  platform?: string;
+  thumbnail?: string;
+  title?: string;
+  too_large?: boolean;
+  uploader?: string;
+};
+
+export type NameList = {
+  data?: string[];
+};
+
 export type PixelSVGOptions = {
   alpha?: string;
   max_colors?: number;
@@ -41,6 +111,16 @@ export type PixelSVGOptions = {
   scale?: number;
   simplify?: number;
   tolerance?: number;
+};
+
+export type PlatformList = {
+  data?: PlatformView[];
+};
+
+export type PlatformView = {
+  hosts?: string[];
+  label?: string;
+  name?: string;
 };
 
 export type Problem = {
@@ -119,6 +199,8 @@ export type User = {
 
 export type AbilitiesResponse = AbilityList;
 
+export type CapabilitiesResponse = CapabilitiesView;
+
 export type ConversionsCancelResponse = ConversionView;
 
 export type ConversionsErrorsResponse = ErrorCatalog;
@@ -132,6 +214,10 @@ export type ConversionsIndexResponse = ConversionList;
 export type ConversionsResultResponse = ResultList;
 
 export type ConversionsShowResponse = ConversionView;
+
+export type DownloadsClipModesResponse = NameList;
+
+export type DownloadsPlatformsResponse = PlatformList;
 
 export type MeResponse = User;
 
@@ -161,6 +247,34 @@ export type ToolsPixelsToSvgBody = {
 };
 
 export type ToolsPixelsToSvgResponse = ConversionView;
+
+export type ToolsVideoClipBody = {
+  file_id: string;
+  idempotency_key?: string;
+  options?: ClipOptions;
+};
+
+export type ToolsVideoClipResponse = ConversionView;
+
+export type ToolsVideoCompressBody = {
+  file_id: string;
+  idempotency_key?: string;
+};
+
+export type ToolsVideoCompressResponse = ConversionView;
+
+export type ToolsVideoDownloadBody = {
+  idempotency_key?: string;
+  options?: DownloadOptions;
+};
+
+export type ToolsVideoDownloadResponse = ConversionView;
+
+export type ToolsVideoDownloadMetadataBody = {
+  url: string;
+};
+
+export type ToolsVideoDownloadMetadataResponse = MediaView;
 
 export type UploadsIndexResponse = UploadList;
 
@@ -305,6 +419,11 @@ export interface Client {
   abilities(): Promise<AbilitiesResponse>;
 
   /**
+   * GET /api/v1/capabilities: Report which engines this server has and what its limits are
+   */
+  capabilities(): Promise<CapabilitiesResponse>;
+
+  /**
    * DELETE /api/v1/conversions/{id}: Cancel a conversion
    */
   conversionsCancel(args: { params: ConversionsCancelParams }): Promise<ConversionsCancelResponse>;
@@ -328,6 +447,16 @@ export interface Client {
    * GET /api/v1/conversions/{id}: Show one conversion
    */
   conversionsShow(args: { params: ConversionsShowParams }): Promise<ConversionsShowResponse>;
+
+  /**
+   * GET /api/v1/clip-modes: List the cut modes
+   */
+  downloadsClipModes(): Promise<DownloadsClipModesResponse>;
+
+  /**
+   * GET /api/v1/download-platforms: List the platforms a video can be downloaded from
+   */
+  downloadsPlatforms(): Promise<DownloadsPlatformsResponse>;
 
   /**
    * GET /api/v1/me: Show the authenticated account
@@ -365,6 +494,26 @@ export interface Client {
   toolsPixelsToSvg(args: { body: ToolsPixelsToSvgBody }): Promise<ToolsPixelsToSvgResponse>;
 
   /**
+   * POST /api/v1/tools/video-clip: Cut, crop or split a video
+   */
+  toolsVideoClip(args: { body: ToolsVideoClipBody }): Promise<ToolsVideoClipResponse>;
+
+  /**
+   * POST /api/v1/tools/video-compress: Make a video or an audio file smaller
+   */
+  toolsVideoCompress(args: { body: ToolsVideoCompressBody }): Promise<ToolsVideoCompressResponse>;
+
+  /**
+   * POST /api/v1/tools/video-download: Download a video from a URL
+   */
+  toolsVideoDownload(args: { body: ToolsVideoDownloadBody }): Promise<ToolsVideoDownloadResponse>;
+
+  /**
+   * POST /api/v1/tools/video-download/metadata: Report what a platform says about a URL
+   */
+  toolsVideoDownloadMetadata(args: { body: ToolsVideoDownloadMetadataBody }): Promise<ToolsVideoDownloadMetadataResponse>;
+
+  /**
    * GET /api/v1/uploads: List your unclaimed uploads
    */
   uploadsIndex(): Promise<UploadsIndexResponse>;
@@ -381,11 +530,14 @@ export function createClient(options: ClientOptions = {}): Client {
 
   return {
     abilities: () => request<AbilitiesResponse>("GET", "/api/v1/abilities"),
+    capabilities: () => request<CapabilitiesResponse>("GET", "/api/v1/capabilities"),
     conversionsCancel: (args) => request<ConversionsCancelResponse>("DELETE", "/api/v1/conversions/{id}", args),
     conversionsErrors: () => request<ConversionsErrorsResponse>("GET", "/api/v1/conversion-errors"),
     conversionsIndex: (args) => request<ConversionsIndexResponse>("GET", "/api/v1/conversions", args),
     conversionsResult: (args) => request<ConversionsResultResponse>("GET", "/api/v1/conversions/{id}/result", args),
     conversionsShow: (args) => request<ConversionsShowResponse>("GET", "/api/v1/conversions/{id}", args),
+    downloadsClipModes: () => request<DownloadsClipModesResponse>("GET", "/api/v1/clip-modes"),
+    downloadsPlatforms: () => request<DownloadsPlatformsResponse>("GET", "/api/v1/download-platforms"),
     me: () => request<MeResponse>("GET", "/api/v1/me"),
     tokensDestroy: () => request<TokensDestroyResponse>("DELETE", "/api/v1/tokens/current"),
     tokensIndex: () => request<TokensIndexResponse>("GET", "/api/v1/tokens"),
@@ -393,6 +545,10 @@ export function createClient(options: ClientOptions = {}): Client {
     tokensStore: (args) => request<TokensStoreResponse>("POST", "/api/v1/tokens", args),
     toolsIndex: () => request<ToolsIndexResponse>("GET", "/api/v1/tools"),
     toolsPixelsToSvg: (args) => request<ToolsPixelsToSvgResponse>("POST", "/api/v1/tools/pixels-to-svg", args),
+    toolsVideoClip: (args) => request<ToolsVideoClipResponse>("POST", "/api/v1/tools/video-clip", args),
+    toolsVideoCompress: (args) => request<ToolsVideoCompressResponse>("POST", "/api/v1/tools/video-compress", args),
+    toolsVideoDownload: (args) => request<ToolsVideoDownloadResponse>("POST", "/api/v1/tools/video-download", args),
+    toolsVideoDownloadMetadata: (args) => request<ToolsVideoDownloadMetadataResponse>("POST", "/api/v1/tools/video-download/metadata", args),
     uploadsIndex: () => request<UploadsIndexResponse>("GET", "/api/v1/uploads"),
     uploadsTypes: () => request<UploadsTypesResponse>("GET", "/api/v1/upload-types"),
   };

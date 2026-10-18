@@ -193,6 +193,10 @@ func describeExamples(doc *openapi.Document) {
 			}
 		}
 	}
+
+	// Each domain keeps its own examples in its own route file, so adding a
+	// tool is one line here instead of a conflict in the two maps above.
+	applyDomainExamples(doc, downloadExamples())
 }
 
 // paramNote documents one path or query parameter.

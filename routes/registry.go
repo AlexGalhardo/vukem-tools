@@ -23,6 +23,7 @@ func All(
 		API,
 		Social,
 		APIDocs,
+		Account(conversions),
 		Conversions(conversions),
 		Uploads(conversions),
 	}

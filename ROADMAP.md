@@ -183,9 +183,15 @@ and a `/up` route. What is left is below.
 
 ### S1.4 Authentication
 
-- [ ] Email and password with verification
-  - [ ] Register, login, logout, password reset through `vukem/auth`
-  - [ ] Email verification required before any conversion (`auth.Verified`)
+- [x] Email and password with verification
+  - [x] Register, login, logout, password reset through `vukem/auth` — `TestRegisterAndVerifyEmail`,
+        `TestLoginLogoutAndThrottle`, `TestPasswordReset`. Registration and reset both answer
+        identically whether or not the account exists (`TestRegisterDoesNotRevealAccounts`,
+        `TestPasswordResetAnswersAlike`), so neither endpoint is an account oracle
+  - [x] Email verification required before any conversion (`auth.Verified`, `routes/auth.go`) —
+        `TestUnverifiedUsersSeeTheNotice`. A verification link is bound to its email
+        (`TestVerificationLinkBoundToEmail`) and verifying ends the other sessions
+        (`TestVerificationEndsOtherSessions`)
   - [x] Mail through `vukem/mail` on the Mailtrap **sandbox** in production and development:
         `MAIL_MAILER=mailtrap` with `MAILTRAP_API_TOKEN` and `MAILTRAP_INBOX_ID` on both services
         (the worker sends the queued mail, so it needs them too)
@@ -193,12 +199,24 @@ and a `/up` route. What is left is below.
         captured in the Mailtrap inbox and never delivered, and every tool requires a verified
         email — so nobody but the owner can get past registration. Needs `tools.vukem.dev` (or
         `vukem.dev`) verified in Mailtrap plus SPF/DKIM in the Vercel DNS zone
-- [ ] Google OAuth through `vukem/social`
-  - [ ] Account linking when the email already exists
-  - [ ] Redirect URIs registered in the Google console for `tools.vukem.dev`
-- [ ] Sessions
-  - [ ] Database-backed sessions, hourly `session:prune`
-  - [ ] Login throttling per IP and per account
+- [x] Google OAuth through `vukem/social`
+  - [x] Account linking when the email already exists — and it refuses the two cases that
+        matter: `TestSocialDoesNotTakeOverUnverifiedEmails` (signing in with Google must not
+        claim an address somebody registered and never verified) and
+        `TestSocialLinkEndsSquatterAccess` (linking ends the sessions of whoever held it)
+  - [x] Redirect URIs registered in the Google console for `tools.vukem.dev` — done by the owner,
+        who confirmed the flow end to end; `TestSocialSignUpAndLogin` covers the application
+        side. The console itself is outside what this repository can assert
+- [x] Sessions
+  - [x] Database-backed sessions, hourly `session:prune` — `SESSION_DRIVER=database` in
+        `.env.example`, and the framework registers the hourly prune itself when that driver is
+        set (`vukem/background.go`: `s.Command("session:prune").Hourly().WithoutOverlapping()`).
+        Nothing to schedule here, which is why `routes/schedule.go` does not mention it
+  - [x] Login throttling per IP and per account — both, in `routes/auth.go`: 5 per minute per IP
+        and 20 per 10 minutes per account, plus 5 per hour on registration by email.
+        Per-account as well as per-IP because an attacker with many addresses defeats per-IP
+        alone. `TestLoginLogoutAndThrottle`, and `TestRegisterSurvivesCacheOutage` proves the
+        limiter failing does not take registration down with it
 
 #### Quality asserts
 
@@ -222,8 +240,16 @@ and a `/up` route. What is left is below.
   - [x] `X-API-Key` accepted as well as `Authorization: Bearer`, through
         `internal/httpx.AcceptAPIKeyHeader`, because vukem's token guard reads only
         `Authorization` (audit A86). Authorization wins when both are sent; `Vary: X-API-Key` set
-  - [ ] Last-used timestamp and the key's prefix shown in the UI — needs the account page (S1.10)
-- [ ] Management page under the account area (S1.10)
+  - [x] Last-used timestamp shown in the UI, with "Never used" when it has not been. The key's
+        **prefix is not** shown, because the framework's `auth.Token` does not carry one and storing
+        one would mean keeping a piece of the secret; the name the owner gave the key identifies it
+        instead, which is what the name is for
+- [x] Management page under the account area: list, create and revoke. Issuing is rate limited to
+      10 an hour **per account**, not per address — a stolen session could otherwise mint keys
+      faster than the owner could revoke them, and a key outlives the session that made it.
+      Revoking another account's key id is answered exactly like an unknown one
+      (`TestRevokingSomebodyElsesKeyIsIndistinguishableFromAnUnknownOne`), so the endpoint is not an
+      oracle for which ids exist
 
 #### Quality asserts
 
@@ -360,7 +386,14 @@ and a `/up` route. What is left is below.
   - [~] Download individually. The `.zip` of everything waits for the archive tool, so one
         implementation serves both
   - [x] Error states that explain the cause in plain English, mapped from `error_type`
-- [ ] Account area: profile, password, API keys, usage and quota
+- [x] Account area: profile, password, API keys, usage and quota — one page with four sections
+      rather than four pages, because these are short forms and somebody who came to rotate a key
+      should not have to go looking for it. Each section is its own landmark, so a screen reader's
+      landmark list and a keyboard both move between them in one step. The email address is
+      deliberately **not** editable, and the page says why rather than leaving a missing field:
+      changing it means verifying the new address while the old one keeps working, which is a flow
+      of its own. The new key is **flashed**, never a page prop — a prop survives in the history
+      entry and the back button would put the secret back on screen
 - [x] Public pages: home with tool search, `/licenses`, `/api` overview
 - [x] Password fields: a show/hide toggle inside the field on the right, and the policy checked
       live below it. The checklist is what the server enforces; the meter beside it is advice, and

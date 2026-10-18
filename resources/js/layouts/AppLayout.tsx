@@ -44,7 +44,10 @@ export default function AppLayout({ children }: { children: ReactNode }): React.
           <nav className="flex items-center gap-1 text-sm">
             {auth?.user ? (
               <>
-                <Link href="/dashboard" className={navLink}>
+                {/* The name goes to the account area rather than a
+                    dashboard: the account is what somebody is looking for
+                    when they click their own name. */}
+                <Link href="/account" className={navLink}>
                   {auth.user.name}
                 </Link>
                 <Link href="/logout" method="post" as="button" className={navLink}>

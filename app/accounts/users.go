@@ -196,3 +196,36 @@ func (a *Accounts) updatePassword(ctx context.Context, tx database.Executor, id 
 func (a *Accounts) expired(created time.Time, ttl time.Duration) bool {
 	return a.now().After(created.Add(ttl))
 }
+
+// ChangePassword stores a new password and signs out every other session.
+//
+// The two belong together: a password change that left the other sessions
+// alive would leave whoever prompted it still signed in, which is the
+// opposite of what somebody changing their password wants. keep is the
+// session making the request, so the person is not signed out of the page
+// they are looking at.
+//
+// API keys are deliberately **not** revoked. They are a separate credential
+// with their own list and their own revoke button, and they are used by
+// scripts that would stop working silently. Somebody who thinks a key is
+// compromised revokes that key; somebody changing a password is securing the
+// browser. Bundling the two would make the safe action destructive.
+func (a *Accounts) ChangePassword(ctx context.Context, u models.User, password, keep string) error {
+	err := a.DB.Tx(ctx, func(tx *database.Tx) error {
+		if err := a.updatePassword(ctx, tx, u.ID, password); err != nil {
+			return err
+		}
+
+		// In the same transaction: the version bump is what stops the other
+		// session cookies working, so it must not commit without the new
+		// hash, or the reverse.
+		return a.bumpSessionVersion(ctx, tx, u.ID)
+	})
+	if err != nil {
+		return fmt.Errorf("accounts: change the password: %w", err)
+	}
+
+	// After the commit, as in VerifyEmail: the session store may share
+	// SQLite's one writer.
+	return a.revokeServerSessions(ctx, u.ID, keep)
+}

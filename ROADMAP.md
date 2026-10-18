@@ -101,11 +101,10 @@ and a `/up` route. What is left is below.
         the scaffold wrote, and nothing for Postgres, the bucket, ClamAV, the engines, the
         limits or the quota
   - [x] Structured logging through `vukem/logging`
-  - [ ] `GET /up` liveness answered by a server-level middleware **before** routing: it currently
-        runs through `session`, `csrf`, `inertia`, `shareProps` and `shareAuth`
-        (`vukem route:list`), which is work a probe should not pay for. The framework stopped
-        persisting a session for read-only visits (audit P1), so confirm with a test that no row
-        is written before deciding whether this still needs moving
+  - [x] `GET /up` creates no session, asserted by `TestHealthProbeCreatesNoSession` and confirmed
+        in production (`set-cookie: 0`). It still runs through `session`, `csrf`, `inertia`,
+        `shareProps` and `shareAuth` (`vukem route:list`); moving it to a server-level middleware
+        is now a performance question, not a correctness one, and belongs with the S1.13 work
   - [ ] A deep readiness check covering the database, the queue, the bucket and the engines
   - [ ] `X-Deploy-Target` on every response, so it is obvious which deploy answered
 - [ ] HTTP hardening from the start

@@ -32,3 +32,19 @@ func TestErrorPage(t *testing.T) {
 		PropEquals("message", "Not Found")
 	app.Client(t).Get("/no-such-page").AssertStatus(404).AssertHeader("X-Inertia", "")
 }
+
+// A health probe must not create a session. The framework stopped persisting
+// one for read-only visits, and production confirms it (GET /up answers with no
+// Set-Cookie), but nothing in this repository asserted it: a future change to
+// the middleware stack could start writing a session row per probe, which is a
+// cheap way to fill the store.
+func TestHealthProbeCreatesNoSession(t *testing.T) {
+	t.Parallel()
+
+	app := vukemtest.New(t, bootstrap.New)
+
+	app.Client(t).Get("/up").AssertOK().AssertHeaderMissing("Set-Cookie")
+
+	// A second probe must not start one either.
+	app.Client(t).Get("/up").AssertOK().AssertHeaderMissing("Set-Cookie")
+}

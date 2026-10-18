@@ -47,7 +47,7 @@ func Conversions(c *services.Conversions) func(r *router.Router, app *vukem.App)
 			return err
 		}
 
-		h := apiv1.NewConversions(c.Pipeline(), c.Store(), c.Files(), c.Hub())
+		h := apiv1.NewConversions(c.Pipeline(), c.Store(), c.Files(), c.Quota(), c.Hub())
 
 		perIP := ratelimit.Middleware(limiters("api.ip", 120, time.Minute), ratelimit.ByIP)
 		perToken := ratelimit.Middleware(limiters("api.token", 60, time.Minute), ratelimit.ByToken)

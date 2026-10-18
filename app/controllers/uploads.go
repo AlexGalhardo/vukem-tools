@@ -194,7 +194,10 @@ func contentDisposition(name string) string {
 		ascii = append(ascii, r)
 	}
 
-	return fmt.Sprintf(`attachment; filename="%s"; filename*=UTF-8''%s`,
+	// %q is safe here precisely because the loop above replaced every
+	// character it would have to escape: the result is printable ASCII with
+	// no quote and no backslash, so the quoting is a plain pair of quotes.
+	return fmt.Sprintf("attachment; filename=%q; filename*=UTF-8''%s",
 		string(ascii), url.PathEscape(name))
 }
 

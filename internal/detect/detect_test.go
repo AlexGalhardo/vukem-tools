@@ -173,7 +173,7 @@ func TestAnEmptyFileIsRefused(t *testing.T) {
 func TestDetectionReadsOnlyTheHeader(t *testing.T) {
 	t.Parallel()
 
-	body := append(bytes.Clone(samples["png"].head), bytes.Repeat([]byte{0}, 1<<20)...)
+	body := append(bytes.Clone(samples["png"].head), make([]byte, 1<<20)...)
 	counter := &countingReader{r: bytes.NewReader(body)}
 
 	if _, err := detect.Of(counter); err != nil {

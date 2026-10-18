@@ -78,7 +78,7 @@ func spritePNG(t *testing.T) []byte {
 func upload(t *testing.T, app *vukemtest.App, key, name string, body []byte) string {
 	t.Helper()
 
-	create := httptest.NewRequest(http.MethodPost, routes.TusPath, nil)
+	create := httptest.NewRequest(http.MethodPost, routes.TusPath, http.NoBody)
 	create.Header.Set("Tus-Resumable", "1.0.0")
 	create.Header.Set("Upload-Length", strconv.Itoa(len(body)))
 	create.Header.Set("Upload-Metadata", "filename "+base64.StdEncoding.EncodeToString([]byte(name)))
@@ -228,7 +228,7 @@ func download(t *testing.T, app *vukemtest.App, conversionID string) string {
 
 	link := signedLink(t, app, out)
 
-	req := httptest.NewRequest(http.MethodGet, link, nil)
+	req := httptest.NewRequest(http.MethodGet, link, http.NoBody)
 	rec := httptest.NewRecorder()
 	app.Handler().ServeHTTP(rec, req)
 
@@ -292,7 +292,7 @@ func TestADownloadNeedsAValidSignature(t *testing.T) {
 		t.Run(name, func(t *testing.T) {
 			t.Parallel()
 
-			req := httptest.NewRequest(http.MethodGet, target, nil)
+			req := httptest.NewRequest(http.MethodGet, target, http.NoBody)
 			rec := httptest.NewRecorder()
 			app.Handler().ServeHTTP(rec, req)
 
@@ -368,7 +368,7 @@ func TestARenamedFileIsRejectedOnUpload(t *testing.T) {
 	// An MP4, named as if it were a PNG.
 	body := []byte("\x00\x00\x00\x20ftypisom\x00\x00\x02\x00isomiso2avc1mp41")
 
-	create := httptest.NewRequest(http.MethodPost, routes.TusPath, nil)
+	create := httptest.NewRequest(http.MethodPost, routes.TusPath, http.NoBody)
 	create.Header.Set("Tus-Resumable", "1.0.0")
 	create.Header.Set("Upload-Length", strconv.Itoa(len(body)))
 	create.Header.Set("Upload-Metadata", "filename "+base64.StdEncoding.EncodeToString([]byte("holiday.png")))
@@ -419,7 +419,7 @@ func TestTheUploadEndpointNeedsAuthentication(t *testing.T) {
 
 	app := vukemtest.New(t, bootstrap.New, vukemtest.Options{Env: sandbox(t)})
 
-	create := httptest.NewRequest(http.MethodPost, routes.TusPath, nil)
+	create := httptest.NewRequest(http.MethodPost, routes.TusPath, http.NoBody)
 	create.Header.Set("Tus-Resumable", "1.0.0")
 	create.Header.Set("Upload-Length", "10")
 

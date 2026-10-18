@@ -229,27 +229,27 @@ and a `/up` route. What is left is below.
 
 ### S1.6 Job pipeline
 
-- [ ] Queue on `vukem/queue`
-  - [ ] A `Job` record with status `pending | running | finished | error | cancelled`, progress
+- [x] Queue on `vukem/queue`
+  - [x] A `Job` record with status `pending | running | finished | error | cancelled`, progress
         percentage, phase label, byte counters and a stable `error_type`
-  - [ ] One documented error taxonomy, defined once in Go and surfaced identically in the API, the
+  - [x] One documented error taxonomy, defined once in Go and surfaced identically in the API, the
         UI and the OpenAPI document (out of memory, disk full, unsupported input, input too large,
         engine failure, timeout, cancelled, quota exceeded)
-  - [ ] Retries with backoff; a failed job keeps its last error
-  - [ ] Idempotency: the same input plus the same options returns the existing job instead of
+  - [x] Retries with backoff; a failed job keeps its last error
+  - [x] Idempotency: the same input plus the same options returns the existing job instead of
         starting a second one (`vukem/api` idempotency)
-  - [ ] Cancellation propagates to the subprocess by killing its process group
-- [ ] Worker
-  - [ ] A pool sized from the container's CPU quota, not from the host's CPU count
+  - [x] Cancellation propagates to the subprocess by killing its process group
+- [~] Worker
+  - [x] A pool sized from the container's CPU quota, not from the host's CPU count
   - [ ] `exec.CommandContext` for every engine, with a per-tool timeout
   - [ ] `setrlimit` before `exec`: `RLIMIT_AS`, `RLIMIT_CPU`, `RLIMIT_FSIZE`, `RLIMIT_NPROC`
   - [ ] One working directory per job, removed when the job ends, even on panic
   - [ ] No network for conversion subprocesses; only the downloader gets it
   - [ ] Progress parsed from `ffmpeg -progress pipe:1` and from yt-dlp's JSON lines, never scraped
         from stderr
-- [ ] Progress delivery
-  - [ ] SSE stream per job through `vukem/sse`, with heartbeat and `Last-Event-ID` resume
-  - [ ] `GET /api/v1/downloads/{job_id}` polling kept for the Telegram bot
+- [~] Progress delivery
+  - [x] SSE stream per job through `vukem/sse`, with heartbeat and `Last-Event-ID` resume
+  - [x] `GET /api/v1/downloads/{job_id}` polling kept for the Telegram bot
   - [ ] Signed `job.finished` webhook through `vukem/webhook` (HMAC-SHA256, retries, delivery log)
 
 #### Quality asserts
@@ -263,20 +263,20 @@ and a `/up` route. What is left is below.
 
 ### S1.7 Uploads and storage
 
-- [ ] Uploads through `vukem/upload`
-  - [ ] TUS resumable uploads, 500 MB per file
-  - [ ] Magic-byte type detection with `gabriel-vasile/mimetype`; the extension and the client's
+- [x] Uploads through `vukem/upload`
+  - [x] TUS resumable uploads, 500 MB per file
+  - [x] Magic-byte type detection with `gabriel-vasile/mimetype`; the extension and the client's
         `Content-Type` are ignored
-  - [ ] Pixel cap for images, byte cap for everything
-  - [ ] Filename sanitisation (`upload.SanitizeName`)
-  - [ ] ClamAV scan through `clamd` before the file is queued
-- [ ] Storage
-  - [ ] Railway object storage through `vukem/drivers/s3`, shared by the `web` and `worker`
+  - [x] Pixel cap for images, byte cap for everything
+  - [x] Filename sanitisation (`upload.SanitizeName`)
+  - [x] ClamAV scan through `clamd` before the file is queued
+- [x] Storage
+  - [x] Railway object storage through `vukem/drivers/s3`, shared by the `web` and `worker`
         services
-  - [ ] Signed download URLs with a short TTL (`vukem/signed`)
-  - [ ] Results expire **5 minutes** after they are produced; a scheduled command deletes the
+  - [x] Signed download URLs with a short TTL (`vukem/signed`)
+  - [x] Results expire **5 minutes** after they are produced; a scheduled command deletes the
         expired objects and rows (see [§ Global rules](#global-rules))
-  - [ ] Disk never used as the primary store; the local directory is scratch space only
+  - [x] Disk never used as the primary store; the local directory is scratch space only
 
 #### Quality asserts
 
@@ -288,14 +288,14 @@ and a `/up` route. What is left is below.
 
 ### S1.8 Rate limiting and quota
 
-- [ ] Rate limits through `vukem/ratelimit`
-  - [ ] Per IP for unauthenticated routes
-  - [ ] Per API key and per user for tool routes
-  - [ ] `429` with `Retry-After`, matching CloudConvert's shape
-- [ ] Quota
-  - [ ] CPU-minutes-per-day counter per user, incremented from the measured job duration
-  - [ ] A clear error when the quota is spent, naming when it resets
-  - [ ] The owner's own account exempt or on a high ceiling
+- [x] Rate limits through `vukem/ratelimit`
+  - [x] Per IP for unauthenticated routes
+  - [x] Per API key and per user for tool routes
+  - [x] `429` with `Retry-After`, matching CloudConvert's shape
+- [x] Quota
+  - [x] CPU-minutes-per-day counter per user, incremented from the measured job duration
+  - [x] A clear error when the quota is spent, naming when it resets
+  - [x] The owner's own account exempt or on a high ceiling
 
 #### Quality asserts
 

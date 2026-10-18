@@ -18,6 +18,7 @@ import (
 
 	"github.com/AlexGalhardo/vukem-tools/app/models"
 	"github.com/AlexGalhardo/vukem-tools/internal/cpu"
+	"github.com/AlexGalhardo/vukem-tools/internal/quota"
 )
 
 // Work is what a tool is handed to do one conversion.
@@ -97,6 +98,10 @@ type Pipeline struct {
 	queue func() (*queue.Queue, error)
 	tools map[string]Tool
 	root  string
+	// quota refuses a conversion past the account's daily budget and records
+	// what each one spent. Optional: without it there is no budget, which is
+	// the right default for a single-user instance.
+	quota *quota.Counter
 	log   *slog.Logger
 	now   func() time.Time
 }
@@ -116,8 +121,10 @@ type PipelineOptions struct {
 	// must be on a filesystem with room for the largest input plus its
 	// output.
 	WorkRoot string
-	Log      *slog.Logger
-	Now      func() time.Time
+	// Quota, when set, is the per-account daily budget.
+	Quota *quota.Counter
+	Log   *slog.Logger
+	Now   func() time.Time
 }
 
 // NewPipeline returns a pipeline.
@@ -149,7 +156,15 @@ func NewPipeline(o PipelineOptions) (*Pipeline, error) {
 		o.Now = time.Now
 	}
 
-	return &Pipeline{store: o.Store, queue: o.Queue, tools: tools, root: o.WorkRoot, log: o.Log, now: o.Now}, nil
+	return &Pipeline{
+		store: o.Store,
+		queue: o.Queue,
+		tools: tools,
+		root:  o.WorkRoot,
+		quota: o.Quota,
+		log:   o.Log,
+		now:   o.Now,
+	}, nil
 }
 
 // Tools returns the registered tool names, sorted, for the API and the tools
@@ -308,6 +323,10 @@ func (p *Pipeline) run(ctx context.Context, m message) error {
 		return err
 	}
 
+	if err := p.withinBudget(ctx, c); err != nil {
+		return err
+	}
+
 	claimed, err := p.store.Claim(ctx, c.ID)
 	if err != nil {
 		return err
@@ -320,6 +339,37 @@ func (p *Pipeline) run(ctx context.Context, m message) error {
 	}
 
 	return p.execute(ctx, c, tool)
+}
+
+// withinBudget settles the conversion when the account has spent today's
+// budget, and reports nothing otherwise.
+//
+// It is checked again here, after the submit endpoint already checked it,
+// because a conversion can sit in the queue while other conversions spend the
+// rest of the budget. Refusing at the last moment is what makes the budget a
+// budget rather than a suggestion.
+func (p *Pipeline) withinBudget(ctx context.Context, c models.Conversion) error {
+	if p.quota == nil {
+		return nil
+	}
+
+	allowance, err := p.quota.Check(ctx, c.UserID)
+	if err != nil {
+		// A budget that cannot be read is not a licence to spend: the work
+		// costs real CPU, and a database that is down will be back.
+		return err
+	}
+
+	if allowance.Allowed {
+		return nil
+	}
+
+	_, err = p.store.Failure(ctx, c.ID, Refuse(QuotaExceeded, quota.ErrExceeded,
+		"You have used today's conversion budget. It resets at "+
+			allowance.ResetsAt.Format("15:04")+" UTC.",
+		fmt.Sprintf("spent %s of %s", allowance.Spent, allowance.Budget)))
+
+	return err
 }
 
 // load reads a conversion without scoping it to a user: the worker runs on
@@ -346,6 +396,8 @@ func (p *Pipeline) execute(ctx context.Context, c models.Conversion, tool Tool) 
 	runCtx, stopRun := context.WithCancel(ctx)
 	defer stopRun()
 
+	started := p.now()
+
 	out, runErr := tool.Run(runCtx, Work{
 		ConversionID: c.ID,
 		UserID:       c.UserID,
@@ -354,7 +406,16 @@ func (p *Pipeline) execute(ctx context.Context, c models.Conversion, tool Tool) 
 		Report:       p.reporter(ctx, c.ID, stopRun),
 	})
 
-	return p.settle(ctx, c.ID, out, runErr)
+	// A tool that measured its own cost keeps its figure; one that did not is
+	// charged the wall-clock time it held a worker for. That is the honest
+	// number for an in-process conversion, and a subprocess runner will
+	// report real CPU time, which is smaller — so the budget only ever gets
+	// more generous as the measurement improves.
+	if out.CPUMs == 0 {
+		out.CPUMs = p.now().Sub(started).Milliseconds()
+	}
+
+	return p.settle(ctx, c.ID, c.UserID, out, runErr)
 }
 
 // reporter returns the Report function a tool is given. It carries the
@@ -379,7 +440,7 @@ func (p *Pipeline) reporter(ctx context.Context, id string, stopRun context.Canc
 
 // settle records how the conversion ended and decides whether the queue
 // should try again.
-func (p *Pipeline) settle(ctx context.Context, id string, out Outcome, runErr error) error {
+func (p *Pipeline) settle(ctx context.Context, id, userID string, out Outcome, runErr error) error {
 	// The writes below must happen even when ctx is already done, which is
 	// the normal case for a timeout or a shutdown: with a dead context every
 	// one of them would fail and the conversion would be left running.
@@ -396,6 +457,8 @@ func (p *Pipeline) settle(ctx context.Context, id string, out Outcome, runErr er
 		if err != nil {
 			return err
 		}
+
+		p.charge(settleCtx, userID, out)
 
 		if !settled {
 			// It was cancelled while the tool was finishing. The result is
@@ -438,6 +501,25 @@ func (p *Pipeline) settle(ctx context.Context, id string, out Outcome, runErr er
 	log.InfoContext(ctx, "jobs: conversion failed", "err", DetailOf(runErr))
 
 	return nil
+}
+
+// charge records what a conversion spent.
+//
+// A failure to record is logged, not returned: the conversion did finish, and
+// telling the user it failed because the meter could not be written would be
+// both wrong and worse — the result is already in the bucket. Undercounting a
+// budget is the lesser fault, and the log is the record that it happened.
+func (p *Pipeline) charge(ctx context.Context, userID string, out Outcome) {
+	if p.quota == nil || userID == "" {
+		return
+	}
+
+	if err := p.quota.Spend(ctx, userID, quota.Usage{
+		Spent:    time.Duration(out.CPUMs) * time.Millisecond,
+		BytesOut: out.BytesOut,
+	}); err != nil {
+		p.log.ErrorContext(ctx, "jobs: usage not recorded", "user", userID, "err", err)
+	}
 }
 
 // settleTimeout bounds the writes that record how a conversion ended, when

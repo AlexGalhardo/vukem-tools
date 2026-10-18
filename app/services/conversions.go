@@ -13,6 +13,7 @@ import (
 	"fmt"
 	"io"
 	"strconv"
+	"strings"
 	"sync"
 	"time"
 
@@ -28,6 +29,7 @@ import (
 	"github.com/AlexGalhardo/vukem-tools/internal/ids"
 	"github.com/AlexGalhardo/vukem-tools/internal/jobs"
 	"github.com/AlexGalhardo/vukem-tools/internal/pgbroker"
+	"github.com/AlexGalhardo/vukem-tools/internal/quota"
 )
 
 // Conversions is the conversion pipeline and everything it needs, built once
@@ -48,6 +50,7 @@ type Conversions struct {
 	files  *files.Store
 	signer *signed.Signer
 	disk   storage.Disk
+	quota  *quota.Counter
 
 	// uploadCleanup is set by the routes once the resumable-upload handler
 	// exists, so the scheduler can sweep abandoned uploads without the
@@ -81,6 +84,9 @@ func (c *Conversions) Reaper() *jobs.Reaper { return c.reaper }
 
 // Files returns the file store. Resolve must have succeeded.
 func (c *Conversions) Files() *files.Store { return c.files }
+
+// Quota returns the daily usage counter. Resolve must have succeeded.
+func (c *Conversions) Quota() *quota.Counter { return c.quota }
 
 // Signer signs and verifies download links. Resolve must have succeeded.
 func (c *Conversions) Signer() *signed.Signer { return c.signer }
@@ -124,7 +130,22 @@ const (
 	// reapEvery is how often the sweep runs. A user watching a dead
 	// conversion waits at most reapAfter plus this.
 	reapEvery = 5 * time.Minute
+	// defaultQuotaMinutes is the daily processing budget per account.
+	defaultQuotaMinutes = 60
 )
+
+// splitList reads a comma-separated setting, dropping blanks.
+func splitList(raw string) []string {
+	var out []string
+
+	for part := range strings.SplitSeq(raw, ",") {
+		if part = strings.TrimSpace(part); part != "" {
+			out = append(out, part)
+		}
+	}
+
+	return out
+}
 
 // build wires the pipeline from the app's configuration.
 func (c *Conversions) build(app *vukem.App) error {
@@ -178,6 +199,22 @@ func (c *Conversions) build(app *vukem.App) error {
 		return err
 	}
 
+	quotaDB, err := app.DB()
+	if err != nil {
+		return fmt.Errorf("services: database: %w", err)
+	}
+
+	c.quota, err = quota.New(quota.Options{
+		DB:     quotaDB,
+		Budget: time.Duration(intFrom(app, "QUOTA_CPU_MINUTES_PER_DAY", defaultQuotaMinutes)) * time.Minute,
+		Exempt: splitList(app.Source.Get("QUOTA_EXEMPT_USER_IDS")),
+		Now:    app.Now,
+		Log:    app.Log,
+	})
+	if err != nil {
+		return err
+	}
+
 	c.pipe, err = jobs.NewPipeline(jobs.PipelineOptions{
 		Store: c.store,
 		// Resolved on demand: app.Queue() asks for the job registrations,
@@ -185,6 +222,7 @@ func (c *Conversions) build(app *vukem.App) error {
 		// circular build.
 		Queue:    app.Queue,
 		Tools:    tools.All(c.files),
+		Quota:    c.quota,
 		WorkRoot: root,
 		Log:      app.Log,
 		Now:      app.Now,

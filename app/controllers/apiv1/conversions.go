@@ -21,6 +21,7 @@ import (
 	"github.com/AlexGalhardo/vukem-tools/internal/detect"
 	"github.com/AlexGalhardo/vukem-tools/internal/files"
 	"github.com/AlexGalhardo/vukem-tools/internal/jobs"
+	"github.com/AlexGalhardo/vukem-tools/internal/quota"
 )
 
 // Conversions reads, cancels and streams conversions.
@@ -28,12 +29,19 @@ type Conversions struct {
 	pipe  *jobs.Pipeline
 	store *jobs.Store
 	files *files.Store
+	quota *quota.Counter
 	hub   *sse.Hub
 }
 
 // NewConversions returns the conversion handlers.
-func NewConversions(pipe *jobs.Pipeline, store *jobs.Store, f *files.Store, hub *sse.Hub) *Conversions {
-	return &Conversions{pipe: pipe, store: store, files: f, hub: hub}
+func NewConversions(
+	pipe *jobs.Pipeline,
+	store *jobs.Store,
+	f *files.Store,
+	q *quota.Counter,
+	hub *sse.Hub,
+) *Conversions {
+	return &Conversions{pipe: pipe, store: store, files: f, quota: q, hub: hub}
 }
 
 // ConversionView is one conversion as the API reports it.
@@ -170,6 +178,10 @@ func (h *Conversions) submit(c *web.Ctx, in submission) (ConversionView, error) 
 		return ConversionView{}, err
 	}
 
+	if err := h.withinBudget(c, userID); err != nil {
+		return ConversionView{}, err
+	}
+
 	input, err := h.files.Find(c.Context(), userID, in.FileID)
 	if err != nil {
 		// Someone else's upload, or one that does not exist: the same answer
@@ -226,6 +238,34 @@ func (h *Conversions) submit(c *web.Ctx, in submission) (ConversionView, error) 
 // errInputAlreadyUsed is returned from inside the submit transaction when the
 // upload is no longer available to attach, which rolls the transaction back.
 var errInputAlreadyUsed = errors.New("apiv1: the upload is already attached to a conversion")
+
+// withinBudget refuses a submission once the account has spent today's
+// budget, with Retry-After naming when it resets.
+//
+// It is checked here as well as in the worker so the answer is immediate: a
+// 429 the caller reads now beats a conversion that is accepted, queued and
+// then fails for a reason the caller could have been told about at once.
+func (h *Conversions) withinBudget(c *web.Ctx, userID string) error {
+	if h.quota == nil {
+		return nil
+	}
+
+	allowance, err := h.quota.Check(c.Context(), userID)
+	if err != nil {
+		return err
+	}
+
+	if allowance.Allowed {
+		return nil
+	}
+
+	retry := allowance.RetryAfter(time.Now())
+	c.Writer().Header().Set("Retry-After", strconv.Itoa(int(retry.Seconds())))
+
+	return errs.NewKey(http.StatusTooManyRequests, "conversion.quota",
+		"You have used today's conversion budget. It resets at "+
+			allowance.ResetsAt.Format("15:04")+" UTC.", nil)
+}
 
 // requireAbility refuses a key that was not granted the tool's ability.
 //

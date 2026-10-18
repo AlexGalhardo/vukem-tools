@@ -437,7 +437,7 @@ func TestDownloadURLIsSignedAndVerifies(t *testing.T) {
 		t.Fatalf("the link leaks the bucket key: %q", link)
 	}
 
-	req := httptest.NewRequest(http.MethodGet, link, nil)
+	req := httptest.NewRequest(http.MethodGet, link, http.NoBody)
 	if err := r.sign.Verify(req); err != nil {
 		t.Fatalf("the signed link does not verify: %v", err)
 	}
@@ -445,7 +445,7 @@ func TestDownloadURLIsSignedAndVerifies(t *testing.T) {
 	// Tampering with the id must break the signature, or anyone could read
 	// any file by editing a link.
 	tampered := strings.Replace(link, f.ID, ids.NewGenerator().New(), 1)
-	if err := r.sign.Verify(httptest.NewRequest(http.MethodGet, tampered, nil)); err == nil {
+	if err := r.sign.Verify(httptest.NewRequest(http.MethodGet, tampered, http.NoBody)); err == nil {
 		t.Fatal("a tampered link verified")
 	}
 }
@@ -464,7 +464,7 @@ func TestADownloadLinkStopsWorkingAfterItsTTL(t *testing.T) {
 
 	r.clock.Advance(2 * time.Minute)
 
-	if err := r.sign.Verify(httptest.NewRequest(http.MethodGet, link, nil)); err == nil {
+	if err := r.sign.Verify(httptest.NewRequest(http.MethodGet, link, http.NoBody)); err == nil {
 		t.Fatal("an expired link still verified")
 	}
 }
@@ -485,7 +485,7 @@ func TestALinkCannotOutliveTheFile(t *testing.T) {
 
 	r.clock.Advance(fileTTL + time.Minute)
 
-	if err := r.sign.Verify(httptest.NewRequest(http.MethodGet, link, nil)); err == nil {
+	if err := r.sign.Verify(httptest.NewRequest(http.MethodGet, link, http.NoBody)); err == nil {
 		t.Fatal("a link outlived the file it points at")
 	}
 }

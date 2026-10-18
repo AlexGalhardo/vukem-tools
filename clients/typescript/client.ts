@@ -34,6 +34,97 @@ export type ErrorCatalogEntry = {
   type?: string;
 };
 
+export type ImagesToPDFOptions = {
+  fit?: string;
+  margin?: number;
+  orientation?: string;
+  page_size?: string;
+  quality?: number;
+};
+
+export type PDFCompareOptions = Record<string, unknown>;
+
+export type PDFCompressOptions = {
+  level?: string;
+};
+
+export type PDFCropOptions = {
+  bottom?: number;
+  left?: number;
+  pages?: string;
+  right?: number;
+  top?: number;
+};
+
+export type PDFMergeOptions = Record<string, unknown>;
+
+export type PDFPageNumberOptions = {
+  format?: string;
+  pages?: string;
+  position?: string;
+  size?: number;
+  start_at?: number;
+};
+
+export type PDFPagesOptions = {
+  pages: string;
+};
+
+export type PDFProtectOptions = {
+  allow_extract?: boolean;
+  modify?: string;
+  owner_password: string;
+  print?: string;
+  user_password?: string;
+};
+
+export type PDFRepairOptions = Record<string, unknown>;
+
+export type PDFRotateOptions = {
+  absolute?: boolean;
+  degrees?: number;
+  pages?: string;
+};
+
+export type PDFSplitOptions = {
+  every?: number;
+  mode?: string;
+  ranges?: string[];
+};
+
+export type PDFToImageOptions = {
+  dpi?: number;
+  format?: string;
+  pages?: string;
+  quality?: number;
+};
+
+export type PDFToPDFAOptions = {
+  part?: number;
+};
+
+export type PDFToTextOptions = {
+  format?: string;
+  layout?: boolean;
+  page_rules?: boolean;
+  pages?: string;
+};
+
+export type PDFUnlockOptions = {
+  password: string;
+};
+
+export type PDFWatermarkOptions = {
+  bold?: boolean;
+  gray?: number;
+  opacity?: number;
+  pages?: string;
+  position?: string;
+  rotate?: number;
+  size?: number;
+  text: string;
+};
+
 export type PixelSVGOptions = {
   alpha?: string;
   max_colors?: number;
@@ -152,7 +243,151 @@ export type TokensStoreBody = {
 
 export type TokensStoreResponse = TokenIssued;
 
+export type ToolsImagesToPdfBody = {
+  file_ids: string[];
+  idempotency_key?: string;
+  options?: ImagesToPDFOptions;
+};
+
+export type ToolsImagesToPdfResponse = ConversionView;
+
 export type ToolsIndexResponse = ToolList;
+
+export type ToolsPdfCompareBody = {
+  file_ids: string[];
+  idempotency_key?: string;
+  options?: PDFCompareOptions;
+};
+
+export type ToolsPdfCompareResponse = ConversionView;
+
+export type ToolsPdfCompressBody = {
+  file_id: string;
+  idempotency_key?: string;
+  options?: PDFCompressOptions;
+};
+
+export type ToolsPdfCompressResponse = ConversionView;
+
+export type ToolsPdfCropBody = {
+  file_id: string;
+  idempotency_key?: string;
+  options: PDFCropOptions;
+};
+
+export type ToolsPdfCropResponse = ConversionView;
+
+export type ToolsPdfExtractPagesBody = {
+  file_id: string;
+  idempotency_key?: string;
+  options: PDFPagesOptions;
+};
+
+export type ToolsPdfExtractPagesResponse = ConversionView;
+
+export type ToolsPdfMergeBody = {
+  file_ids: string[];
+  idempotency_key?: string;
+  options?: PDFMergeOptions;
+};
+
+export type ToolsPdfMergeResponse = ConversionView;
+
+export type ToolsPdfOrganiseBody = {
+  file_id: string;
+  idempotency_key?: string;
+  options: PDFPagesOptions;
+};
+
+export type ToolsPdfOrganiseResponse = ConversionView;
+
+export type ToolsPdfPageNumbersBody = {
+  file_id: string;
+  idempotency_key?: string;
+  options?: PDFPageNumberOptions;
+};
+
+export type ToolsPdfPageNumbersResponse = ConversionView;
+
+export type ToolsPdfProtectBody = {
+  file_id: string;
+  idempotency_key?: string;
+  options: PDFProtectOptions;
+};
+
+export type ToolsPdfProtectResponse = ConversionView;
+
+export type ToolsPdfRemovePagesBody = {
+  file_id: string;
+  idempotency_key?: string;
+  options: PDFPagesOptions;
+};
+
+export type ToolsPdfRemovePagesResponse = ConversionView;
+
+export type ToolsPdfRepairBody = {
+  file_id: string;
+  idempotency_key?: string;
+  options?: PDFRepairOptions;
+};
+
+export type ToolsPdfRepairResponse = ConversionView;
+
+export type ToolsPdfRotateBody = {
+  file_id: string;
+  idempotency_key?: string;
+  options?: PDFRotateOptions;
+};
+
+export type ToolsPdfRotateResponse = ConversionView;
+
+export type ToolsPdfSplitBody = {
+  file_id: string;
+  idempotency_key?: string;
+  options?: PDFSplitOptions;
+};
+
+export type ToolsPdfSplitResponse = ConversionView;
+
+export type ToolsPdfToImageBody = {
+  file_id: string;
+  idempotency_key?: string;
+  options?: PDFToImageOptions;
+};
+
+export type ToolsPdfToImageResponse = ConversionView;
+
+export type ToolsPdfToPdfaBody = {
+  file_id: string;
+  idempotency_key?: string;
+  options?: PDFToPDFAOptions;
+};
+
+export type ToolsPdfToPdfaResponse = ConversionView;
+
+export type ToolsPdfToTextBody = {
+  file_id: string;
+  idempotency_key?: string;
+  options?: PDFToTextOptions;
+};
+
+export type ToolsPdfToTextResponse = ConversionView;
+
+export type ToolsPdfUnlockBody = {
+  file_id: string;
+  idempotency_key?: string;
+  options: PDFUnlockOptions;
+};
+
+export type ToolsPdfUnlockResponse = ConversionView;
+
+export type ToolsPdfWatermarkBody = {
+  file_id: string;
+  idempotency_key?: string;
+  options: PDFWatermarkOptions;
+};
+
+export type ToolsPdfWatermarkResponse = ConversionView;
 
 export type ToolsPixelsToSvgBody = {
   file_id: string;
@@ -355,9 +590,99 @@ export interface Client {
   tokensStore(args: { body: TokensStoreBody }): Promise<TokensStoreResponse>;
 
   /**
+   * POST /api/v1/tools/images-to-pdf: Bind images into a PDF, one per page
+   */
+  toolsImagesToPdf(args: { body: ToolsImagesToPdfBody }): Promise<ToolsImagesToPdfResponse>;
+
+  /**
    * GET /api/v1/tools: List the conversions on offer
    */
   toolsIndex(): Promise<ToolsIndexResponse>;
+
+  /**
+   * POST /api/v1/tools/pdf-compare: Compare two PDFs' text, page by page
+   */
+  toolsPdfCompare(args: { body: ToolsPdfCompareBody }): Promise<ToolsPdfCompareResponse>;
+
+  /**
+   * POST /api/v1/tools/pdf-compress: Make a PDF smaller
+   */
+  toolsPdfCompress(args: { body: ToolsPdfCompressBody }): Promise<ToolsPdfCompressResponse>;
+
+  /**
+   * POST /api/v1/tools/pdf-crop: Trim a PDF's margins
+   */
+  toolsPdfCrop(args: { body: ToolsPdfCropBody }): Promise<ToolsPdfCropResponse>;
+
+  /**
+   * POST /api/v1/tools/pdf-extract-pages: Keep only the pages you name
+   */
+  toolsPdfExtractPages(args: { body: ToolsPdfExtractPagesBody }): Promise<ToolsPdfExtractPagesResponse>;
+
+  /**
+   * POST /api/v1/tools/pdf-merge: Join several PDFs into one
+   */
+  toolsPdfMerge(args: { body: ToolsPdfMergeBody }): Promise<ToolsPdfMergeResponse>;
+
+  /**
+   * POST /api/v1/tools/pdf-organise: Reorder or duplicate pages
+   */
+  toolsPdfOrganise(args: { body: ToolsPdfOrganiseBody }): Promise<ToolsPdfOrganiseResponse>;
+
+  /**
+   * POST /api/v1/tools/pdf-page-numbers: Stamp page numbers onto a PDF
+   */
+  toolsPdfPageNumbers(args: { body: ToolsPdfPageNumbersBody }): Promise<ToolsPdfPageNumbersResponse>;
+
+  /**
+   * POST /api/v1/tools/pdf-protect: Encrypt a PDF with a password
+   */
+  toolsPdfProtect(args: { body: ToolsPdfProtectBody }): Promise<ToolsPdfProtectResponse>;
+
+  /**
+   * POST /api/v1/tools/pdf-remove-pages: Remove the pages you name
+   */
+  toolsPdfRemovePages(args: { body: ToolsPdfRemovePagesBody }): Promise<ToolsPdfRemovePagesResponse>;
+
+  /**
+   * POST /api/v1/tools/pdf-repair: Rebuild a damaged PDF's structure
+   */
+  toolsPdfRepair(args: { body: ToolsPdfRepairBody }): Promise<ToolsPdfRepairResponse>;
+
+  /**
+   * POST /api/v1/tools/pdf-rotate: Rotate pages by 90, 180 or 270 degrees
+   */
+  toolsPdfRotate(args: { body: ToolsPdfRotateBody }): Promise<ToolsPdfRotateResponse>;
+
+  /**
+   * POST /api/v1/tools/pdf-split: Split a PDF into several files
+   */
+  toolsPdfSplit(args: { body: ToolsPdfSplitBody }): Promise<ToolsPdfSplitResponse>;
+
+  /**
+   * POST /api/v1/tools/pdf-to-image: Render pages to PNG or JPEG
+   */
+  toolsPdfToImage(args: { body: ToolsPdfToImageBody }): Promise<ToolsPdfToImageResponse>;
+
+  /**
+   * POST /api/v1/tools/pdf-to-pdfa: Convert to the archival PDF/A format
+   */
+  toolsPdfToPdfa(args: { body: ToolsPdfToPdfaBody }): Promise<ToolsPdfToPdfaResponse>;
+
+  /**
+   * POST /api/v1/tools/pdf-to-text: Extract a PDF's text, as text or Markdown
+   */
+  toolsPdfToText(args: { body: ToolsPdfToTextBody }): Promise<ToolsPdfToTextResponse>;
+
+  /**
+   * POST /api/v1/tools/pdf-unlock: Remove a password you know
+   */
+  toolsPdfUnlock(args: { body: ToolsPdfUnlockBody }): Promise<ToolsPdfUnlockResponse>;
+
+  /**
+   * POST /api/v1/tools/pdf-watermark: Stamp text across a PDF's pages
+   */
+  toolsPdfWatermark(args: { body: ToolsPdfWatermarkBody }): Promise<ToolsPdfWatermarkResponse>;
 
   /**
    * POST /api/v1/tools/pixels-to-svg: Turn pixel art into SVG
@@ -391,7 +716,25 @@ export function createClient(options: ClientOptions = {}): Client {
     tokensIndex: () => request<TokensIndexResponse>("GET", "/api/v1/tokens"),
     tokensRevoke: (args) => request<TokensRevokeResponse>("DELETE", "/api/v1/tokens/{token}", args),
     tokensStore: (args) => request<TokensStoreResponse>("POST", "/api/v1/tokens", args),
+    toolsImagesToPdf: (args) => request<ToolsImagesToPdfResponse>("POST", "/api/v1/tools/images-to-pdf", args),
     toolsIndex: () => request<ToolsIndexResponse>("GET", "/api/v1/tools"),
+    toolsPdfCompare: (args) => request<ToolsPdfCompareResponse>("POST", "/api/v1/tools/pdf-compare", args),
+    toolsPdfCompress: (args) => request<ToolsPdfCompressResponse>("POST", "/api/v1/tools/pdf-compress", args),
+    toolsPdfCrop: (args) => request<ToolsPdfCropResponse>("POST", "/api/v1/tools/pdf-crop", args),
+    toolsPdfExtractPages: (args) => request<ToolsPdfExtractPagesResponse>("POST", "/api/v1/tools/pdf-extract-pages", args),
+    toolsPdfMerge: (args) => request<ToolsPdfMergeResponse>("POST", "/api/v1/tools/pdf-merge", args),
+    toolsPdfOrganise: (args) => request<ToolsPdfOrganiseResponse>("POST", "/api/v1/tools/pdf-organise", args),
+    toolsPdfPageNumbers: (args) => request<ToolsPdfPageNumbersResponse>("POST", "/api/v1/tools/pdf-page-numbers", args),
+    toolsPdfProtect: (args) => request<ToolsPdfProtectResponse>("POST", "/api/v1/tools/pdf-protect", args),
+    toolsPdfRemovePages: (args) => request<ToolsPdfRemovePagesResponse>("POST", "/api/v1/tools/pdf-remove-pages", args),
+    toolsPdfRepair: (args) => request<ToolsPdfRepairResponse>("POST", "/api/v1/tools/pdf-repair", args),
+    toolsPdfRotate: (args) => request<ToolsPdfRotateResponse>("POST", "/api/v1/tools/pdf-rotate", args),
+    toolsPdfSplit: (args) => request<ToolsPdfSplitResponse>("POST", "/api/v1/tools/pdf-split", args),
+    toolsPdfToImage: (args) => request<ToolsPdfToImageResponse>("POST", "/api/v1/tools/pdf-to-image", args),
+    toolsPdfToPdfa: (args) => request<ToolsPdfToPdfaResponse>("POST", "/api/v1/tools/pdf-to-pdfa", args),
+    toolsPdfToText: (args) => request<ToolsPdfToTextResponse>("POST", "/api/v1/tools/pdf-to-text", args),
+    toolsPdfUnlock: (args) => request<ToolsPdfUnlockResponse>("POST", "/api/v1/tools/pdf-unlock", args),
+    toolsPdfWatermark: (args) => request<ToolsPdfWatermarkResponse>("POST", "/api/v1/tools/pdf-watermark", args),
     toolsPixelsToSvg: (args) => request<ToolsPixelsToSvgResponse>("POST", "/api/v1/tools/pixels-to-svg", args),
     uploadsIndex: () => request<UploadsIndexResponse>("GET", "/api/v1/uploads"),
     uploadsTypes: () => request<UploadsTypesResponse>("GET", "/api/v1/upload-types"),

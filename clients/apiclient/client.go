@@ -196,6 +196,143 @@ type ErrorCatalog struct {
 	Data []ErrorCatalogEntry `json:"data,omitempty"`
 }
 
+type ImagesToPDFOptions struct {
+	// contain fits inside the margins, fill covers the page, exact makes the page the image's own size. Default contain.
+	Fit *string `json:"fit,omitempty"`
+	// Points of space around the image, 0 to 144. Default 0.
+	Margin *float64 `json:"margin,omitempty"`
+	// auto turns each page to match its image. Also portrait or landscape. Default auto.
+	Orientation *string `json:"orientation,omitempty"`
+	// a4, a3, a5, letter or legal. Default a4.
+	PageSize *string `json:"page_size,omitempty"`
+	// Quality for images that have to be converted, 1 to 100. Default 90. A JPEG input is never re-encoded.
+	Quality *int64 `json:"quality,omitempty"`
+}
+
+type PDFCompareOptions map[string]any
+
+type PDFCompressOptions struct {
+	// light keeps every page's appearance, balanced is the default, strong is for email.
+	Level *string `json:"level,omitempty"`
+}
+
+type PDFCropOptions struct {
+	// Points to trim from the bottom edge.
+	Bottom *float64 `json:"bottom,omitempty"`
+	// Points to trim from the left edge.
+	Left *float64 `json:"left,omitempty"`
+	// Pages to crop, as 1-3,5. Empty crops every page.
+	Pages *string `json:"pages,omitempty"`
+	// Points to trim from the right edge.
+	Right *float64 `json:"right,omitempty"`
+	// Points to trim from the top edge.
+	Top *float64 `json:"top,omitempty"`
+}
+
+type PDFMergeOptions map[string]any
+
+type PDFPageNumberOptions struct {
+	// The label, with {n} for the number and {total} for the count. Default {n}.
+	Format *string `json:"format,omitempty"`
+	// Pages to number, as 2-z. Empty numbers every page.
+	Pages *string `json:"pages,omitempty"`
+	// top-left to bottom-right. Default bottom-center.
+	Position *string `json:"position,omitempty"`
+	// Font size in points, 4 to 144. Default 10.
+	Size *float64 `json:"size,omitempty"`
+	// The number on the first numbered page. Default 1.
+	StartAt *int64 `json:"start_at,omitempty"`
+}
+
+type PDFPagesOptions struct {
+	// Pages, as 1-3,5,8-z. z is the last page.
+	Pages string `json:"pages"`
+}
+
+type PDFProtectOptions struct {
+	// Allow text to be copied out. Screen-reader access is always allowed.
+	AllowExtract *bool `json:"allow_extract,omitempty"`
+	// all, annotate, form, assembly or none. Default all.
+	Modify *string `json:"modify,omitempty"`
+	// The password that lifts the restrictions. Required, and must differ from the opening password.
+	OwnerPassword string `json:"owner_password"`
+	// full, low or none. Default full.
+	Print *string `json:"print,omitempty"`
+	// The password needed to open the document. Leave empty to restrict permissions only.
+	UserPassword *string `json:"user_password,omitempty"`
+}
+
+type PDFRepairOptions map[string]any
+
+type PDFRotateOptions struct {
+	// Set the rotation rather than add to the page's current one.
+	Absolute *bool `json:"absolute,omitempty"`
+	// 90, 180 or 270, clockwise. Default 90.
+	Degrees *int64 `json:"degrees,omitempty"`
+	// Pages to rotate, as 1-3,5. Empty rotates every page.
+	Pages *string `json:"pages,omitempty"`
+}
+
+type PDFSplitOptions struct {
+	// Pages per file, for the every mode. Default 1.
+	Every *int64 `json:"every,omitempty"`
+	// every splits into groups of n pages; ranges uses the ranges given. Default every.
+	Mode *string `json:"mode,omitempty"`
+	// One range per output file, for the ranges mode.
+	Ranges []string `json:"ranges,omitempty"`
+}
+
+type PDFToImageOptions struct {
+	// Resolution, 36 to 600. Default 150.
+	Dpi *int64 `json:"dpi,omitempty"`
+	// png or jpeg. Default png.
+	Format *string `json:"format,omitempty"`
+	// Pages to render, as 1-3,5. Empty renders every page.
+	Pages *string `json:"pages,omitempty"`
+	// JPEG quality, 1 to 100. Default 85.
+	Quality *int64 `json:"quality,omitempty"`
+}
+
+type PDFToPDFAOptions struct {
+	// PDF/A conformance: 1 for 1b, 2 for 2b, 3 for 3b. Default 2.
+	Part *int64 `json:"part,omitempty"`
+}
+
+type PDFToTextOptions struct {
+	// text or markdown. Default text.
+	Format *string `json:"format,omitempty"`
+	// Keep the page's column spacing, for the text format.
+	Layout *bool `json:"layout,omitempty"`
+	// Write a rule between pages, for the markdown format.
+	PageRules *bool `json:"page_rules,omitempty"`
+	// One continuous range such as 1-20. Empty reads the whole document.
+	Pages *string `json:"pages,omitempty"`
+}
+
+type PDFUnlockOptions struct {
+	// The password that opens the document. It is tried once; there is no recovery of a password you do not have.
+	Password string `json:"password"`
+}
+
+type PDFWatermarkOptions struct {
+	// Use the bold face.
+	Bold *bool `json:"bold,omitempty"`
+	// 0 black to 1 white. Default 0.
+	Gray *float64 `json:"gray,omitempty"`
+	// 0 invisible to 1 opaque. Default 0.18.
+	Opacity *float64 `json:"opacity,omitempty"`
+	// Pages to stamp, as 1-3,5. Empty stamps every page.
+	Pages *string `json:"pages,omitempty"`
+	// top-left to bottom-right, or center. Default center.
+	Position *string `json:"position,omitempty"`
+	// Angle in degrees anticlockwise. 45 is the usual diagonal.
+	Rotate *float64 `json:"rotate,omitempty"`
+	// Font size in points, 4 to 144. 0 picks a size from the page width.
+	Size *float64 `json:"size,omitempty"`
+	// The text to stamp. Unaccented Latin letters, digits and punctuation.
+	Text string `json:"text"`
+}
+
 type PixelSVGOptions struct {
 	// opacity keeps partial transparency, drop removes it. Default opacity.
 	Alpha *string `json:"alpha,omitempty"`
@@ -323,6 +460,168 @@ type TokensStoreBody struct {
 	RecoveryCode *string `json:"recovery_code,omitempty"`
 }
 
+type ToolsImagesToPdfBody struct {
+	// The images, in page order. One to fifty.
+	FileIds []string `json:"file_ids"`
+	// Repeat a submission safely.
+	IdempotencyKey *string `json:"idempotency_key,omitempty"`
+	// Page size, orientation, fit and margin.
+	Options *ImagesToPDFOptions `json:"options,omitempty"`
+}
+
+type ToolsPdfCompareBody struct {
+	// Exactly two uploads: the earlier document first.
+	FileIds []string `json:"file_ids"`
+	// Repeat a submission safely: the same key returns the same conversion.
+	IdempotencyKey *string `json:"idempotency_key,omitempty"`
+	// Comparison has no options.
+	Options PDFCompareOptions `json:"options,omitempty"`
+}
+
+type ToolsPdfCompressBody struct {
+	// The id of an upload of yours.
+	FileID string `json:"file_id"`
+	// Repeat a submission safely.
+	IdempotencyKey *string `json:"idempotency_key,omitempty"`
+	// Which compression level to use.
+	Options *PDFCompressOptions `json:"options,omitempty"`
+}
+
+type ToolsPdfCropBody struct {
+	// The id of an upload of yours.
+	FileID string `json:"file_id"`
+	// Repeat a submission safely.
+	IdempotencyKey *string `json:"idempotency_key,omitempty"`
+	// How many points to trim from each edge.
+	Options PDFCropOptions `json:"options"`
+}
+
+type ToolsPdfExtractPagesBody struct {
+	// The id of an upload of yours.
+	FileID string `json:"file_id"`
+	// Repeat a submission safely.
+	IdempotencyKey *string `json:"idempotency_key,omitempty"`
+	// Which pages to keep.
+	Options PDFPagesOptions `json:"options"`
+}
+
+type ToolsPdfMergeBody struct {
+	// The uploads to join, in order. Two to fifty.
+	FileIds []string `json:"file_ids"`
+	// Repeat a submission safely: the same key returns the same conversion.
+	IdempotencyKey *string `json:"idempotency_key,omitempty"`
+	// Merging has no options; the order of file_ids is the order of the pages.
+	Options PDFMergeOptions `json:"options,omitempty"`
+}
+
+type ToolsPdfOrganiseBody struct {
+	// The id of an upload of yours.
+	FileID string `json:"file_id"`
+	// Repeat a submission safely.
+	IdempotencyKey *string `json:"idempotency_key,omitempty"`
+	// The pages in the order they should appear.
+	Options PDFPagesOptions `json:"options"`
+}
+
+type ToolsPdfPageNumbersBody struct {
+	// The id of an upload of yours.
+	FileID string `json:"file_id"`
+	// Repeat a submission safely.
+	IdempotencyKey *string `json:"idempotency_key,omitempty"`
+	// The label, the position and which pages.
+	Options *PDFPageNumberOptions `json:"options,omitempty"`
+}
+
+type ToolsPdfProtectBody struct {
+	// The id of an upload of yours.
+	FileID string `json:"file_id"`
+	// Repeat a submission safely.
+	IdempotencyKey *string `json:"idempotency_key,omitempty"`
+	// The passwords and the permissions.
+	Options PDFProtectOptions `json:"options"`
+}
+
+type ToolsPdfRemovePagesBody struct {
+	// The id of an upload of yours.
+	FileID string `json:"file_id"`
+	// Repeat a submission safely.
+	IdempotencyKey *string `json:"idempotency_key,omitempty"`
+	// Which pages to remove.
+	Options PDFPagesOptions `json:"options"`
+}
+
+type ToolsPdfRepairBody struct {
+	// The id of an upload of yours.
+	FileID string `json:"file_id"`
+	// Repeat a submission safely.
+	IdempotencyKey *string `json:"idempotency_key,omitempty"`
+	// Repair has no options.
+	Options PDFRepairOptions `json:"options,omitempty"`
+}
+
+type ToolsPdfRotateBody struct {
+	// The id of an upload of yours.
+	FileID string `json:"file_id"`
+	// Repeat a submission safely.
+	IdempotencyKey *string `json:"idempotency_key,omitempty"`
+	// How far to rotate, and which pages.
+	Options *PDFRotateOptions `json:"options,omitempty"`
+}
+
+type ToolsPdfSplitBody struct {
+	// The id of an upload of yours.
+	FileID string `json:"file_id"`
+	// Repeat a submission safely.
+	IdempotencyKey *string `json:"idempotency_key,omitempty"`
+	// How to split. Every field is optional.
+	Options *PDFSplitOptions `json:"options,omitempty"`
+}
+
+type ToolsPdfToImageBody struct {
+	// The id of an upload of yours.
+	FileID string `json:"file_id"`
+	// Repeat a submission safely.
+	IdempotencyKey *string `json:"idempotency_key,omitempty"`
+	// Format, resolution and which pages.
+	Options *PDFToImageOptions `json:"options,omitempty"`
+}
+
+type ToolsPdfToPdfaBody struct {
+	// The id of an upload of yours.
+	FileID string `json:"file_id"`
+	// Repeat a submission safely.
+	IdempotencyKey *string `json:"idempotency_key,omitempty"`
+	// Which conformance level to target.
+	Options *PDFToPDFAOptions `json:"options,omitempty"`
+}
+
+type ToolsPdfToTextBody struct {
+	// The id of an upload of yours.
+	FileID string `json:"file_id"`
+	// Repeat a submission safely.
+	IdempotencyKey *string `json:"idempotency_key,omitempty"`
+	// Text or Markdown, and which pages.
+	Options *PDFToTextOptions `json:"options,omitempty"`
+}
+
+type ToolsPdfUnlockBody struct {
+	// The id of an upload of yours.
+	FileID string `json:"file_id"`
+	// Repeat a submission safely.
+	IdempotencyKey *string `json:"idempotency_key,omitempty"`
+	// The password that opens the document.
+	Options PDFUnlockOptions `json:"options"`
+}
+
+type ToolsPdfWatermarkBody struct {
+	// The id of an upload of yours.
+	FileID string `json:"file_id"`
+	// Repeat a submission safely.
+	IdempotencyKey *string `json:"idempotency_key,omitempty"`
+	// The text and how to draw it.
+	Options PDFWatermarkOptions `json:"options"`
+}
+
 type ToolsPixelsToSvgBody struct {
 	// The id of an upload of yours, from the resumable upload endpoint.
 	FileID string `json:"file_id"`
@@ -414,10 +713,154 @@ func (c *Client) TokensStore(ctx context.Context, body TokensStoreBody) (TokenIs
 	return out, err
 }
 
+// ToolsImagesToPdf calls POST /api/v1/tools/images-to-pdf: Bind images into a PDF, one per page.
+func (c *Client) ToolsImagesToPdf(ctx context.Context, body ToolsImagesToPdfBody) (ConversionView, error) {
+	var out ConversionView
+	err := c.do(ctx, "POST", "/api/v1/tools/images-to-pdf", nil, body, &out)
+
+	return out, err
+}
+
 // ToolsIndex calls GET /api/v1/tools: List the conversions on offer.
 func (c *Client) ToolsIndex(ctx context.Context) (ToolList, error) {
 	var out ToolList
 	err := c.do(ctx, "GET", "/api/v1/tools", nil, nil, &out)
+
+	return out, err
+}
+
+// ToolsPdfCompare calls POST /api/v1/tools/pdf-compare: Compare two PDFs' text, page by page.
+func (c *Client) ToolsPdfCompare(ctx context.Context, body ToolsPdfCompareBody) (ConversionView, error) {
+	var out ConversionView
+	err := c.do(ctx, "POST", "/api/v1/tools/pdf-compare", nil, body, &out)
+
+	return out, err
+}
+
+// ToolsPdfCompress calls POST /api/v1/tools/pdf-compress: Make a PDF smaller.
+func (c *Client) ToolsPdfCompress(ctx context.Context, body ToolsPdfCompressBody) (ConversionView, error) {
+	var out ConversionView
+	err := c.do(ctx, "POST", "/api/v1/tools/pdf-compress", nil, body, &out)
+
+	return out, err
+}
+
+// ToolsPdfCrop calls POST /api/v1/tools/pdf-crop: Trim a PDF's margins.
+func (c *Client) ToolsPdfCrop(ctx context.Context, body ToolsPdfCropBody) (ConversionView, error) {
+	var out ConversionView
+	err := c.do(ctx, "POST", "/api/v1/tools/pdf-crop", nil, body, &out)
+
+	return out, err
+}
+
+// ToolsPdfExtractPages calls POST /api/v1/tools/pdf-extract-pages: Keep only the pages you name.
+func (c *Client) ToolsPdfExtractPages(ctx context.Context, body ToolsPdfExtractPagesBody) (ConversionView, error) {
+	var out ConversionView
+	err := c.do(ctx, "POST", "/api/v1/tools/pdf-extract-pages", nil, body, &out)
+
+	return out, err
+}
+
+// ToolsPdfMerge calls POST /api/v1/tools/pdf-merge: Join several PDFs into one.
+func (c *Client) ToolsPdfMerge(ctx context.Context, body ToolsPdfMergeBody) (ConversionView, error) {
+	var out ConversionView
+	err := c.do(ctx, "POST", "/api/v1/tools/pdf-merge", nil, body, &out)
+
+	return out, err
+}
+
+// ToolsPdfOrganise calls POST /api/v1/tools/pdf-organise: Reorder or duplicate pages.
+func (c *Client) ToolsPdfOrganise(ctx context.Context, body ToolsPdfOrganiseBody) (ConversionView, error) {
+	var out ConversionView
+	err := c.do(ctx, "POST", "/api/v1/tools/pdf-organise", nil, body, &out)
+
+	return out, err
+}
+
+// ToolsPdfPageNumbers calls POST /api/v1/tools/pdf-page-numbers: Stamp page numbers onto a PDF.
+func (c *Client) ToolsPdfPageNumbers(ctx context.Context, body ToolsPdfPageNumbersBody) (ConversionView, error) {
+	var out ConversionView
+	err := c.do(ctx, "POST", "/api/v1/tools/pdf-page-numbers", nil, body, &out)
+
+	return out, err
+}
+
+// ToolsPdfProtect calls POST /api/v1/tools/pdf-protect: Encrypt a PDF with a password.
+func (c *Client) ToolsPdfProtect(ctx context.Context, body ToolsPdfProtectBody) (ConversionView, error) {
+	var out ConversionView
+	err := c.do(ctx, "POST", "/api/v1/tools/pdf-protect", nil, body, &out)
+
+	return out, err
+}
+
+// ToolsPdfRemovePages calls POST /api/v1/tools/pdf-remove-pages: Remove the pages you name.
+func (c *Client) ToolsPdfRemovePages(ctx context.Context, body ToolsPdfRemovePagesBody) (ConversionView, error) {
+	var out ConversionView
+	err := c.do(ctx, "POST", "/api/v1/tools/pdf-remove-pages", nil, body, &out)
+
+	return out, err
+}
+
+// ToolsPdfRepair calls POST /api/v1/tools/pdf-repair: Rebuild a damaged PDF's structure.
+func (c *Client) ToolsPdfRepair(ctx context.Context, body ToolsPdfRepairBody) (ConversionView, error) {
+	var out ConversionView
+	err := c.do(ctx, "POST", "/api/v1/tools/pdf-repair", nil, body, &out)
+
+	return out, err
+}
+
+// ToolsPdfRotate calls POST /api/v1/tools/pdf-rotate: Rotate pages by 90, 180 or 270 degrees.
+func (c *Client) ToolsPdfRotate(ctx context.Context, body ToolsPdfRotateBody) (ConversionView, error) {
+	var out ConversionView
+	err := c.do(ctx, "POST", "/api/v1/tools/pdf-rotate", nil, body, &out)
+
+	return out, err
+}
+
+// ToolsPdfSplit calls POST /api/v1/tools/pdf-split: Split a PDF into several files.
+func (c *Client) ToolsPdfSplit(ctx context.Context, body ToolsPdfSplitBody) (ConversionView, error) {
+	var out ConversionView
+	err := c.do(ctx, "POST", "/api/v1/tools/pdf-split", nil, body, &out)
+
+	return out, err
+}
+
+// ToolsPdfToImage calls POST /api/v1/tools/pdf-to-image: Render pages to PNG or JPEG.
+func (c *Client) ToolsPdfToImage(ctx context.Context, body ToolsPdfToImageBody) (ConversionView, error) {
+	var out ConversionView
+	err := c.do(ctx, "POST", "/api/v1/tools/pdf-to-image", nil, body, &out)
+
+	return out, err
+}
+
+// ToolsPdfToPdfa calls POST /api/v1/tools/pdf-to-pdfa: Convert to the archival PDF/A format.
+func (c *Client) ToolsPdfToPdfa(ctx context.Context, body ToolsPdfToPdfaBody) (ConversionView, error) {
+	var out ConversionView
+	err := c.do(ctx, "POST", "/api/v1/tools/pdf-to-pdfa", nil, body, &out)
+
+	return out, err
+}
+
+// ToolsPdfToText calls POST /api/v1/tools/pdf-to-text: Extract a PDF's text, as text or Markdown.
+func (c *Client) ToolsPdfToText(ctx context.Context, body ToolsPdfToTextBody) (ConversionView, error) {
+	var out ConversionView
+	err := c.do(ctx, "POST", "/api/v1/tools/pdf-to-text", nil, body, &out)
+
+	return out, err
+}
+
+// ToolsPdfUnlock calls POST /api/v1/tools/pdf-unlock: Remove a password you know.
+func (c *Client) ToolsPdfUnlock(ctx context.Context, body ToolsPdfUnlockBody) (ConversionView, error) {
+	var out ConversionView
+	err := c.do(ctx, "POST", "/api/v1/tools/pdf-unlock", nil, body, &out)
+
+	return out, err
+}
+
+// ToolsPdfWatermark calls POST /api/v1/tools/pdf-watermark: Stamp text across a PDF's pages.
+func (c *Client) ToolsPdfWatermark(ctx context.Context, body ToolsPdfWatermarkBody) (ConversionView, error) {
+	var out ConversionView
+	err := c.do(ctx, "POST", "/api/v1/tools/pdf-watermark", nil, body, &out)
 
 	return out, err
 }

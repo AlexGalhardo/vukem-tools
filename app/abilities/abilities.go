@@ -23,8 +23,12 @@ const (
 	VideoTranscribe = "video:transcribe"
 )
 
-// all is the closed set. Adding a tool means adding its ability here.
-var all = []string{
+// all is the closed set, built from one slice per domain so that a domain can
+// add its abilities in its own file.
+var all = slices.Concat(coreAbilities, pdfAbilities)
+
+// coreAbilities are the abilities declared in this file.
+var coreAbilities = []string{
 	PixelsSVG,
 	VideoDownload,
 	VideoEdit,

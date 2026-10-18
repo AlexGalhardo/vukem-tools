@@ -819,7 +819,8 @@ Everything the owner wants eventually, kept here so it is not forgotten. Each be
 phase with its own asserts when it is picked up; the engines are already researched.
 
 - [ ] **Sprite sheet and frame atlas** — split a sheet into frames, build a sheet from frames,
-      export the JSON metadata that game engines expect. Directly serves the game-asset goal.
+      export the metadata game engines import. Promoted out of this backlog: it is now its own
+      phase, planned in [§ Phase S7](#phase-s7--sprite-sheets-and-frame-atlases).
 - [ ] **Archives** — ZIP, TAR, GZ, XZ, ZSTD, BR create and extract (`mholt/archives`,
       `klauspost/compress`); 7z write through `7zz`; RAR **read only**, because the unRAR licence
       forbids recreating RAR compression.
@@ -994,6 +995,327 @@ Licences verified in [docs/web-research.md](docs/web-research.md).
 - Every skipped tool above appears on the tools page as "not available", with the reason in one
   sentence, rather than being silently absent: a visitor comparing us with iLovePDF should find the
   answer here, not wonder
+
+---
+
+## Phase S7 — Sprite sheets and frame atlases
+
+Promoted out of [§ Phase S5](#phase-s5--deferred-tools), where it was the first entry and the one
+marked as directly serving the game-asset goal in
+[docs/brainstorming.md § 1](docs/brainstorming.md). Target version: `v0.5.0`. Independent of S3,
+S4 and S6: it shares only the queue, the file store and the 5-minute result TTL.
+
+Two tools, named for what a person wants: `sprite-split` takes a sheet and gives back frames with
+an atlas description, `sprite-build` takes frames and gives back a sheet with the same. One
+ability, `sprite:sheet`, because they are one family.
+
+### S7.0 Decisions this phase is built on
+
+Recorded here rather than discovered in the diff, with what was rejected and why. The formats were
+checked against each consumer's own parser or documentation, cited in the package comment of
+`internal/spritesheet`; a format whose shape could not be confirmed from a primary source says so.
+
+- **Pure Go, no engine.** Slicing and packing PNGs is `image/png`, `archive/zip` and arithmetic.
+  libvips would add a subprocess, a container dependency and an LGPL notice to do what the standard
+  library already does exactly, and an engine cannot give byte-identical output across versions,
+  which the golden tests here depend on. This phase therefore adds **no dependency and no
+  `/licenses` entry** — `git diff go.mod go.sum` over it is empty, which is an assert below, not a
+  hope. `internal/pixelsvg` is the precedent: pure Go, benchmarkable without a queue.
+- **PNG in, PNG out.** Lossless with alpha, which is the only sane sheet format. GIF, BMP and JPEG
+  are decoded on input because the standard library already does and refusing them would be
+  gratuitous; WebP and AVIF are **rejected** on input because they need
+  `golang.org/x/image`/libvips, and on output because a lossy or newly-encoded sheet is not what a
+  game engine wants.
+- **Grid by default, component detection on request.** `grid` is exact and is what the
+  overwhelming majority of sheets are: the person knows their own cell size. `auto` labels
+  8-connected components of the non-background mask and takes each one's bounding box, which is
+  the answer for a hand-drawn sheet whose frames are not a uniform grid. **Rejected:** inferring
+  the grid from empty rows and columns. It is wrong exactly when it matters — frames that touch,
+  or a character that overflows its cell — and it fails silently, producing frames that are off by
+  a pixel everywhere. `auto` gives exact boxes; `grid` lets the person state the truth. A sheet
+  with no alpha and no declared background colour is refused with that choice spelled out, rather
+  than guessed at.
+- **Trim is only ever offered with metadata that can express it.** Trimming to the opaque bounding
+  box is what makes an atlas small, and it is safe only because `sourceSize` and
+  `spriteSourceSize` let the importer re-inflate the frame to its original box; without them a
+  trimmed animation jitters. So trim writes the offset and the untrimmed size into every format
+  that has fields for it, and the CSS writer — which has nowhere to put them — refuses `trim`
+  rather than producing a silently broken sheet.
+- **Padding and extrude are different things and both ship.** Padding is transparent gutter, which
+  stops a neighbour's colour bleeding in when the GPU samples half a texel outside the quad.
+  Extrude repeats the frame's own edge pixels outward into that gutter, which is the fix for the
+  dark halo transparent padding leaves on a tileset at non-integer zoom. TexturePacker's own
+  texture-settings page separates border padding, shape padding and extrude the same way; this
+  phase uses `margin` for the sheet edge, `padding` between frames and `extrude` for the repeat.
+- **The packer never rotates.** `rotated` is written and is always `false`. Rotation buys a few
+  per cent of area and costs importer compatibility — Phaser handles it, a hand-rolled Godot
+  `AtlasTexture` does not — and it makes the output harder to reason about for no benefit a person
+  asked for. The assert below pins `rotated == false` everywhere, so turning it on later cannot
+  ship without the metadata and the importers being dealt with.
+- **Formats: five writers, chosen by what actually imports them.**
+  - **TexturePacker JSON, hash and array** — what Phaser 3's `load.atlas` and PixiJS read. The
+    field set (`frame`, `rotated`, `trimmed`, `spriteSourceSize`, `sourceSize`, `pivot`, and
+    `meta` with `app`/`version`/`image`/`format`/`size`/`scale`) is corroborated by PixiJS's own
+    sprite-sheet guide; CodeAndWeb's JSON reference could not be reached, so the asserts below
+    parse the output back rather than trusting the key names.
+  - **libGDX `.atlas`** — read out of libGDX's own `TextureAtlas.java`: page header `size:`,
+    `format:`, `filter:`, `repeat:`, `pma:`, then per region a name line and `rotate:`, `bounds:`,
+    `offsets:`, `index:`. The deprecated `xy:`/`size:`/`orig:`/`offset:` spelling is **not**
+    written.
+  - **Sparrow/Starling XML** — read out of Phaser 3.88.2's `AtlasXML.js`: `<TextureAtlas>` with
+    `<SubTexture name x y width height>` and the optional `frameX`/`frameY`/`frameWidth`/
+    `frameHeight` for a trimmed frame. Still the widest-supported format there is.
+  - **CSS sprites** — the non-game case the S5 entry also listed, and three lines of arithmetic
+    once the atlas exists.
+  - **Aseprite extensions** — a flag on the TexturePacker writers, not a sixth format: per-frame
+    `duration` and `meta.frameTags`. Aseprite's `--format json-hash`/`json-array` flags are
+    documented, its frame structure is not, so it is shipped as "TexturePacker JSON with the
+    Aseprite extensions" and documented as such rather than as a claim about what Aseprite emits.
+- **Godot and Unity get a uniform grid and a sentence, not a fake file.** Godot 4 needs no
+  metadata for a uniform grid — `AtlasTexture.region`, or the frame counts on an
+  `AnimatedSprite2D` — and Unity's slicing is editor-only (`SpriteMetaData` has no documented text
+  form). **Rejected:** hand-writing a `SpriteFrames` or `AtlasTexture` `.tres`, whose structure is
+  undocumented and version-fragile, and `.tpsheet`, which is a third-party plugin's format rather
+  than Godot's. The honest deliverable is a grid-packed sheet plus the one-line import instruction
+  in the interface, and a catalogue entry that says so — the same treatment `pdf-to-word` gets.
+- **The output media types live in this package, not in `internal/detect`.** `detect.known` is
+  the **input** surface of the whole service: a tool that passes a nil `accepted` list accepts
+  everything in it. `docs/deployment.md § Known vulnerabilities` records libxml2's CVE-2026-6653
+  as unreachable on exactly one ground — no live tool accepts XML input — and it has no fixed
+  release, so adding `application/xml` there to name an *output* would quietly falsify that
+  document. `internal/spritesheet` therefore carries its own small table of the kinds it
+  **produces**: generated by this service, never identified from untrusted bytes, so they need a
+  name and an extension rather than detection. **Rejected:** widening `detect.known`, and equally
+  constructing a `detect.Kind` literally at the call site, which would put an invented media type
+  where a reader assumes detection happened.
+- **A set of files uses the mechanism that already exists.** A split produces two outputs on the
+  conversion — `frames.zip` (the PNGs and the metadata inside it, so one download is
+  self-contained) and the metadata file on its own, for a client that wants to read it without
+  unzipping. `GET /api/v1/conversions/{id}/result` already returns a list, and the 5-minute TTL is
+  already per file. **Rejected:** one `files` row per frame. A thousand frames would mean a
+  thousand bucket objects, a thousand signed URLs and a browser that cannot download them; the cap
+  and the ZIP are the answer, not a second delivery mechanism.
+
+### S7.1 Core library — splitting a sheet
+
+- [x] Package `internal/spritesheet`, pure Go, no cgo, no external binary, no new dependency
+  - [x] Decode through `image` from the standard library: PNG, GIF and JPEG. BMP needs
+        `golang.org/x/image`, so it is not offered rather than claimed
+  - [x] Limits, each refused with a message naming the limit and the actual value
+    - [x] `MaxDimension` 8192 per side, and `MaxPixels` 16777216 (4096 × 4096), checked from the
+          PNG header through `image.DecodeConfig` before a pixel buffer is allocated
+    - [x] `MaxFrames` 2048 per sheet, checked from the grid before any frame is cut
+    - [x] `MaxInputBytes` 64 MiB on the encoded sheet, as `internal/pixelsvg` already does
+  - [x] Grid mode
+    - [x] By cell size, or by column and row counts, with `margin` (sheet edge) and `spacing`
+          (between cells)
+    - [x] A grid that does not tile the sheet exactly is refused, with the remainder named
+    - [x] Row-major frame order, which is what every engine assumes
+  - [x] Auto mode
+    - [x] 8-connected component labelling over the non-background mask, union-find over
+          horizontal runs, one pass per row
+    - [x] Background is alpha by default, or a declared colour with a tolerance
+    - [x] A sheet with no alpha and no declared background is refused, naming both ways out
+    - [x] Components sorted into reading order: grouped into rows by vertical overlap, then by x
+    - [x] Components smaller than `min_frame` pixels dropped as noise, and how many were dropped
+          is reported rather than swallowed
+  - [x] Trim: each frame shrunk to its opaque bounding box, with the offset and the untrimmed size
+        carried out in the result for the metadata writer
+  - [x] Frames written one at a time through a re-based `image.SubImage`, which shares the
+        decoded sheet's backing array **and** keeps `png.Encode`'s fast path, straight into the
+        ZIP writer — never collected in a slice
+  - [x] Deterministic: the same sheet and the same options produce byte-identical frames, ZIP
+        entries and metadata, whatever the worker count
+- [x] **No concurrency in the split path, decided on the measurement.** The project rule is that
+      a pool is sized from `internal/cpu`, never `runtime.NumCPU`; this path starts no pool at
+      all, so there is nothing to size. Per-frame PNG encoding is embarrassingly parallel, but
+      `archive/zip` writes entries one at a time, so parallel encoding means holding encoded
+      frames in memory — trading the peak-memory property measured above for latency nobody is
+      waiting on. The worst case the limits allow, a 4096 × 4096 sheet of 1024 frames, is 397 ms
+      against a 2-minute tool timeout. If a pool is ever added it is `cpu.Limit()` encoders
+      feeding an ordered writer over a bounded window, and the peak-heap assert is what guards it
+
+#### Quality asserts
+
+- A committed 4 × 2-cell fixture splits into 8 frames whose pixels are byte-identical to the 8
+  source cells, in row-major order; the fixture is checked against the generator that made it, so
+  the goldens cannot drift under a changed fixture
+- A grid whose cell size does not tile the sheet is refused with a message naming the sheet size,
+  the cell size, the margin, the spacing and the remainder — asserted on the message, not just on
+  the error being non-nil
+- A non-uniform fixture holding five frames of three different sizes, irregularly placed, is split
+  by `auto` into exactly those five bounding boxes, in the expected reading order
+- A fully opaque sheet with no declared background is refused, no frame is produced, and the
+  message names both `background` and `grid` as the ways forward
+- A frame with a 3-pixel transparent border trims to the inner box, and the result reports
+  `offset = (3, 3)` with the untrimmed cell as the source size
+- Two runs over the same sheet produce byte-identical ZIP member bytes and byte-identical metadata
+- A 4096 × 4096 sheet split into 1024 frames: wall-clock and peak RSS in `docs/benchmarks.md`.
+  Peak RSS stays within 1.5 × the decoded sheet (64 MiB of RGBA), which is what proves frames are
+  written one at a time instead of accumulated; the same figure measured at 64, 256 and 1024
+  frames does not grow with the frame count
+- A sheet whose header declares more than `MaxPixels` is refused from the header alone, proven by
+  a test that feeds a truncated file holding only the IHDR chunk
+- `go test -race -count=1 ./internal/spritesheet/...` green; `go test -bench . -benchmem` recorded
+- A fuzz target over malformed image bytes and malformed grid options finds no panic in 5 minutes
+
+### S7.2 Core library — building a sheet
+
+- [ ] Frames read from a ZIP, in two passes over the same local file
+  - [ ] Pass one reads only each entry's `image.DecodeConfig`, so the packing decision costs
+        headers rather than pixels
+  - [ ] Pass two allocates the canvas once and decodes one frame at a time into it, releasing each
+        before the next
+- [ ] ZIP input hardened, because an archive is attacker-controlled
+  - [ ] At most 2048 entries and 512 MiB of declared uncompressed size, both refused with the
+        limit named
+  - [ ] Entry names are never used as paths: the basename is sanitised and used only as the frame
+        name, so nothing is ever written outside the job directory
+  - [ ] Directories, empty entries and entries whose bytes are not an image this package decodes
+        are refused, naming the entry
+- [ ] Layouts
+  - [ ] `grid` (default when every frame is the same size): uniform cells, column count chosen to
+        keep the sheet near-square. This is the layout Godot 4 and Unity import with no metadata
+        file, which is why it is the default
+  - [ ] `compact`: skyline bottom-left over frames sorted by descending height then name, so the
+        order is total and the output deterministic. **MaxRects is rejected for now** — the
+        efficiency figure below is the evidence for whether it would earn its keep
+  - [ ] `margin`, `padding` and `extrude`, with `extrude` repeating the frame's edge pixels into
+        the padding
+  - [ ] `max_size` (default 4096, at most 8192) and an optional power-of-two output size
+  - [ ] Frames that do not fit are refused, naming how many fitted and the size that would be
+        needed — never silently dropped
+- [ ] The **output size is refused before it is attempted**, because on this tool the output is
+      attacker-influenced too: a caller asking for a sheet from 2048 frames of 4096 × 4096 is
+      asking for an allocation that must be declined, not discovered halfway through
+  - [ ] The canvas area is computed from the frame headers in pass one and checked against
+        `MaxPixels` before the canvas is allocated, so nothing large is ever allocated to find out
+  - [ ] The sum of the frame areas is checked the same way, so a set that could never fit any
+        permitted sheet is refused without packing it first
+  - [ ] The refusal is a `jobs.Refuse` carrying a public message that states the limit as a
+        number, because a person who hits a cap should be told what it is
+- [ ] The sheet streamed out through `png.Encoder` into the job directory, not held in memory twice
+
+#### Quality asserts
+
+- Round trip: splitting the committed fixture and rebuilding it with the same grid, `margin 0`,
+  `padding 0` and `extrude 0` reproduces the original sheet byte for byte
+- Building a 4096 × 4096 sheet from 1024 frames has a peak RSS within a recorded ceiling of
+  canvas plus largest frame plus encoder, and that ceiling measured at 64, 256 and 1024 frames
+  does not grow with the frame count — the figure that proves the two-pass design, in
+  `docs/benchmarks.md`
+- With `padding 2`, the gap between two neighbouring frames is exactly two fully transparent pixel
+  columns, asserted by sampling
+- With `extrude 2`, the two-pixel ring outside a frame equals that frame's own edge pixels; with
+  `extrude 0` it is transparent — both asserted by sampling
+- Packing efficiency on a seeded mixed-size fixture is at least a recorded percentage of the sum
+  of the frame areas, recorded in `docs/benchmarks.md` so a regression is visible and so the
+  MaxRects decision can be revisited against a number
+- Frames that do not fit `max_size` are refused with the count that fitted and the required size
+  named, and no partial sheet is stored
+- A request to build from 2048 frames of 4096 × 4096 is refused **before any canvas is
+  allocated**, proven by a test that measures peak RSS across the refusal and finds it unchanged
+  from the baseline, and the error's public message names the pixel limit as a number
+- A ZIP with 3000 entries, one named `../../etc/passwd`, one directory entry, one entry declaring
+  2 GiB uncompressed and one entry that is not an image are each handled as documented, one test
+  per case, and no file is ever created outside the job directory
+- The same ZIP produces a byte-identical sheet and metadata with one worker and with eight
+- `go test -race -count=1 ./internal/spritesheet/...` green
+
+### S7.3 Atlas metadata
+
+- [ ] One `Atlas` value — sheet size, and per frame its name, rectangle, trim offset and source
+      size — written by five independent writers, so a format cannot change the geometry
+  - [ ] TexturePacker JSON hash, streamed through `encoding/json` into a `bufio.Writer`
+  - [ ] TexturePacker JSON array, the same frames with `filename` on each
+  - [ ] Aseprite extensions on both: per-frame `duration` from a `frame_ms` option, and
+        `meta.frameTags` derived from the frame names, with 0-based inclusive `from`/`to`
+  - [ ] libGDX `.atlas`, in the modern `bounds:`/`offsets:` spelling
+  - [ ] Sparrow/Starling XML through `encoding/xml`, with the `frame*` attributes written only for
+        a trimmed frame
+  - [ ] CSS, one class per frame, which refuses `trim` because it has nowhere to put the offset
+- [ ] The format list, and the one sentence saying what imports each, published by the API so the
+      interface does not hardcode them
+- [ ] At most four formats requested at once
+
+#### Quality asserts
+
+- Golden files for all five writers over the same three-frame atlas, committed under `testdata`
+- Each JSON golden is parsed back by a reader written against the documented field set and yields
+  the same rectangles, so a typo in a key fails the test rather than shipping
+- The libGDX golden is parsed by a reader implementing the grammar read out of libGDX's
+  `TextureAtlas.java`, and every region's `bounds` and `offsets` round-trip
+- The Sparrow golden is parsed by `encoding/xml` into the attribute set Phaser's `AtlasXML.js`
+  reads, and `frameX`/`frameY`/`frameWidth`/`frameHeight` appear only on trimmed frames
+- A trimmed frame satisfies `spriteSourceSize.w == frame.w`, `spriteSourceSize.h == frame.h`,
+  `sourceSize` equal to the untrimmed cell and `trimmed == true`; an untrimmed frame has
+  `trimmed == false` and a zero offset
+- `rotated` is `false` on every frame of every output, asserted across all five writers
+- Every CSS rule's `background-position` is the exact negative of its frame's atlas x and y,
+  asserted numerically
+- Asking for `trim` with the CSS format is refused, naming the reason, rather than emitting a
+  sheet whose frames are off by their trim offset
+
+### S7.4 Tools and API
+
+- [ ] `app/tools/sprite.go`: `sprite-split` and `sprite-build`, registered through `spriteTools`
+  - [ ] Input types checked against the detected MIME, never the extension: images for
+        `sprite-split`, `application/zip` for `sprite-build`
+  - [ ] Options validated at submission through `jobs.OptionsValidator`, so the worker reads
+        exactly what was accepted
+  - [ ] Library errors mapped onto the taxonomy in `internal/jobs/status.go`: a bad grid, an
+        undetectable background and an oversized sheet are the input's problem, not transient
+  - [ ] Progress reported per phase: `reading`, `slicing` or `packing`, `writing metadata`,
+        `storing`
+- [ ] `app/catalog/sprite.go`: both tools, plus the Godot and Unity note as a catalogue entry that
+      states the grid workflow rather than leaving a visitor to wonder
+- [ ] `app/controllers/apiv1/sprite.go`: one typed submit route per tool, following
+      `SubmitPixelSVG` — `z.For[T]()` cannot describe `json.RawMessage` or `map[string]any`, so a
+      generic options route is not available
+- [ ] `routes/api_sprite.go`: the two submit routes, wired into `routes/registry.go` with one line
+- [ ] Both tools added to the `pages` map in `app/controllers/pages.go`, so each page renders its
+      own component with its own props rather than another tool's form
+- [ ] Ability `sprite:sheet`, from `app/abilities/abilities.go`
+
+#### Quality asserts
+
+- Both routes appear in `/openapi.json` with every option documented and one example each
+- An invalid option returns `422` naming the field, in the shape the existing routes return
+- A sheet submitted to `sprite-build`, or a ZIP submitted to `sprite-split`, is refused at
+  submission with the detected type named, before any worker runs — asserted at the HTTP level
+- A finished split's `GET /api/v1/conversions/{id}/result` lists exactly two files, the frames ZIP
+  and the metadata, each with a signed URL and the same `expires_at`; past the 5-minute TTL both
+  are answered `410`, asserted with a clock the test controls
+- A queued conversion streams the documented phases over SSE and ends with signed download URLs
+- A key without `sprite:sheet` is refused `403` naming the ability
+- `git diff --exit-code go.mod go.sum` is clean across the phase: no dependency was added, so
+  `/licenses` needs no entry. This is the assert that replaces the usual licence gate
+
+### S7.5 Interface
+
+- [ ] Page for `sprite-split`
+  - [ ] Drop a sheet and see the grid drawn over it, with the frame count the server will produce,
+        before submitting
+  - [ ] Grid controls — cell size or counts, margin, spacing — redraw the overlay with no round
+        trip
+  - [ ] `auto` mode offers the background colour picker and explains when it is needed
+  - [ ] Trim, and the format checkboxes with the one sentence each about what imports them
+- [ ] Page for `sprite-build`
+  - [ ] Drop a ZIP of frames, see the frame count and the packed preview
+  - [ ] Layout, padding, extrude, margin and max size; wasted area shown as a percentage
+  - [ ] The Godot and Unity import note shown whenever `grid` is the layout
+- [ ] Both pages say the result lives five minutes, next to the download
+
+#### Quality asserts
+
+- Changing a grid control redraws the overlay without a page reload and without a request
+- The frame count the page predicts equals the number of entries in the ZIP the server returns,
+  asserted on a fixture
+- A 4096 × 4096 sheet does not freeze the tab: the overlay is drawn on a scaled canvas and the
+  frame count is shown before any preview is rendered
+- Both pages work at phone width with no horizontal scroll
+- Lighthouse accessibility ≥ 95 on both pages
+- `bun run typecheck` and `bun run build` clean
 
 ---
 

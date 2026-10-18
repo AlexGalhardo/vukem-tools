@@ -256,6 +256,26 @@ func (t *VideoDownload) MaxBytes() int64 { return t.down.MaxBytes() }
 // nothing in it has to survive, so the system temporary directory is right
 // even where that is a tmpfs.
 func (t *VideoDownload) Metadata(ctx context.Context, url string) (downloader.Media, error) {
+	// The platform check is repeated here even though internal/downloader
+	// makes it the first statement of both Metadata and Download.
+	//
+	// It is not redundant, it is where the invariant belongs. An unvalidated
+	// URL reaching yt-dlp is a request forger running inside this network
+	// with this service's egress: yt-dlp's generic extractor fetches whatever
+	// it is given, and http://169.254.169.254/latest/meta-data/ and
+	// http://localhost:5432 are both reachable from a conversion container.
+	// A check in one caller protects one caller; a check here protects every
+	// path into the tool, including the next endpoint somebody adds. The
+	// extractor allowlist in internal/downloader is the third layer, and all
+	// three fail differently on purpose: a hostname rule can be wrong about a
+	// domain, and the extractor list still refuses to fetch it.
+	if _, err := downloader.PlatformOf(url); err != nil {
+		return downloader.Media{}, jobs.Refuse(jobs.UnsupportedInput, err,
+			"That URL is not one this service can download from. "+
+				"YouTube, Instagram, X and TikTok are supported.",
+			"the URL is not on the platform allowlist")
+	}
+
 	dir, err := os.MkdirTemp("", "vukem-probe-")
 	if err != nil {
 		return downloader.Media{}, jobs.Fail(jobs.DiskFull, err, "create a directory for the probe")

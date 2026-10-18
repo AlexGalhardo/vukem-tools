@@ -6,6 +6,7 @@ import (
 
 	"github.com/AlexGalhardo/vukem/errs"
 	"github.com/AlexGalhardo/vukem/web"
+	"github.com/AlexGalhardo/vukem/z"
 
 	"github.com/AlexGalhardo/vukem-tools/app/tools"
 	"github.com/AlexGalhardo/vukem-tools/internal/downloader"
@@ -155,6 +156,17 @@ func (h *Conversions) DownloadMetadata(c *web.Ctx, in MediaProbe) (MediaView, er
 
 	if err := requireAbility(c, tool.Ability()); err != nil {
 		return MediaView{}, err
+	}
+
+	// Refused at the edge, with the field named, so a URL outside the four
+	// platforms is a 422 a client can show against its own input rather than
+	// a 415 about a media type nobody mentioned. The tool and
+	// internal/downloader check it again: this one is for the message, those
+	// are for the guarantee.
+	if _, err := downloader.PlatformOf(in.URL); err != nil {
+		return MediaView{}, z.FieldError("url",
+			"That URL is not one this service can download from. "+
+				"YouTube, Instagram, X and TikTok are supported.")
 	}
 
 	media, err := tool.Metadata(c.Context(), in.URL)

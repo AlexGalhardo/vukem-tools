@@ -18,6 +18,7 @@ try {
 // It mounts on #app, the default inertia.Config.RootID; when you change
 // RootID, pass the same value here as `id`.
 createInertiaApp({
+  title: (title) => (title ? `${title} · Vukem Tools` : "Vukem Tools"),
   layout: () => AppLayout,
   nonce: document.querySelector<HTMLMetaElement>('meta[property="csp-nonce"]')?.nonce,
   progress: { color: "#4f46e5" },

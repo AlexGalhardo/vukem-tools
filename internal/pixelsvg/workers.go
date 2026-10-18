@@ -1,19 +1,10 @@
 package pixelsvg
 
 import (
-	"os"
-	"runtime"
-	"strconv"
-	"strings"
 	"sync"
 	"sync/atomic"
-)
 
-// The cgroup files that expose the CPU quota of a container.
-const (
-	cgroupV2CPUMax    = "/sys/fs/cgroup/cpu.max"
-	cgroupV1CPUQuota  = "/sys/fs/cgroup/cpu/cpu.cfs_quota_us"
-	cgroupV1CPUPeriod = "/sys/fs/cgroup/cpu/cpu.cfs_period_us"
+	"github.com/AlexGalhardo/vukem-tools/internal/cpu"
 )
 
 // ctxCheckRows is how many rows a worker processes between cancellation
@@ -22,74 +13,9 @@ const (
 const ctxCheckRows = 64
 
 // Workers reports the worker count a conversion uses when [Options.Workers] is
-// zero.
-//
-// It is the smaller of GOMAXPROCS and the container's own CPU quota, and never
-// below one. Go 1.25 and later already derive GOMAXPROCS from the cgroup CPU
-// limit on Linux, but the quota is read here as well: the value is what bounds
-// this package's goroutines even when GOMAXPROCS has been raised by hand or
-// the program runs on a Go release that does not do it.
-func Workers() int {
-	n := runtime.GOMAXPROCS(0)
-	if q := cpuQuota(); q > 0 && q < n {
-		n = q
-	}
-
-	return max(n, 1)
-}
-
-// cpuQuota returns the container's CPU limit rounded up to whole CPUs, or zero
-// when there is no quota or it cannot be read.
-func cpuQuota() int {
-	if b, err := os.ReadFile(cgroupV2CPUMax); err == nil {
-		if n, ok := parseCPUMax(string(b)); ok {
-			return n
-		}
-	}
-
-	quota, err := os.ReadFile(cgroupV1CPUQuota)
-	if err != nil {
-		return 0
-	}
-
-	period, err := os.ReadFile(cgroupV1CPUPeriod)
-	if err != nil {
-		return 0
-	}
-
-	if n, ok := parseCPUQuotaPeriod(string(quota), string(period)); ok {
-		return n
-	}
-
-	return 0
-}
-
-// parseCPUMax reads a cgroup v2 cpu.max value, which is either "max <period>"
-// for no limit or "<quota> <period>" microseconds.
-func parseCPUMax(s string) (int, bool) {
-	quota, period, ok := strings.Cut(strings.TrimSpace(s), " ")
-	if !ok {
-		return 0, false
-	}
-
-	return parseCPUQuotaPeriod(quota, period)
-}
-
-// parseCPUQuotaPeriod turns a quota and a period in microseconds into a whole
-// number of CPUs, rounded up. It reports false when there is no limit.
-func parseCPUQuotaPeriod(quota, period string) (int, bool) {
-	q, err := strconv.Atoi(strings.TrimSpace(quota))
-	if err != nil || q <= 0 {
-		return 0, false
-	}
-
-	p, err := strconv.Atoi(strings.TrimSpace(period))
-	if err != nil || p <= 0 {
-		return 0, false
-	}
-
-	return max((q+p-1)/p, 1), true
-}
+// zero: the CPUs this process may actually use, which internal/cpu derives
+// from GOMAXPROCS and the container's own quota.
+func Workers() int { return cpu.Limit() }
 
 // band is a contiguous range of rows, y0 inclusive and y1 exclusive.
 type band struct {

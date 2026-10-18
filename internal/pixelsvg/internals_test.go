@@ -401,34 +401,6 @@ func TestBandsFor(t *testing.T) {
 	}
 }
 
-// TestParseCPUMax checks the cgroup v2 parser, including the unlimited form.
-func TestParseCPUMax(t *testing.T) {
-	cases := []struct {
-		in   string
-		want int
-		ok   bool
-	}{
-		{"max 100000\n", 0, false},
-		{"100000 100000\n", 1, true},
-		{"200000 100000", 2, true},
-		{"50000 100000\n", 1, true},
-		{"250000 100000\n", 3, true},
-		{"", 0, false},
-		{"garbage", 0, false},
-		{"0 100000", 0, false},
-		{"100000 0", 0, false},
-	}
-
-	for _, tc := range cases {
-		t.Run(tc.in, func(t *testing.T) {
-			got, ok := parseCPUMax(tc.in)
-			if ok != tc.ok || got != tc.want {
-				t.Errorf("parseCPUMax(%q) = %d, %v; want %d, %v", tc.in, got, ok, tc.want, tc.ok)
-			}
-		})
-	}
-}
-
 // TestWorkersBounded checks the worker count never exceeds GOMAXPROCS and is
 // never below one, whatever the host reports.
 func TestWorkersBounded(t *testing.T) {

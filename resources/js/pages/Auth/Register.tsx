@@ -2,6 +2,8 @@ import { Head, Link, useForm } from "@inertiajs/react";
 import type { FormEvent } from "react";
 
 import Field from "../../components/Field";
+import PasswordField from "../../components/PasswordField";
+import PasswordStrength from "../../components/PasswordStrength";
 
 export default function Register() {
   const form = useForm({ name: "", email: "", password: "", password_confirmation: "" });
@@ -33,19 +35,24 @@ export default function Register() {
           onChange={(e) => form.setData("email", e.target.value)}
           error={form.errors.email}
         />
-        <Field
-          label="Password (at least 12 characters)"
-          type="password"
-          autoComplete="new-password"
-          minLength={12}
-          required
-          value={form.data.password}
-          onChange={(e) => form.setData("password", e.target.value)}
-          error={form.errors.password}
-        />
-        <Field
+        <div>
+          <PasswordField
+            label="Password"
+            autoComplete="new-password"
+            minLength={8}
+            maxLength={64}
+            required
+            value={form.data.password}
+            onChange={(e) => form.setData("password", e.target.value)}
+            error={form.errors.password}
+          />
+          <PasswordStrength
+            password={form.data.password}
+            confirmation={form.data.password_confirmation}
+          />
+        </div>
+        <PasswordField
           label="Confirm password"
-          type="password"
           autoComplete="new-password"
           required
           value={form.data.password_confirmation}

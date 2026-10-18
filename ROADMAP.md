@@ -322,6 +322,12 @@ and a `/up` route. What is left is below.
   - [ ] Error states that explain the cause in plain English, mapped from `error_type`
 - [ ] Account area: profile, password, API keys, usage and quota
 - [ ] Public pages: home with tool search, `/licenses`, `/api` overview
+- [x] Password fields: a show/hide toggle inside the field on the right, and the policy checked
+      live below it. The checklist is what the server enforces; the meter beside it is advice, and
+      never refuses what the API would accept. Verified in a browser, which is also how the
+      accessibility defect was caught: wrapping the input and the button in one `<label>` made the
+      field announce as "Password Show password"
+- [ ] A favicon: `/favicon.ico` 404s on every page load today, and the browser tab is blank
 
 #### Quality asserts
 

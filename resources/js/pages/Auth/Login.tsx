@@ -2,6 +2,7 @@ import { Head, Link, useForm } from "@inertiajs/react";
 import type { FormEvent } from "react";
 
 import Field from "../../components/Field";
+import PasswordField from "../../components/PasswordField";
 
 export default function Login() {
   const form = useForm({ email: "", password: "", remember: false });
@@ -25,9 +26,8 @@ export default function Login() {
           onChange={(e) => form.setData("email", e.target.value)}
           error={form.errors.email}
         />
-        <Field
+        <PasswordField
           label="Password"
-          type="password"
           autoComplete="current-password"
           required
           value={form.data.password}

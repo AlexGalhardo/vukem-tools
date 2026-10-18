@@ -30,9 +30,13 @@ type Register struct {
 var RegisterSchema = z.Struct[Register](z.Shape{
 	"name":                  z.String().Trim().Min(2).Max(100),
 	"email":                 z.String().Trim().Email().Max(255),
-	"password":              z.String().Min(12).Max(256),
+	"password":              z.String().Min(PasswordMinLength).Max(PasswordMaxLength),
 	"password_confirmation": z.String(),
 }).Refine(func(r Register) error {
+	if err := ValidatePassword(r.Password); err != nil {
+		return err
+	}
+
 	if r.Password != r.PasswordConfirmation {
 		return z.FieldError("password_confirmation", "The password confirmation does not match.")
 	}
@@ -60,9 +64,13 @@ type ResetPassword struct {
 var ResetPasswordSchema = z.Struct[ResetPassword](z.Shape{
 	"token":                 z.String().Min(1),
 	"email":                 z.String().Trim().Email(),
-	"password":              z.String().Min(12).Max(256),
+	"password":              z.String().Min(PasswordMinLength).Max(PasswordMaxLength),
 	"password_confirmation": z.String(),
 }).Refine(func(r ResetPassword) error {
+	if err := ValidatePassword(r.Password); err != nil {
+		return err
+	}
+
 	if r.Password != r.PasswordConfirmation {
 		return z.FieldError("password_confirmation", "The password confirmation does not match.")
 	}

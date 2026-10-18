@@ -395,6 +395,12 @@ func engineFailure(err error, kind, detail string) error {
 			"That conversion is not available on this server.", detail)
 	case "out_of_memory":
 		return jobs.Fail(jobs.OutOfMemory, err, detail)
+	case "resource_limit":
+		// The server's own limits withheld a thread, which is a
+		// configuration problem and not the file's fault. Internal is both
+		// the truthful code and the one whose message does not send the user
+		// looking at a file that is fine.
+		return jobs.Fail(jobs.Internal, err, detail)
 	case "disk_full":
 		return jobs.Fail(jobs.DiskFull, err, detail)
 	case "timeout":

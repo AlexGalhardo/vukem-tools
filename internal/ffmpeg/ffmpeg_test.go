@@ -415,3 +415,27 @@ func TestEveryInvocationRefusesTheNetworkAndTheTerminal(t *testing.T) {
 		t.Errorf("the base arguments do not bound the thread count: %s", args)
 	}
 }
+
+func TestAThreadLimitIsNotReportedAsOutOfMemory(t *testing.T) {
+	// SVT-AV1 prints a banner that mentions memory and then fails with
+	// EAGAIN from pthread_create when RLIMIT_NPROC withholds a thread.
+	// Classifying that as out of memory would retry a conversion that can
+	// never succeed on a worker configured this way, and would tell the user
+	// their file was too big when the file is fine.
+	stderr := strings.Join([]string{
+		"Svt[info]: -------------------------------------------",
+		"Svt[info]: SVT [config]: preset / tune / pred struct     : 6 / VQ / random access",
+		"Svt[error]: Failed to create thread: Resource temporarily unavailable",
+	}, "\n")
+
+	err := Classify(&engine.ExitError{Code: 1, Stderr: stderr}, "convert the video")
+
+	engineErr, ok := errors.AsType[*EngineError](err)
+	if !ok {
+		t.Fatalf("classify returned %T", err)
+	}
+
+	if engineErr.Kind != KindResourceLimit {
+		t.Errorf("classified as %s, want %s", engineErr.Kind, KindResourceLimit)
+	}
+}

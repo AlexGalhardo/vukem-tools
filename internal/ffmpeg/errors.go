@@ -30,6 +30,19 @@ const (
 	KindDiskFull ErrorKind = "disk_full"
 	// KindTimeout means the engine was killed at its deadline.
 	KindTimeout ErrorKind = "timeout"
+	// KindResourceLimit means the engine could not get a resource the
+	// server's own limits withhold — in practice a thread, when an encoder
+	// builds a pool sized from the host's core count and runs into
+	// RLIMIT_NPROC.
+	//
+	// It is separate from KindOutOfMemory on purpose, and the separation is
+	// not cosmetic: SVT-AV1 reports this after a banner that mentions
+	// memory, so it reads as an out-of-memory failure, and treating it as
+	// one would retry a conversion that can never succeed on a worker
+	// configured this way and would tell the user their file was too big.
+	// It is the server's configuration, so it must not be blamed on the
+	// file.
+	KindResourceLimit ErrorKind = "resource_limit"
 	// KindOther is a failure the output does not explain.
 	KindOther ErrorKind = "other"
 )
@@ -90,6 +103,11 @@ func kindOf(stderr string) ErrorKind {
 	lower := strings.ToLower(stderr)
 
 	switch {
+	// Checked before the memory patterns, because an encoder that cannot
+	// create a thread often prints both and this is the real cause.
+	case containsAny(lower, "failed to create thread", "resource temporarily unavailable",
+		"cannot create thread", "unable to create thread"):
+		return KindResourceLimit
 	case containsAny(lower, "cannot allocate memory", "out of memory", "failed to allocate"):
 		return KindOutOfMemory
 	case containsAny(lower, "no space left", "file too large", "write error", "error writing trailer"):

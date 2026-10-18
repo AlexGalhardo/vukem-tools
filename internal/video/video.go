@@ -20,6 +20,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/AlexGalhardo/vukem-tools/internal/cpu"
 	"github.com/AlexGalhardo/vukem-tools/internal/ffmpeg"
 )
 
@@ -181,6 +182,10 @@ type videoSpec struct {
 	crf, minCRF, maxCRF int
 	// args are the codec's own flags beyond the CRF, as ffmpeg spells them.
 	args []string
+	// needsLogicalProcessors marks an encoder that builds its own thread
+	// pool and ignores ffmpeg's -threads, so the pool has to be bounded
+	// through the encoder's own parameter string.
+	needsLogicalProcessors bool
 }
 
 // videoSpecs is the video codec table.
@@ -220,7 +225,18 @@ var videoSpecs = []videoSpec{
 		// preset 6 is the published balance for SVT-AV1 on CPU; lower is
 		// much slower for a few per cent, higher gives up most of AV1's
 		// advantage.
-		args: []string{"-preset", "6", "-pix_fmt", "yuv420p"},
+		//
+		// lp is not a tuning knob, it is what makes AV1 work at all here.
+		// SVT-AV1 builds its own thread pool and ignores ffmpeg's -threads
+		// entirely, sizing the pool from the host's core count — sixteen in
+		// the container this was measured in, whatever the CPU quota says.
+		// Under the engine's RLIMIT_NPROC that pool cannot be created, and
+		// SVT fails with "Failed to create thread: Resource temporarily
+		// unavailable" after printing a banner that mentions memory, so it
+		// reads as an out-of-memory failure and is not one. lp bounds the
+		// pool; it is filled in per run from the container's CPU quota.
+		needsLogicalProcessors: true,
+		args:                   []string{"-preset", "6", "-pix_fmt", "yuv420p"},
 	},
 }
 
@@ -379,6 +395,24 @@ func Containers() []Container {
 	out := make([]Container, 0, len(containerSpecs))
 	for i := range containerSpecs {
 		out = append(out, containerSpecs[i].container)
+	}
+
+	return out
+}
+
+// AvailableCodecs returns the video codecs this build can actually encode.
+//
+// This is where the GPL question surfaces for the interface: an ffmpeg built
+// without --enable-gpl has no x264 and no x265, so H.264 and H.265 must not
+// be offered there. Publishing this rather than the full table is what keeps
+// the interface from advertising a codec the binary does not have.
+func AvailableCodecs(caps ffmpeg.Capabilities) []Codec {
+	var out []Codec
+
+	for i := range videoSpecs {
+		if caps.Has(videoSpecs[i].encoder) {
+			out = append(out, videoSpecs[i].codec)
+		}
 	}
 
 	return out
@@ -572,6 +606,15 @@ func assemble(input, output string, o Options, p plan) []string {
 		"-crf", strconv.Itoa(clamp(positive(o.CRF, p.video.crf), p.video.minCRF, p.video.maxCRF)))
 	args = append(args, p.video.args...)
 
+	if p.video.needsLogicalProcessors {
+		// An integer derived from the container's own quota, never anything
+		// a caller chose: this is a codec parameter string, which the
+		// encoder parses itself, and the only safe value in a sub-language
+		// is one that cannot carry its syntax.
+		args = append(args, "-svtav1-params",
+			"lp="+strconv.Itoa(min(cpu.Limit(), maxAV1LogicalProcessors)))
+	}
+
 	if o.Height > 0 {
 		// -2 rather than -1 on the open axis: every codec here needs even
 		// dimensions, and -1 produces an odd width on a 1080x1920 source,
@@ -616,6 +659,27 @@ func assemble(input, output string, o Options, p plan) []string {
 
 	return append(args, output)
 }
+
+// maxAV1LogicalProcessors caps SVT-AV1's own thread pool, and the cap is
+// arithmetic rather than taste.
+//
+// RLIMIT_NPROC is a limit per real user, not per process: the worker's own
+// threads count against the same budget as the engine's. Peak thread counts
+// measured in the production image, with ffmpeg's own -threads at 2:
+//
+//	x264            12 threads
+//	SVT-AV1 lp=1    25 threads
+//	SVT-AV1 lp=2    56 threads
+//	SVT-AV1 lp=4    79 threads
+//
+// The engine's process limit is 64 (app/services/engines.go), so lp=2 leaves
+// eight for the entire worker process, which has more than that, and AV1
+// fails with "Failed to create thread" after a banner that mentions memory.
+// lp=1 fits with room to spare.
+//
+// Raising this is safe only together with that limit; the two numbers belong
+// to each other, and this comment is where the arithmetic lives.
+const maxAV1LogicalProcessors = 1
 
 // labelsOfVideo and labelsOfAudio render a container's codec list for a
 // message.

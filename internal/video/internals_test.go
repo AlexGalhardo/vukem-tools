@@ -477,3 +477,48 @@ func TestNoFilterGraphIsBuiltFromAnUnconstrainedString(t *testing.T) {
 		t.Errorf("the frame rate carries syntax: %q", rate)
 	}
 }
+
+// TestAV1BoundsItsOwnThreadPool is the regression test for an encoder that
+// ignores ffmpeg's -threads.
+//
+// SVT-AV1 builds its own pool sized from the host's core count, so under the
+// engine's RLIMIT_NPROC it fails with "Failed to create thread: Resource
+// temporarily unavailable" after a banner that mentions memory — which reads
+// as an out-of-memory failure and is not one. The only thing that bounds it
+// is the encoder's own parameter string.
+func TestAV1BoundsItsOwnThreadPool(t *testing.T) {
+	p, err := buildPlan("in.mp4", "out.webm",
+		Options{Container: WebM, Video: AV1}, gplBuild, withBoth)
+	if err != nil {
+		t.Fatalf("build a plan: %v", err)
+	}
+
+	params := valueAfter(p.args, "-svtav1-params")
+	if params == "" {
+		t.Fatalf("AV1 does not bound its thread pool: %v", p.args)
+	}
+
+	if !strings.HasPrefix(params, "lp=") {
+		t.Errorf("the parameter string is %q, want an lp= bound", params)
+	}
+
+	// It is a codec parameter string, which the encoder parses itself, so
+	// the value must be an integer and nothing else.
+	if strings.ContainsAny(params, ":;,[]= ") != strings.Contains(params, "=") {
+		t.Errorf("the parameter string carries extra syntax: %q", params)
+	}
+
+	// The other codecs do not need it, and adding it to them would be an
+	// option ffmpeg rejects.
+	for _, codec := range []Codec{H264, H265, VP9} {
+		plan, err := buildPlan("in.mp4", "out",
+			Options{Container: MKV, Video: codec}, gplBuild, withBoth)
+		if err != nil {
+			t.Fatalf("build a plan for %s: %v", codec, err)
+		}
+
+		if valueAfter(plan.args, "-svtav1-params") != "" {
+			t.Errorf("%s was given SVT-AV1's parameter string", codec)
+		}
+	}
+}

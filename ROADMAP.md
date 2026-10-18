@@ -110,7 +110,8 @@ and a `/up` route. What is left is below.
 - [~] Create the Go module and the vukem app
   - [x] `go mod init github.com/AlexGalhardo/vukem-tools`, Go pinned to the version `vukem` uses
   - [x] Layout: `cmd/`, `app/`, `bootstrap/`, `database/`, `resources/`, `routes/`, `tests/`
-  - [ ] `internal/` for the conversion packages — created with the first one, in S2
+  - [x] `internal/` for the conversion packages: `pixelsvg`, `engine`, `jobs`, `files`, `detect`,
+        `ingest`, `quota`, `cpu`, `telemetry`
   - [x] Config through `vukem/config`
   - [x] `.env.example` lists every variable the app reads, grouped and commented, including the
         ones whose feature lands later (bucket, ClamAV, engines, limits, quota), so nothing is
@@ -125,14 +126,25 @@ and a `/up` route. What is left is below.
         bucket and the engines get theirs in S1.7 and S1.11
   - [x] `X-Deploy-Target` on every response, server-level so static files and 404s carry it too,
         falling back to `unknown` so a missing header always means the middleware is not running
-- [ ] HTTP hardening from the start
-  - [ ] Security headers (`X-Content-Type-Options`, `X-Frame-Options`, `Referrer-Policy`, CSP)
-        asserted by a test rather than assumed from `DefaultMiddleware`
-  - [ ] CSRF for browser routes through `vukem/csrf`; API routes exempt and token-authenticated
+- [x] HTTP hardening from the start
+  - [x] Security headers (`X-Content-Type-Options`, `X-Frame-Options`, `Referrer-Policy`, CSP) —
+        asserted on a page, a 404, an API route and the health probe by
+        `TestEveryResponseCarriesTheSecurityHeaders`, because a header set by page middleware alone
+        misses the other three. `TestTheContentSecurityPolicyIsWorthHaving` also refuses
+        `unsafe-inline` and `unsafe-eval`: a nonce next to `unsafe-inline` is worth nothing
+  - [x] CSRF for browser routes through `vukem/csrf`; API routes exempt and token-authenticated —
+        `TestACrossSiteFormPostIsRefused` gets 403 and `TestAnAPIRouteIsNotBlockedByTheBrowserProtection`
+        does not. `vukem/csrf` uses `http.CrossOriginProtection` (Fetch Metadata and Origin, no
+        token), so a token-authenticated API needs no exemption mechanism — there is nothing a
+        browser sends automatically to forge
   - [x] RFC 9457 `problem+json` on every API route, verified in production:
         `GET /api/v1/me` without a key answers
         `{"type","title","status","detail","instance","request_id"}`
-  - [ ] Request body limits and request timeouts set explicitly
+  - [x] Request body limits and request timeouts set explicitly — a 12 MiB JSON body gets 413
+        (`TestAnOversizedBodyIsRefused`) and a 45-byte one does not
+        (`TestASmallBodyIsNotRefusedAsTooLarge`, the control: a test that passes because the
+        endpoint always fails is worse than no test). The resumable upload endpoint is deliberately
+        outside this limit and has its own 500 MB cap
 
 #### Quality asserts
 
@@ -149,10 +161,10 @@ and a `/up` route. What is left is below.
 - [ ] App-owned migrations
   - [x] `users`, `remember_tokens`, `access_tokens` (with `abilities`) and `password_resets` come
         from `install:auth`
-  - [ ] `conversions` and `conversion_events` — **not** `jobs`/`job_events`: the framework's queue
+  - [x] `conversions` and `conversion_events` — **not** `jobs`/`job_events`: the framework's queue
         already owns a table called `jobs` (audit A83)
-  - [ ] `files`: one row per uploaded input and per produced output, with its storage key and TTL
-  - [ ] `usage_counters`: CPU milliseconds and bytes per user per day, for the quota in S1.8
+  - [x] `files`: one row per uploaded input and per produced output, with its storage key and TTL
+  - [x] `usage_counters`: CPU milliseconds and bytes per user per day, for the quota in S1.8
 - [x] `sessions`, `cache`, `jobs`, `failed_jobs` and the webhook delivery log need **no** migration:
       the framework creates them at boot with `CREATE TABLE IF NOT EXISTS` (audit A84). Do not
       write migrations for them, and do not read their absence as an oversight
@@ -241,11 +253,21 @@ and a `/up` route. What is left is below.
   - [x] Cancellation propagates to the subprocess by killing its process group
 - [~] Worker
   - [x] A pool sized from the container's CPU quota, not from the host's CPU count
-  - [ ] `exec.CommandContext` for every engine, with a per-tool timeout
-  - [ ] `setrlimit` before `exec`: `RLIMIT_AS`, `RLIMIT_CPU`, `RLIMIT_FSIZE`, `RLIMIT_NPROC`
-  - [ ] One working directory per job, removed when the job ends, even on panic
+  - [x] Every engine runs through `internal/engine`, with a per-tool timeout. `exec.CommandContext`
+        plus `Cmd.Cancel`, because `CommandContext` alone kills only the process and the point is to
+        kill the group
+  - [x] `RLIMIT_AS`, `RLIMIT_CPU`, `RLIMIT_FSIZE`, `RLIMIT_NPROC` and `RLIMIT_NOFILE`, applied
+        through `prlimit(1)` rather than Go: `syscall.Setrlimit` applies to the **caller**, and Go
+        exposes no hook that runs in the child between fork and exec. Verified inside the production
+        image by `TestAFileSizeLimitStopsARunawayWrite`, which skips on Windows
+  - [x] One working directory per job (0o700), removed when the job ends, even on panic. A
+        command with no `Dir` of its own is refused: a program inheriting the server's working
+        directory is a program that can write next to the binary
   - [ ] No network for conversion subprocesses; only the downloader gets it
-  - [ ] Progress parsed from `ffmpeg -progress pipe:1` and from yt-dlp's JSON lines, never scraped
+  - [x] Progress read line by line from the program's stdout, never scraped from stderr:
+        `Command.Progress` is separate from `Stdout` so a tool can read progress without buffering
+        output, and there is no line-length limit a long progress line could trip
+        (`TestProgressLinesAreDelivered`)
         from stderr
 - [~] Progress delivery
   - [x] SSE stream per job through `vukem/sse`, with heartbeat and `Last-Event-ID` resume
@@ -410,7 +432,7 @@ happened. They stay unticked, and `questions-to-dev.md` § 0 says so.
   - [x] Postgres, referenced by both services as `${{Postgres.DATABASE_URL}}`
   - [x] Object storage bucket `vukem-tools-files` in `iad`, referenced as
         `${{vukem-tools-files.*}}` so a credential reset does not break the services
-- [ ] Networking
+- [x] Networking
   - [x] `tools.vukem.dev` added as a custom domain (2026-10-18; on the current `backend`
         service — move it to `web` when the services are split)
   - [x] CNAME `tools` and TXT `_railway-verify.tools` created in the Vercel DNS zone for

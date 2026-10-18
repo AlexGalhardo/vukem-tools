@@ -11,12 +11,27 @@ import (
 
 	"github.com/AlexGalhardo/vukem-tools/app/accounts"
 	"github.com/AlexGalhardo/vukem-tools/app/controllers"
+	"github.com/AlexGalhardo/vukem-tools/app/services"
 	"github.com/AlexGalhardo/vukem-tools/internal/httpx"
 	"github.com/AlexGalhardo/vukem-tools/resources"
 )
 
 // Web registers the browser routes. vukem route:list shows them.
-func Web(r *router.Router, app *vukem.App) error {
+//
+// It takes the resolved pipeline so the tool index can mark an entry as usable
+// only when that tool is actually registered: the catalogue is a claim, the
+// registry is the fact.
+func Web(c *services.Conversions) func(r *router.Router, app *vukem.App) error {
+	return func(r *router.Router, app *vukem.App) error {
+		return registerWeb(c, r, app)
+	}
+}
+
+func registerWeb(conversions *services.Conversions, r *router.Router, app *vukem.App) error {
+	if err := conversions.Resolve(app); err != nil {
+		return err
+	}
+
 	if err := vukem.DefaultMiddleware(app, r); err != nil {
 		return err
 	}
@@ -32,7 +47,10 @@ func Web(r *router.Router, app *vukem.App) error {
 
 	r.Use(app.Inertia.Middleware, share)
 
-	r.Get("/", controllers.Home).Name("home")
+	pages := controllers.NewPages(conversions.Pipeline().Tools())
+
+	r.Get("/", pages.Index).Name("home")
+	r.Get("/licenses", pages.Licenses).Name("licenses")
 
 	return nil
 }

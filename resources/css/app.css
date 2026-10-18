@@ -1,6 +1,167 @@
 @import "tailwindcss";
 
-/* Inertia pages style themselves with Tailwind utilities. Dark mode follows
-   the "dark" class on <html> (set before paint in app.html), so a theme
-   toggle can override the system preference. */
+/* Dark mode follows the "dark" class on <html>, which resources/views/app.html
+   sets before first paint from localStorage or the system preference, so a
+   manual override never flashes the wrong theme. */
 @custom-variant dark (&:where(.dark, .dark *));
+
+/* The design tokens. One place, so a colour cannot be invented at a call site;
+   DESIGN.md says what each role is for.
+
+   Neither theme is derived from the other and neither uses pure black or
+   white: a large #000 surface vibrates against bright text, and #fff reads
+   clinical next to the warm greys below it. */
+@theme {
+	/* Light: warm paper. */
+	--color-surface: oklch(98.6% 0.003 85);
+	--color-raised: oklch(100% 0 0);
+	--color-sunken: oklch(96.2% 0.004 85);
+	--color-edge: oklch(89% 0.005 85);
+	--color-ink: oklch(24% 0.012 265);
+	--color-ink-soft: oklch(48% 0.015 265);
+	--color-ink-faint: oklch(64% 0.012 265);
+
+	/* The accent: a trace on an instrument. Deliberately not green or red, so
+	   those stay semantic. */
+	--color-signal: oklch(55% 0.14 232);
+	--color-signal-soft: oklch(94% 0.03 232);
+
+	--color-ok: oklch(52% 0.13 150);
+	--color-ok-soft: oklch(94% 0.04 150);
+	--color-warn: oklch(62% 0.14 70);
+	--color-warn-soft: oklch(95% 0.05 70);
+	--color-bad: oklch(53% 0.18 25);
+	--color-bad-soft: oklch(95% 0.03 25);
+
+	--font-sans:
+		ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial,
+		"Noto Sans", sans-serif;
+	/* Measurements. tabular-nums is applied with it, in .tabular below: a
+	   percentage that counts up must not jitter, and a column of file sizes
+	   must align. */
+	--font-mono:
+		ui-monospace, "SF Mono", "Cascadia Mono", "Segoe UI Mono", "JetBrains Mono", Menlo,
+		Consolas, monospace;
+
+	--radius-field: 0.5rem;
+	--radius-panel: 0.75rem;
+
+	/* Depth carries an offset and a soft blur. A zero-offset halo is
+	   decoration, so there is no token for one. */
+	--shadow-panel: 0 1px 2px oklch(24% 0.012 265 / 6%), 0 8px 24px -12px oklch(24% 0.012 265 / 14%);
+	--shadow-lifted: 0 2px 4px oklch(24% 0.012 265 / 8%), 0 16px 40px -16px oklch(24% 0.012 265 / 20%);
+
+	/* Exponential ease-out: fast departure, long settle. */
+	--ease-settle: cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+/* Dark: a blue-cast near-black. */
+.dark {
+	--color-surface: oklch(17.5% 0.012 265);
+	--color-raised: oklch(21.5% 0.013 265);
+	--color-sunken: oklch(14.5% 0.012 265);
+	--color-edge: oklch(29% 0.014 265);
+	--color-ink: oklch(95% 0.005 265);
+	--color-ink-soft: oklch(72% 0.016 265);
+	--color-ink-faint: oklch(56% 0.016 265);
+
+	--color-signal: oklch(74% 0.13 225);
+	--color-signal-soft: oklch(28% 0.055 228);
+
+	--color-ok: oklch(76% 0.15 155);
+	--color-ok-soft: oklch(26% 0.05 155);
+	--color-warn: oklch(80% 0.13 75);
+	--color-warn-soft: oklch(28% 0.05 72);
+	--color-bad: oklch(70% 0.16 25);
+	--color-bad-soft: oklch(27% 0.06 25);
+
+	--shadow-panel: 0 1px 2px oklch(0% 0 0 / 40%), 0 8px 24px -12px oklch(0% 0 0 / 60%);
+	--shadow-lifted: 0 2px 4px oklch(0% 0 0 / 45%), 0 16px 40px -16px oklch(0% 0 0 / 70%);
+}
+
+@layer base {
+	html {
+		color-scheme: light;
+		/* Anchor links and the skip link land below the sticky header. */
+		scroll-padding-top: 5rem;
+	}
+
+	.dark html,
+	html.dark {
+		color-scheme: dark;
+	}
+
+	body {
+		background: var(--color-surface);
+		color: var(--color-ink);
+		font-family: var(--font-sans);
+		letter-spacing: -0.011em;
+		line-height: 1.5;
+	}
+
+	/* Headings belong to what follows them, so they carry more space above
+	   than below and never break into a one-word last line. */
+	h1,
+	h2,
+	h3 {
+		text-wrap: balance;
+		letter-spacing: -0.03em;
+	}
+
+	/* The browser surfaces nobody draws. Leaving these at their defaults is
+	   what makes a page look assembled rather than built. */
+	::selection {
+		background: var(--color-signal-soft);
+		color: var(--color-ink);
+	}
+
+	:root {
+		caret-color: var(--color-signal);
+		accent-color: var(--color-signal);
+		scrollbar-color: var(--color-edge) transparent;
+		scrollbar-width: thin;
+	}
+
+	:focus-visible {
+		outline: 2px solid var(--color-signal);
+		outline-offset: 2px;
+		border-radius: 2px;
+	}
+
+	/* An underline that collides with descenders reads as a mistake. */
+	a {
+		text-underline-offset: 0.2em;
+		text-decoration-thickness: from-font;
+	}
+
+	/* Every number that changes gets tabular figures, so it does not jitter. */
+	.tabular {
+		font-family: var(--font-mono);
+		font-variant-numeric: tabular-nums;
+		letter-spacing: -0.01em;
+	}
+}
+
+@layer components {
+	/* A label on an instrument: small, spaced, quiet. */
+	.label {
+		font-size: 0.6875rem;
+		font-weight: 600;
+		letter-spacing: 0.08em;
+		text-transform: uppercase;
+		color: var(--color-ink-faint);
+	}
+}
+
+/* Honour the setting rather than animating anyway at a shorter duration: a
+   vestibular trigger does not get better by being brief. */
+@media (prefers-reduced-motion: reduce) {
+	*,
+	*::before,
+	*::after {
+		animation-duration: 0.01ms !important;
+		animation-iteration-count: 1 !important;
+		transition-duration: 0.01ms !important;
+		scroll-behavior: auto !important;
+	}
+}

@@ -324,12 +324,12 @@ and a `/up` route. What is left is below.
 
 ### S1.10 Frontend shell
 
-- [ ] Inertia v3 + React with base-ui and Tailwind CSS v4
-  - [ ] Load the `impeccable` and `frontend-design` skills before writing any UI
-  - [ ] Vite through `vukem/vite`; assets embedded in the production binary
-  - [ ] Layout: header, tool search, footer with the licence notice
-  - [ ] Dark mode following the system preference, with a manual override
-  - [ ] English only; no i18n layer
+- [x] Inertia v3 + React with base-ui and Tailwind CSS v4
+  - [x] Load the `impeccable` and `frontend-design` skills before writing any UI
+  - [x] Vite through `vukem/vite`; assets embedded in the production binary
+  - [x] Layout: header, tool search, footer with the licence notice
+  - [x] Dark mode following the system preference, with a manual override
+  - [x] English only; no i18n layer
 - [ ] Shared conversion UI
   - [ ] Drag-and-drop zone accepting several files
   - [ ] A visible job queue: one row per file, progress bar fed by SSE, cancel button
@@ -337,13 +337,19 @@ and a `/up` route. What is left is below.
   - [ ] Download individually or everything as a `.zip`
   - [ ] Error states that explain the cause in plain English, mapped from `error_type`
 - [ ] Account area: profile, password, API keys, usage and quota
-- [ ] Public pages: home with tool search, `/licenses`, `/api` overview
+- [x] Public pages: home with tool search, `/licenses`, `/api` overview
 - [x] Password fields: a show/hide toggle inside the field on the right, and the policy checked
       live below it. The checklist is what the server enforces; the meter beside it is advice, and
       never refuses what the API would accept. Verified in a browser, which is also how the
       accessibility defect was caught: wrapping the input and the button in one `<label>` made the
       field announce as "Password Show password"
-- [ ] A favicon: `/favicon.ico` 404s on every page load today, and the browser tab is blank
+- [x] A favicon, served as SVG with an ICO fallback
+
+The shell is built and its structure verified from the served HTML (the pre-paint theme script
+with its nonce, the nonce-only CSP, the favicon, and the real catalogue props). **Three asserts
+below are unverified**: the Claude-in-Chrome extension was not connected and the browser MCP
+servers disconnected mid-session, so no Lighthouse run, no CLS measurement and no keyboard pass
+happened. They stay unticked, and `questions-to-dev.md` § 0 says so.
 
 #### Quality asserts
 

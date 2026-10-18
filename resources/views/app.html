@@ -4,12 +4,41 @@
 	<meta charset="utf-8">
 	<meta name="viewport" content="width=device-width, initial-scale=1">
 	<title>Vukem Tools</title>
+	<meta name="description" content="Convert, compress and trace files. Open source, self-hosted, and every engine's licence declared.">
 	<meta property="csp-nonce" nonce="{{cspNonce}}">
+	<meta name="color-scheme" content="dark light">
+	<link rel="icon" href="/favicon.svg" type="image/svg+xml">
+	<link rel="alternate icon" href="/favicon.ico" sizes="32x32">
+	{{/*
+		The theme is applied before first paint, not in React: a toggle that
+		runs after hydration shows the wrong theme for a frame, and on a dark
+		default that frame is a white flash. Blocking and inline is the point —
+		it must finish before the body is painted.
+
+		Dark is the default when nothing is stored and the system says nothing,
+		because DESIGN.md picks it from the use scene.
+	*/}}
+	<script nonce="{{cspNonce}}">
+		(function () {
+			try {
+				var stored = localStorage.getItem("theme");
+				var dark = stored
+					? stored === "dark"
+					: !window.matchMedia("(prefers-color-scheme: light)").matches;
+				document.documentElement.classList.toggle("dark", dark);
+			} catch (e) {
+				/* Private mode, or storage blocked: the system preference in the
+				   stylesheet still applies, so a failure here only costs the
+				   override. */
+				document.documentElement.classList.add("dark");
+			}
+		})();
+	</script>
 	{{viteReactRefresh}}
 	{{vite "resources/css/app.css" "resources/js/app.tsx"}}
 	{{.Head}}
 </head>
-<body class="bg-white text-zinc-900 antialiased dark:bg-zinc-950 dark:text-zinc-100">
+<body class="antialiased">
 	{{.Inertia}}
 </body>
 </html>

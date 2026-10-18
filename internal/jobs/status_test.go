@@ -49,7 +49,7 @@ func TestStatusFinal(t *testing.T) {
 	}
 }
 
-// The taxonomy is a contract: nine codes, each with a client-safe message
+// The taxonomy is a contract: every code has a client-safe message
 // and a real HTTP status. A new code must be added here deliberately, which
 // is the point of asserting the count.
 func TestCatalogIsComplete(t *testing.T) {
@@ -57,6 +57,7 @@ func TestCatalogIsComplete(t *testing.T) {
 
 	want := []jobs.ErrorType{
 		jobs.UnsupportedInput,
+		jobs.Infected,
 		jobs.InputTooLarge,
 		jobs.QuotaExceeded,
 		jobs.CancelledByUser,

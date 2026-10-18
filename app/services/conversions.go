@@ -47,6 +47,11 @@ type Conversions struct {
 	files  *files.Store
 	signer *signed.Signer
 	disk   storage.Disk
+
+	// uploadCleanup is set by the routes once the resumable-upload handler
+	// exists, so the scheduler can sweep abandoned uploads without the
+	// handler being built twice.
+	uploadCleanup func(context.Context) (int, error)
 }
 
 // NewConversions returns an unresolved Conversions. Nothing is built until
@@ -78,6 +83,22 @@ func (c *Conversions) Files() *files.Store { return c.files }
 
 // Signer signs and verifies download links. Resolve must have succeeded.
 func (c *Conversions) Signer() *signed.Signer { return c.signer }
+
+// SetUploadCleanup registers the resumable-upload sweeper. The routes own the
+// handler, the scheduler owns the clock, and this is the one wire between
+// them.
+func (c *Conversions) SetUploadCleanup(fn func(context.Context) (int, error)) { c.uploadCleanup = fn }
+
+// SweepUploads deletes abandoned resumable uploads and returns how many it
+// removed. It does nothing when the upload routes are not registered, which
+// is the case in a worker process.
+func (c *Conversions) SweepUploads(ctx context.Context) (int, error) {
+	if c.uploadCleanup == nil {
+		return 0, nil
+	}
+
+	return c.uploadCleanup(ctx)
+}
 
 // Default settings, used when the matching variable is unset.
 const (

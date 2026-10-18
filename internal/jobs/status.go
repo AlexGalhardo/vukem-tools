@@ -84,6 +84,8 @@ const (
 	CancelledByUser ErrorType = "cancelled"
 	// QuotaExceeded means the account spent its daily budget.
 	QuotaExceeded ErrorType = "quota_exceeded"
+	// Infected means the malware scanner reported a signature in the file.
+	Infected ErrorType = "infected"
 	// Internal means something failed that is not the input's fault.
 	Internal ErrorType = "internal"
 )
@@ -107,6 +109,12 @@ type Info struct {
 // catalog is the taxonomy, in the order the documentation lists it.
 var catalog = []Info{
 	{UnsupportedInput, "That file is not a format this tool can read.", http.StatusUnsupportedMediaType, false},
+	// A dedicated code, not folded into unsupported_input: the user needs to
+	// know their file was refused because it is dangerous, not because it is
+	// the wrong format, and an operator needs to be able to count these.
+	// The message says nothing about the signature: naming it tells an
+	// attacker which scanner and which definitions are in use.
+	{Infected, "That file was rejected by the malware scanner.", http.StatusUnprocessableEntity, false},
 	{InputTooLarge, "That file is past the limit for this tool.", http.StatusRequestEntityTooLarge, false},
 	{QuotaExceeded, "You have used today's conversion budget.", http.StatusTooManyRequests, false},
 	{CancelledByUser, "The conversion was cancelled.", http.StatusConflict, false},

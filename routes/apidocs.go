@@ -10,6 +10,7 @@ import (
 	"github.com/AlexGalhardo/vukem/web"
 
 	"github.com/AlexGalhardo/vukem-tools/app/abilities"
+	"github.com/AlexGalhardo/vukem-tools/internal/detect"
 	"github.com/AlexGalhardo/vukem-tools/internal/httpx"
 	"github.com/AlexGalhardo/vukem-tools/internal/jobs"
 )
@@ -263,6 +264,7 @@ func componentExamples() map[string]any {
 		"Token":             tokenExample(),
 		"AbilityList":       map[string]any{"data": toAny(abilities.All())},
 		"ToolList":          map[string]any{"data": []any{"pixels-to-svg"}},
+		"TypeList":          map[string]any{"data": toAny(detect.Types())},
 		"ConversionView":    conversionExample(),
 		"ConversionList":    map[string]any{"data": []any{conversionExample()}},
 		"ErrorCatalog":      map[string]any{"data": errorCatalogExample()},

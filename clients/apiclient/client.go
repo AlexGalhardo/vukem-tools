@@ -229,6 +229,11 @@ type ToolList struct {
 	Data []string `json:"data,omitempty"`
 }
 
+type TypeList struct {
+	// Every MIME type an upload may have.
+	Data []string `json:"data,omitempty"`
+}
+
 type User struct {
 	CreatedAt       *time.Time `json:"created_at,omitempty"`
 	Email           *string    `json:"email,omitempty"`
@@ -343,6 +348,14 @@ func (c *Client) TokensStore(ctx context.Context, body TokensStoreBody) (TokenIs
 func (c *Client) ToolsIndex(ctx context.Context) (ToolList, error) {
 	var out ToolList
 	err := c.do(ctx, "GET", "/api/v1/tools", nil, nil, &out)
+
+	return out, err
+}
+
+// UploadsTypes calls GET /api/v1/upload-types: List the file types an upload may have.
+func (c *Client) UploadsTypes(ctx context.Context) (TypeList, error) {
+	var out TypeList
+	err := c.do(ctx, "GET", "/api/v1/upload-types", nil, nil, &out)
 
 	return out, err
 }

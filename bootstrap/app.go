@@ -49,7 +49,10 @@ func New(opts ...vukem.Option) (*vukem.App, error) {
 
 	// Not in routes.All(): it needs the pipeline, and the generators append to
 	// that list.
-	base = append(base, vukem.WithRoutes(routes.Conversions(conversions)))
+	base = append(base,
+		vukem.WithRoutes(routes.Conversions(conversions)),
+		vukem.WithRoutes(routes.Uploads(conversions)),
+	)
 
 	app, err := vukem.New(append(base, opts...)...)
 	if err != nil {

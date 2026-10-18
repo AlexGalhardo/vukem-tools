@@ -70,6 +70,10 @@ export type ToolList = {
   data?: string[];
 };
 
+export type TypeList = {
+  data?: string[];
+};
+
 export type User = {
   created_at?: string;
   email?: string;
@@ -113,6 +117,8 @@ export type TokensStoreBody = {
 export type TokensStoreResponse = TokenIssued;
 
 export type ToolsIndexResponse = ToolList;
+
+export type UploadsTypesResponse = TypeList;
 
 export type ConversionsCancelParams = {
   id: string;
@@ -297,6 +303,11 @@ export interface Client {
    * GET /api/v1/tools: List the conversions on offer
    */
   toolsIndex(): Promise<ToolsIndexResponse>;
+
+  /**
+   * GET /api/v1/upload-types: List the file types an upload may have
+   */
+  uploadsTypes(): Promise<UploadsTypesResponse>;
 }
 
 /** createClient returns a typed client; methods throw ApiError on non-2xx responses. */
@@ -315,5 +326,6 @@ export function createClient(options: ClientOptions = {}): Client {
     tokensRevoke: (args) => request<TokensRevokeResponse>("DELETE", "/api/v1/tokens/{token}", args),
     tokensStore: (args) => request<TokensStoreResponse>("POST", "/api/v1/tokens", args),
     toolsIndex: () => request<ToolsIndexResponse>("GET", "/api/v1/tools"),
+    uploadsTypes: () => request<UploadsTypesResponse>("GET", "/api/v1/upload-types"),
   };
 }

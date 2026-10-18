@@ -266,6 +266,21 @@ func (s *Store) Find(ctx context.Context, userID, id string) (models.File, error
 		First(ctx)
 }
 
+// ByID returns the file with this id, with no owner scope.
+//
+// It exists for the download route, where the signed link is the authority
+// rather than the session: a link must work in another tab, in curl and in a
+// download manager that carries no cookie. Every other read goes through
+// Find, which does scope by owner, and nothing but a verified signature may
+// reach this.
+func (s *Store) ByID(ctx context.Context, id string) (models.File, error) {
+	if !ids.Valid(id) {
+		return models.File{}, ErrNotFound
+	}
+
+	return orm.QueryOf[models.File](s.db).Where("id", id).First(ctx)
+}
+
 // ForConversion returns a conversion's files with this role, oldest first.
 // It is not scoped to a user: the worker runs on nobody's behalf, and every
 // path that serves a request reaches a conversion through its own scoped

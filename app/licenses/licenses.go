@@ -135,7 +135,10 @@ var components = []Component{
 		Name: "qpdf",
 		SPDX: "Apache-2.0",
 		URL:  "https://github.com/qpdf/qpdf",
-		Role: "PDF encryption and repair",
+		// It is the PDF domain's primary engine, not only its encryption one:
+		// every structural operation goes through it, because it edits the
+		// object graph instead of re-rendering the pages.
+		Role: "PDF structure, encryption and repair: merge, split, reorder, rotate, crop, stamp",
 	},
 	{
 		Name:     "Poppler",

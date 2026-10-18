@@ -49,6 +49,6 @@ jobs:
           version="${GITHUB_REF_NAME#v}"
           awk -v h="## [$version]" 'index($0, h) == 1 {p=1; next} p && index($0, "## [") == 1 {exit} p' CHANGELOG.md > release-notes.md
           test -s release-notes.md || { echo "no CHANGELOG.md section for $version"; exit 1; }
-      - uses: softprops/action-gh-release@e598afbe1493e6b1bafb1f389cabb956eab91231 # v3.0.3
+      - uses: softprops/action-gh-release@efb35369e0ad2afab669f228072c1b0d510eae64 # v3.0.3
         with:
           body_path: release-notes.md

@@ -1,0 +1,37 @@
+{
+  "name": "vukem-tools",
+  "version": "0.1.0",
+  "private": true,
+  "license": "MIT",
+  "type": "module",
+  "packageManager": "bun@1.4.2",
+  "description": "Open-source file conversion toolbox: Go backend on the vukem framework, Inertia v3 + React frontend.",
+  "scripts": {
+    "prepare": "husky",
+    "dev": "vite",
+    "build": "vite build",
+    "typecheck": "tsc --noEmit",
+    "lint:md": "markdownlint-cli2",
+    "check": "bun run typecheck && bun run lint:md"
+  },
+  "dependencies": {
+    "@base-ui/react": "1.9.0",
+    "@inertiajs/react": "3.9.1",
+    "react": "19.3.1",
+    "react-dom": "19.3.1"
+  },
+  "devDependencies": {
+    "@commitlint/cli": "21.2.3",
+    "@commitlint/config-conventional": "21.2.3",
+    "@inertiajs/vite": "3.9.1",
+    "@tailwindcss/vite": "4.3.3",
+    "@types/react": "19.3.0",
+    "@types/react-dom": "19.3.0",
+    "@vitejs/plugin-react": "6.1.2",
+    "husky": "9.1.7",
+    "markdownlint-cli2": "0.23.3",
+    "tailwindcss": "4.3.3",
+    "typescript": "7.0.2",
+    "vite": "8.3.4"
+  }
+}

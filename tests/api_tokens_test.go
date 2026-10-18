@@ -1,0 +1,83 @@
+package tests
+
+import (
+	"testing"
+	"time"
+
+	"github.com/AlexGalhardo/vukem/orm"
+	"github.com/AlexGalhardo/vukem/vukemtest"
+
+	"github.com/AlexGalhardo/vukem-tools/app/accounts"
+	"github.com/AlexGalhardo/vukem-tools/app/models"
+	"github.com/AlexGalhardo/vukem-tools/bootstrap"
+)
+
+// createAPIUser creates a user directly, with a verified email or not.
+func createAPIUser(t *testing.T, app *vukemtest.App, email string, verified bool) {
+	t.Helper()
+
+	acc, err := accounts.New(app.App)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	h, err := acc.Hasher.Make("correct horse battery")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	u := models.User{Name: "API User", Email: email, Password: h}
+	u.EmailVerifiedAt.V, u.EmailVerifiedAt.Valid = time.Now().UTC(), verified
+
+	if err := orm.Create(t.Context(), acc.DB, &u); err != nil {
+		t.Fatal(err)
+	}
+}
+
+// apiUser creates a verified user directly and returns a token for it.
+func apiUser(t *testing.T, app *vukemtest.App, email string) string {
+	t.Helper()
+
+	createAPIUser(t, app, email, true)
+
+	r := app.Client(t).PostJSON("/api/v1/tokens", map[string]any{
+		"email": email, "password": "correct horse battery", "device_name": "cli",
+	}).AssertCreated().AssertJSONPath("type", "Bearer")
+
+	tok, _ := r.JSONPath("token")
+	s, _ := tok.(string)
+
+	return s
+}
+
+// A token is a login: an unverified address may belong to someone else,
+// so the right password is not enough.
+func TestAPITokenNeedsVerifiedEmail(t *testing.T) {
+	t.Parallel()
+
+	app := vukemtest.New(t, bootstrap.New)
+	createAPIUser(t, app, "squatter@example.com", false)
+
+	app.Client(t).PostJSON("/api/v1/tokens", map[string]any{
+		"email": "squatter@example.com", "password": "correct horse battery", "device_name": "cli",
+	}).AssertForbidden()
+	vukemtest.AssertDatabaseCount(t, app, "access_tokens", 0)
+}
+
+func TestTokenLifecycle(t *testing.T) {
+	t.Parallel()
+
+	app := vukemtest.New(t, bootstrap.New)
+	token := apiUser(t, app, "dev@example.com")
+
+	api := app.Client(t).WithToken(token)
+	api.GetJSON("/api/v1/me").AssertOK().AssertJSONPath("email", "dev@example.com")
+
+	app.Client(t).GetJSON("/api/v1/me").AssertUnauthorized()
+	app.Client(t).PostJSON("/api/v1/tokens", map[string]any{
+		"email": "dev@example.com", "password": "wrong", "device_name": "cli",
+	}).AssertJSONValidationErrors("email")
+
+	api.Delete("/api/v1/tokens/current").AssertNoContent()
+	app.Client(t).WithToken(token).GetJSON("/api/v1/me").AssertUnauthorized()
+}

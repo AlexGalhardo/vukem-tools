@@ -1,0 +1,529 @@
+package tests
+
+import (
+	"context"
+	"errors"
+	"fmt"
+	"net/http"
+	"net/url"
+	"regexp"
+	"strings"
+	"testing"
+	"testing/synctest"
+	"time"
+
+	vukem "github.com/AlexGalhardo/vukem"
+	"github.com/AlexGalhardo/vukem/cache"
+	"github.com/AlexGalhardo/vukem/queue"
+	"github.com/AlexGalhardo/vukem/vukemtest"
+
+	"github.com/AlexGalhardo/vukem-tools/app/accounts"
+	"github.com/AlexGalhardo/vukem-tools/bootstrap"
+)
+
+var linkRe = regexp.MustCompile(`https?://[^\s)"]+`)
+
+// link extracts the first URL from the last mail sent to email.
+func link(t *testing.T, app *vukemtest.App, email string) string {
+	t.Helper()
+
+	sent := app.Mails().SentTo(email)
+	if len(sent) == 0 {
+		t.Fatalf("no mail sent to %s", email)
+	}
+
+	u := linkRe.FindString(sent[len(sent)-1].Text)
+	if u == "" {
+		t.Fatalf("no link in mail: %q", sent[len(sent)-1].Text)
+	}
+
+	parsed, err := url.Parse(u)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	return parsed.RequestURI()
+}
+
+func signUpForm(name, email, password string) map[string]any {
+	return map[string]any{"name": name, "email": email, "password": password, "password_confirmation": password}
+}
+
+// register signs email up, verifies it and logs c in: sign-up itself
+// never logs in, and signed-in pages need a verified email.
+func register(t *testing.T, app *vukemtest.App, c *vukemtest.Client, email string) {
+	t.Helper()
+
+	c.PostJSON("/register", signUpForm("Ana Silva", email, "correct horse battery")).
+		AssertRedirect("/register/check-email")
+	verifyEmail(t, app, email)
+	c.PostJSON("/login", map[string]any{"email": email, "password": "correct horse battery"}).
+		AssertRedirect("/dashboard")
+}
+
+// verifyEmail marks email verified directly (the mail may be queued).
+func verifyEmail(t *testing.T, app *vukemtest.App, email string) {
+	t.Helper()
+
+	acc, err := accounts.New(app.App)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	u, err := acc.Users.ByCredentials(t.Context(), map[string]string{"email": email})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if err := acc.MarkVerified(t.Context(), acc.DB, &u); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestRegisterAndVerifyEmail(t *testing.T) {
+	t.Parallel()
+
+	app := vukemtest.New(t, bootstrap.New)
+	c := app.Client(t).Inertia("")
+
+	c.Get("/dashboard").AssertRedirect("/login")
+	c.Get("/login").AssertInertia("Auth/Login").PropEquals("auth.user", nil)
+
+	c.PostJSON("/register", signUpForm("Ana Silva", "ana@example.com", "correct horse battery")).
+		AssertRedirect("/register/check-email")
+	c.Get("/register/check-email").AssertInertia("Auth/CheckEmail").PropEquals("auth.user", nil)
+	c.Get("/dashboard").AssertRedirect("/login") // sign-up does not log in
+	vukemtest.AssertDatabaseHas(t, app, "users", map[string]any{"email": "ana@example.com", "email_verified_at": nil})
+
+	verify := link(t, app, "ana@example.com")
+
+	// Another signed-in user cannot use the link.
+	other := app.Client(t).Inertia("")
+	register(t, app, other, "bea@example.com")
+	other.Get(verify).AssertForbidden()
+	vukemtest.AssertDatabaseHas(t, app, "users", map[string]any{"email": "ana@example.com", "email_verified_at": nil})
+
+	// Signed out, the link asks for the account's login first, keeps itself
+	// as the intended URL and verifies once the login comes back to it.
+	c.Get(verify).AssertRedirect("/login")
+	vukemtest.AssertDatabaseHas(t, app, "users", map[string]any{"email": "ana@example.com", "email_verified_at": nil})
+	c.PostJSON("/login", map[string]any{"email": "ana@example.com", "password": "correct horse battery"}).
+		AssertRedirect(verify)
+	c.Get(verify + "x").AssertForbidden() // tampered signature
+	c.Get(verify).AssertRedirect("/dashboard")
+	c.Get("/dashboard").AssertOK().
+		AssertInertia("Dashboard").
+		PropEquals("auth.user.name", "Ana Silva").
+		HasProp("auth.user.email_verified_at")
+	c.Get(verify).AssertRedirect("/dashboard")
+}
+
+// Signing up with an existing email answers exactly like a new one (same
+// redirect, no validation error, not logged in) and does the same work:
+// one queued mail, a notice to the owner at most once per hour. The
+// account is left alone.
+func TestRegisterDoesNotRevealAccounts(t *testing.T) {
+	t.Parallel()
+
+	fake := queue.NewFake()
+	app := vukemtest.New(t, bootstrap.New, vukemtest.Options{
+		AppOptions: []vukem.Option{vukem.WithQueueDriver(fake)},
+	})
+	register(t, app, app.Client(t).Inertia(""), "ana@example.com")
+
+	mailJobs := func() int {
+		n := 0
+
+		for _, m := range fake.Messages() {
+			if m.Kind == vukem.MailJobKind {
+				n++
+			}
+		}
+
+		return n
+	}
+
+	for _, tc := range []struct {
+		email string
+		jobs  int
+	}{
+		{"new@example.com", 1}, // verification mail
+		{"ANA@example.com", 1}, // "someone tried to sign up" notice
+		{"ana@example.com", 0}, // the notice is sent once per hour
+	} {
+		before := mailJobs()
+
+		c := app.Client(t).Inertia("").WithHeader("Referer", "/register")
+		c.PostJSON("/register", signUpForm("Mallory", tc.email, "another long password")).
+			AssertRedirect("/register/check-email")
+		c.Get("/register/check-email").AssertInertia("Auth/CheckEmail").PropEquals("auth.user", nil)
+
+		if got := mailJobs() - before; got != tc.jobs {
+			t.Errorf("sign-up with %s queued %d mails, want %d", tc.email, got, tc.jobs)
+		}
+	}
+
+	vukemtest.AssertDatabaseCount(t, app, "users", 2)
+	vukemtest.AssertDatabaseHas(t, app, "users", map[string]any{"email": "ana@example.com", "name": "Ana Silva"})
+	app.Client(t).Inertia("").
+		PostJSON("/login", map[string]any{"email": "ana@example.com", "password": "correct horse battery"}).
+		AssertRedirect("/dashboard")
+}
+
+// An unverified account can log in but reaches only the verification
+// notice, so an account someone pre-registered with another person's
+// address is useless until its owner verifies it.
+func TestUnverifiedUsersSeeTheNotice(t *testing.T) {
+	t.Parallel()
+
+	app := vukemtest.New(t, bootstrap.New)
+	c := app.Client(t).Inertia("")
+
+	c.PostJSON("/register", signUpForm("Uma", "uma@example.com", "correct horse battery")).
+		AssertRedirect("/register/check-email")
+	c.PostJSON("/login", map[string]any{"email": "uma@example.com", "password": "correct horse battery"}).
+		AssertRedirect("/dashboard")
+	c.Get("/dashboard").AssertRedirect("/email/verify")
+	c.Get("/email/verify").AssertInertia("Auth/VerifyEmail").PropEquals("auth.user.email", "uma@example.com")
+
+	c.Get(link(t, app, "uma@example.com")).AssertRedirect("/dashboard")
+	c.Get("/dashboard").AssertInertia("Dashboard").PropEquals("auth.user.name", "Uma")
+}
+
+// Sign-up is limited per address and per IP. The limit counts requests,
+// not accounts: an existing address and a new one are limited after the
+// same number of attempts, with the same 429.
+func TestRegisterThrottle(t *testing.T) {
+	t.Parallel()
+
+	// attempts signs email up until the limit answers 429 and returns how
+	// many attempts went through.
+	attempts := func(t *testing.T, app *vukemtest.App, email func(i int) string) int {
+		t.Helper()
+
+		c := app.Client(t).Inertia("")
+
+		for i := range 30 {
+			res := c.PostJSON("/register", signUpForm("Mallory", email(i), "another long password"))
+			if res.Status() == http.StatusTooManyRequests {
+				return i
+			}
+
+			res.AssertRedirect("/register/check-email")
+		}
+
+		t.Fatal("sign-up is not rate limited")
+
+		return 0
+	}
+
+	existing := vukemtest.New(t, bootstrap.New)
+	register(t, existing, existing.Client(t).Inertia(""), "ana@example.com")
+
+	// The first sign-up of ana@example.com created the account.
+	known := 1 + attempts(t, existing, func(int) string { return "ana@example.com" })
+	unknown := attempts(t, vukemtest.New(t, bootstrap.New), func(int) string { return "zed@example.com" })
+
+	if known != unknown {
+		t.Errorf("an existing address is limited after %d sign-ups, a new one after %d", known, unknown)
+	}
+
+	perIP := attempts(
+		t,
+		vukemtest.New(t, bootstrap.New),
+		func(i int) string { return fmt.Sprintf("user%d@example.com", i) },
+	)
+	if perIP <= unknown {
+		t.Errorf("the IP limit (%d) is not above the address limit (%d)", perIP, unknown)
+	}
+}
+
+// failingIncrements is a cache store whose counters are down.
+type failingIncrements struct{ cache.Store }
+
+func (failingIncrements) Increment(context.Context, string, int64, time.Duration) (int64, error) {
+	return 0, errors.New("cache down")
+}
+
+// With the cache down, signing up with an existing email still answers
+// like a new one: the notice is skipped (and logged), never an error.
+func TestRegisterSurvivesCacheOutage(t *testing.T) {
+	t.Parallel()
+
+	fake := queue.NewFake()
+	app := vukemtest.New(t, bootstrap.New, vukemtest.Options{AppOptions: []vukem.Option{
+		vukem.WithQueueDriver(fake),
+		vukem.WithCacheStore(failingIncrements{cache.NewMemory(1000)}),
+	}})
+	register(t, app, app.Client(t).Inertia(""), "ana@example.com")
+
+	for _, tc := range []struct {
+		email string
+		jobs  int
+	}{
+		{"ana@example.com", 0}, // notice skipped
+		{"new@example.com", 1}, // verification mail
+	} {
+		before := len(fake.Messages())
+
+		app.Client(t).Inertia("").PostJSON("/register", signUpForm("Mallory", tc.email, "another long password")).
+			AssertRedirect("/register/check-email")
+
+		if got := len(fake.Messages()) - before; got != tc.jobs {
+			t.Errorf("sign-up with %s queued %d jobs, want %d", tc.email, got, tc.jobs)
+		}
+	}
+
+	vukemtest.AssertDatabaseHas(t, app, "users", map[string]any{"email": "new@example.com"})
+}
+
+// Someone who signs up first with another person's address can log in to
+// the unverified account, but the mailbox owner clicking the link signed
+// out verifies nothing: the link needs the account's login. Verifying it
+// signed in (here from a second device) ends every other session, the
+// remember-me token and the API tokens of the account, and keeps the
+// verifier's session.
+func TestVerificationEndsOtherSessions(t *testing.T) {
+	t.Parallel()
+
+	app := vukemtest.New(t, bootstrap.New)
+
+	squatter := app.Client(t).Inertia("")
+	squatter.PostJSON("/register", signUpForm("Mallory", "vic@example.com", "correct horse battery")).
+		AssertRedirect("/register/check-email")
+	squatter.PostJSON("/login", map[string]any{"email": "vic@example.com", "password": "correct horse battery", "remember": true}).
+		AssertRedirect("/dashboard")
+	squatter.Get("/email/verify").AssertInertia("Auth/VerifyEmail")
+
+	userID := apiTokenFor(t, app, "vic@example.com")
+	vukemtest.AssertDatabaseHas(t, app, "remember_tokens", map[string]any{"user_id": userID})
+
+	verify := link(t, app, "vic@example.com")
+
+	// The mailbox owner, signed out, only reaches the login page.
+	app.Client(t).Inertia("").Get(verify).AssertRedirect("/login")
+	vukemtest.AssertDatabaseHas(t, app, "users", map[string]any{"email": "vic@example.com", "email_verified_at": nil})
+	squatter.Get("/email/verify").AssertInertia("Auth/VerifyEmail")
+
+	// Signed in as the account, the link verifies it and ends the rest.
+	device := app.Client(t).Inertia("")
+	device.Get(verify).AssertRedirect("/login")
+	device.PostJSON("/login", map[string]any{"email": "vic@example.com", "password": "correct horse battery"}).
+		AssertRedirect(verify)
+	device.Get(verify).AssertRedirect("/dashboard")
+	device.Get("/dashboard").AssertOK()
+
+	squatter.Get("/email/verify").AssertRedirect("/login")
+	vukemtest.AssertDatabaseMissing(t, app, "remember_tokens", map[string]any{"user_id": userID})
+	// Revoked, not deleted: the token stays listed with revoked_at.
+	vukemtest.AssertDatabaseMissing(t, app, "access_tokens", map[string]any{"user_id": userID, "revoked_at": nil})
+	vukemtest.AssertDatabaseHas(t, app, "access_tokens", map[string]any{"user_id": userID})
+}
+
+// A link that expired (for example while its user was signing in) leads
+// to the verification notice, which offers to send a new one, and
+// verifies nothing.
+func TestExpiredVerificationLinkOffersANewOne(t *testing.T) {
+	t.Parallel()
+
+	app := vukemtest.New(t, bootstrap.New)
+	c := app.Client(t).Inertia("")
+
+	c.PostJSON("/register", signUpForm("Ana Silva", "exp@example.com", "correct horse battery")).
+		AssertRedirect("/register/check-email")
+
+	acc, err := accounts.New(app.App)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	u, err := acc.Users.ByCredentials(t.Context(), map[string]string{"email": "exp@example.com"})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// Signed inside a synctest bubble, whose clock starts in 2000, the link
+	// expired long ago.
+	var expired string
+
+	synctest.Test(t, func(t *testing.T) {
+		raw := fmt.Sprintf("%s/email/verify/%d?email_hash=%s", acc.URL, u.ID, accounts.EmailHash(u.Email))
+		if expired, err = acc.Signer.Sign(raw, time.Hour); err != nil {
+			t.Error(err)
+		}
+	})
+
+	parsed, err := url.Parse(expired)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	expired = parsed.RequestURI()
+
+	c.Get(expired).AssertRedirect("/login")
+	c.PostJSON("/login", map[string]any{"email": "exp@example.com", "password": "correct horse battery"}).
+		AssertRedirect(expired)
+	c.Get(expired).AssertRedirect("/email/verify")
+	if flash := fmt.Sprint(
+		c.Get("/email/verify").AssertInertia("Auth/VerifyEmail").Page()["flash"],
+	); !strings.Contains(
+		flash,
+		"expired",
+	) {
+		t.Errorf("flash = %q, want the expired-link notice", flash)
+	}
+	vukemtest.AssertDatabaseHas(t, app, "users", map[string]any{"email": "exp@example.com", "email_verified_at": nil})
+}
+
+// Opening the link of an already verified account goes to the dashboard
+// and leaves the owner's other sessions alone.
+func TestVerifiedLinkKeepsOtherSessions(t *testing.T) {
+	t.Parallel()
+
+	app := vukemtest.New(t, bootstrap.New)
+	c := app.Client(t).Inertia("")
+	register(t, app, c, "done@example.com")
+
+	other := app.Client(t).Inertia("")
+	other.PostJSON("/login", map[string]any{"email": "done@example.com", "password": "correct horse battery"}).
+		AssertRedirect("/dashboard")
+
+	c.Get(link(t, app, "done@example.com")).AssertRedirect("/dashboard")
+	if flash := fmt.Sprint(
+		c.Get("/dashboard").AssertInertia("Dashboard").Page()["flash"],
+	); !strings.Contains(
+		flash,
+		"verified",
+	) {
+		t.Errorf("flash = %q, want the verified notice", flash)
+	}
+	other.Get("/dashboard").AssertOK()
+}
+
+// The link carries a hash of the address: once the email changes, a link
+// sent to the old address no longer verifies the account.
+func TestVerificationLinkBoundToEmail(t *testing.T) {
+	t.Parallel()
+
+	app := vukemtest.New(t, bootstrap.New)
+	c := app.Client(t).Inertia("")
+
+	c.PostJSON("/register", signUpForm("Ana Silva", "old@example.com", "correct horse battery")).
+		AssertRedirect("/register/check-email")
+
+	verify := link(t, app, "old@example.com")
+
+	acc, err := accounts.New(app.App)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if _, err := acc.DB.ExecContext(t.Context(), "UPDATE users SET email = "+acc.DB.Dialect().Placeholder(1)+
+		" WHERE email = "+acc.DB.Dialect().Placeholder(2), "new@example.com", "old@example.com"); err != nil {
+		t.Fatal(err)
+	}
+
+	c.Get(verify).AssertRedirect("/login")
+	c.PostJSON("/login", map[string]any{"email": "new@example.com", "password": "correct horse battery"}).
+		AssertRedirect(verify)
+	c.Get(verify).AssertForbidden()
+	vukemtest.AssertDatabaseHas(t, app, "users", map[string]any{"email": "new@example.com", "email_verified_at": nil})
+}
+
+func TestLoginLogoutAndThrottle(t *testing.T) {
+	t.Parallel()
+
+	app := vukemtest.New(t, bootstrap.New)
+	register(t, app, app.Client(t).Inertia(""), "bob@example.com")
+
+	c := app.Client(t).Inertia("").WithHeader("Referer", "/login")
+	c.PostJSON("/login", map[string]any{"email": "bob@example.com", "password": "wrong"}).AssertRedirect("/login")
+	c.Get("/login").AssertInertia("Auth/Login").HasProp("errors.email")
+
+	c.PostJSON("/login", map[string]any{"email": "bob@example.com", "password": "correct horse battery"}).
+		AssertRedirect("/dashboard")
+	c.Get("/login").AssertRedirect("/")
+	c.PostJSON("/logout", nil).AssertRedirect("/")
+	c.Get("/").AssertInertia("Home").PropEquals("auth.user", nil)
+	c.Get("/dashboard").AssertRedirect("/login")
+
+	attacker := app.Client(t).Inertia("")
+	// Spaces and case do not open new buckets: they are the same account.
+	for _, email := range []string{"bob@example.com", " bob@example.com", "BOB@example.com ", "	bob@example.com"} {
+		attacker.PostJSON("/login", map[string]any{"email": email, "password": "guess"})
+	}
+
+	attacker.PostJSON("/login", map[string]any{"email": "bob@example.com", "password": "guess"}).AssertStatus(429)
+}
+
+func TestPasswordReset(t *testing.T) {
+	t.Parallel()
+
+	app := vukemtest.New(t, bootstrap.New)
+	register(t, app, app.Client(t).Inertia(""), "cid@example.com")
+
+	c := app.Client(t).Inertia("")
+
+	// Unknown emails get the same answer and no mail.
+	c.PostJSON("/forgot-password", map[string]any{"email": "nobody@example.com"}).AssertRedirect("/forgot-password")
+
+	if len(app.Mails().SentTo("nobody@example.com")) != 0 {
+		t.Fatal("mail sent to an unknown address")
+	}
+
+	c.PostJSON("/forgot-password", map[string]any{"email": "cid@example.com"}).AssertRedirect("/forgot-password")
+	c.Get("/forgot-password").AssertInertia("Auth/ForgotPassword")
+
+	reset := link(t, app, "cid@example.com")
+	if !strings.HasPrefix(reset, "/reset-password/") {
+		t.Fatalf("reset link = %s", reset)
+	}
+
+	u, _ := url.Parse(reset)
+	token := strings.TrimPrefix(u.Path, "/reset-password/")
+
+	c.Get(reset).AssertOK().AssertInertia("Auth/ResetPassword").PropEquals("token", token)
+
+	form := map[string]any{
+		"token": token, "email": "cid@example.com",
+		"password": "a brand new password", "password_confirmation": "a brand new password",
+	}
+
+	userID := apiTokenFor(t, app, "cid@example.com")
+	vukemtest.AssertDatabaseHas(t, app, "access_tokens", map[string]any{"user_id": userID, "revoked_at": nil})
+
+	c.PostJSON("/reset-password", form).AssertRedirect("/login")
+
+	// The new password revokes API tokens issued with the old one; the
+	// rows stay for the audit trail.
+	vukemtest.AssertDatabaseMissing(t, app, "access_tokens", map[string]any{"user_id": userID, "revoked_at": nil})
+	vukemtest.AssertDatabaseHas(t, app, "access_tokens", map[string]any{"user_id": userID})
+
+	// Single use.
+	c.WithHeader("Referer", reset).PostJSON("/reset-password", form).AssertRedirect(reset)
+
+	c.PostJSON("/login", map[string]any{"email": "cid@example.com", "password": "a brand new password"}).
+		AssertRedirect("/dashboard")
+}
+
+// apiTokenFor issues an API token for email directly, to check that a
+// password reset revokes it.
+func apiTokenFor(t *testing.T, app *vukemtest.App, email string) string {
+	t.Helper()
+
+	acc, err := accounts.New(app.App)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	u, err := acc.Users.ByCredentials(t.Context(), map[string]string{"email": email})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if _, _, err := acc.Tokens.Create(t.Context(), u.AuthID(), "cli", []string{"*"}, time.Hour); err != nil {
+		t.Fatal(err)
+	}
+
+	return u.AuthID()
+}

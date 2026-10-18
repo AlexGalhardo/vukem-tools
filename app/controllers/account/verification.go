@@ -1,0 +1,109 @@
+package account
+
+import (
+	"crypto/subtle"
+	"errors"
+	"net/http"
+
+	"github.com/AlexGalhardo/vukem/auth"
+	"github.com/AlexGalhardo/vukem/errs"
+	"github.com/AlexGalhardo/vukem/inertia"
+	"github.com/AlexGalhardo/vukem/signed"
+	"github.com/AlexGalhardo/vukem/web"
+
+	"github.com/AlexGalhardo/vukem-tools/app/accounts"
+	"github.com/AlexGalhardo/vukem-tools/app/models"
+)
+
+// Notice asks the user to check their inbox.
+func (*Handlers) Notice(c *web.Ctx) error {
+	u, err := auth.User[models.User](c, "web")
+	if err != nil {
+		return err
+	}
+
+	if u.EmailVerified() {
+		return c.Redirect("/dashboard")
+	}
+
+	return inertia.Render(c, "Auth/VerifyEmail", nil)
+}
+
+// Verify handles the signed link from the verification email. The route
+// needs the account's login (auth.Required): signed out, the link leads to
+// the login page and verification completes after it, so a link for an
+// account someone else created with this address verifies nothing for
+// whoever merely owns the mailbox. Signed in as another account it is a
+// 403. The signature is checked here, after the login, so a link that
+// expired while the user signed in leads to the page that sends a new one.
+// The link is void once the address changes (email_hash). Verifying ends
+// every other session and token of the account (VerifyEmail), so whatever
+// was opened before the address was proven does not become verified; the
+// current session is kept.
+func (h *Handlers) Verify(c *web.Ctx) error {
+	id, err := c.ParamInt("id")
+	if err != nil {
+		return err
+	}
+
+	u, err := auth.User[models.User](c, "web")
+	if err != nil {
+		return err
+	}
+
+	if u.ID != id {
+		return errs.New(http.StatusForbidden, h.a.T(c.Context(), "auth.verification_wrong_account"))
+	}
+
+	// Opening the link again must not end the owner's other sessions again.
+	if u.EmailVerified() {
+		inertia.Flash(c, "status", h.a.T(c.Context(), "auth.email_verified"))
+
+		return c.Redirect("/dashboard")
+	}
+
+	if err := h.a.Signer.Verify(c.Request()); err != nil {
+		if errors.Is(err, signed.ErrExpired) {
+			inertia.Flash(c, "status", h.a.T(c.Context(), "auth.verification_expired"))
+
+			return c.Redirect("/email/verify")
+		}
+
+		web.SecurityEvent(c.Request(), "url.signature_invalid")
+
+		return errs.New(http.StatusForbidden, h.a.T(c.Context(), "auth.verification_invalid"))
+	}
+
+	if subtle.ConstantTimeCompare([]byte(c.Query("email_hash")), []byte(accounts.EmailHash(u.Email))) != 1 {
+		return errs.New(http.StatusForbidden, h.a.T(c.Context(), "auth.verification_invalid"))
+	}
+
+	if err := h.a.VerifyEmail(c.Context(), &u, c.Session().ID()); err != nil {
+		return err
+	}
+
+	// The version bump ended the current session too: keep it.
+	if err := h.a.Web.RefreshSession(c); err != nil {
+		return err
+	}
+
+	inertia.Flash(c, "status", h.a.T(c.Context(), "auth.email_verified"))
+
+	return c.Redirect("/dashboard")
+}
+
+// Resend sends a new verification email.
+func (h *Handlers) Resend(c *web.Ctx) error {
+	u, err := auth.User[models.User](c, "web")
+	if err != nil {
+		return err
+	}
+
+	if err := h.a.SendVerification(c.Context(), u); err != nil {
+		return err
+	}
+
+	inertia.Flash(c, "status", h.a.T(c.Context(), "auth.verification_sent"))
+
+	return c.Redirect("/email/verify")
+}

@@ -1,0 +1,51 @@
+# Segredos e configuração local
+.env
+.env.*
+!.env.example
+backend/cookies/*
+!backend/cookies/.gitkeep
+*.pem
+*.key
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+.pytest_cache/
+.ruff_cache/
+backend/downloads/*
+!backend/downloads/.gitkeep
+backend/tests/_tmp/
+backend/pot-provider-src/
+
+# Node / Next.js
+node_modules/
+.next/
+out/
+next-env.d.ts
+*.tsbuildinfo
+
+# Owner-local agent settings (never committed)
+.claude/settings.local.json
+
+# Editor / SO
+.DS_Store
+*.log
+.vscode/
+.idea/
+
+# Saídas dos smoke tests (infra/smoke)
+.smoke-tmp/
+TODO.md
+
+# Go build output and vukem caches
+/bin/
+.vukem/
+
+# Local app data (storage disk, SQLite dev database)
+storage/*
+!storage/.gitkeep
+
+# Vite: dev server marker and build output
+/resources/public/hot
+/resources/public/build/

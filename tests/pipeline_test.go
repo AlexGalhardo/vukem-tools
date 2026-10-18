@@ -36,13 +36,48 @@ import (
 func sandbox(t *testing.T) map[string]string {
 	t.Helper()
 
-	root := t.TempDir()
+	// A subdirectory of the test's own, removed here with a few retries
+	// rather than by t.TempDir.
+	//
+	// The local storage disk keeps its directory open through an os.Root, and
+	// on Windows a directory with an open handle inside it cannot be removed:
+	// t.TempDir's cleanup then fails the test with "the directory is not
+	// empty", which has nothing to do with what the test was checking. It was
+	// flaky rather than constant — roughly one run in five — because it
+	// depends on whether the handle has finished closing, which is exactly
+	// the kind of failure that wastes an afternoon later.
+	//
+	// Cleanups run in reverse order, so this one empties the subdirectory
+	// before t.TempDir removes the parent.
+	root := filepath.Join(t.TempDir(), "sandbox")
+	if err := os.MkdirAll(root, 0o700); err != nil {
+		t.Fatalf("sandbox: %v", err)
+	}
+
+	t.Cleanup(func() { removeWithRetry(t, root) })
 
 	return map[string]string{
 		"UPLOAD_DIR":  filepath.Join(root, "uploads"),
 		"WORK_DIR":    filepath.Join(root, "work"),
 		"STORAGE_DIR": filepath.Join(root, "bucket"),
 	}
+}
+
+// removeWithRetry deletes dir, giving the operating system a moment to
+// release a handle it has already been told to close.
+func removeWithRetry(t *testing.T, dir string) {
+	t.Helper()
+
+	var err error
+	for range 40 {
+		if err = os.RemoveAll(dir); err == nil {
+			return
+		}
+
+		time.Sleep(25 * time.Millisecond)
+	}
+
+	t.Errorf("could not remove %s: %v", dir, err)
 }
 
 // spritePNG is a real 4x4 PNG with four colours, so the conversion has

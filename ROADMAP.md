@@ -87,18 +87,30 @@ Nothing else can start until this phase is done. Target version: `v0.1.0`.
 
 ### S1.2 vukem application skeleton
 
-- [ ] Create the Go module and the vukem app
+What the scaffold already provides, verified on `058c097`: the module, the `app/`, `bootstrap/`,
+`cmd/app/`, `database/`, `resources/`, `routes/` and `tests/` layout, config through
+`vukem/config`, structured logging, `vukem.DefaultMiddleware` (body limit, session, CSRF, Inertia)
+and a `/up` route. What is left is below.
+
+- [~] Create the Go module and the vukem app
   - [x] `go mod init github.com/AlexGalhardo/vukem-tools`, Go pinned to the version `vukem` uses
-  - [ ] `vukem new` style layout: `cmd/`, `internal/`, `app/`, `database/`, `resources/`
-  - [ ] Config through `vukem/config`, with `.env.example` listing every variable
-  - [ ] Structured logging through `vukem/logging`
-  - [ ] `GET /up` liveness, answered by a server-level middleware before routing so a probe
-        creates no session
+  - [x] Layout: `cmd/`, `app/`, `bootstrap/`, `database/`, `resources/`, `routes/`, `tests/`
+  - [ ] `internal/` for the conversion packages — created with the first one, in S2
+  - [x] Config through `vukem/config`
+  - [ ] `.env.example` listing **every** variable the app reads: it currently has only the eight
+        the scaffold wrote, and nothing for Postgres, the bucket, ClamAV, the engines, the
+        limits or the quota
+  - [x] Structured logging through `vukem/logging`
+  - [ ] `GET /up` liveness answered by a server-level middleware **before** routing: it currently
+        runs through `session`, `csrf`, `inertia`, `shareProps` and `shareAuth`
+        (`vukem route:list`), which is work a probe should not pay for. The framework stopped
+        persisting a session for read-only visits (audit P1), so confirm with a test that no row
+        is written before deciding whether this still needs moving
   - [ ] A deep readiness check covering the database, the queue, the bucket and the engines
   - [ ] `X-Deploy-Target` on every response, so it is obvious which deploy answered
 - [ ] HTTP hardening from the start
-  - [ ] Security headers middleware (`X-Content-Type-Options`, `X-Frame-Options`,
-        `Referrer-Policy`), matching or exceeding today's behaviour
+  - [ ] Security headers (`X-Content-Type-Options`, `X-Frame-Options`, `Referrer-Policy`, CSP)
+        asserted by a test rather than assumed from `DefaultMiddleware`
   - [ ] CSRF for browser routes through `vukem/csrf`; API routes exempt and token-authenticated
   - [ ] RFC 9457 `problem+json` error bodies on every API route, each carrying a stable
         machine-readable `type`

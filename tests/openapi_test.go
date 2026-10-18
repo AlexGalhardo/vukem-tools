@@ -10,6 +10,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/AlexGalhardo/vukem/api"
 	"github.com/AlexGalhardo/vukem/apidocs"
 	"github.com/AlexGalhardo/vukem/openapi"
 	"github.com/AlexGalhardo/vukem/vukemtest"
@@ -175,11 +176,42 @@ func TestSecuredOperationsAcceptEitherHeader(t *testing.T) {
 		}
 	}
 
-	// Four of the six operations need a key; the other two issue one and list
-	// the abilities.
-	if secured != 4 {
-		t.Errorf("%d secured operations, want 4", secured)
+	// Counted from the router rather than written here: a number in a test
+	// is one more thing to remember when a route is added, and forgetting it
+	// is a test failure that teaches nothing.
+	want := securedRoutes(t, app)
+	if secured != want {
+		t.Errorf("%d secured operations in the document, %d secured routes in the router", secured, want)
 	}
+
+	if want == 0 {
+		t.Fatal("no secured route found: this test would pass on an empty document")
+	}
+}
+
+// securedRoutes counts the /api/v1 routes that sit behind the API guard, by
+// asking the router rather than by listing them.
+func securedRoutes(t *testing.T, app *vukemtest.App) int {
+	t.Helper()
+
+	n := 0
+
+	for _, rt := range app.Router.Routes() {
+		if _, skip := rt.Doc.(openapi.Skip); skip || rt.Method == "" || rt.Method == "ANY" {
+			continue
+		}
+
+		op, ok := rt.Doc.(*api.Operation)
+		if !ok {
+			continue
+		}
+
+		if len(op.Security) > 0 {
+			n++
+		}
+	}
+
+	return n
 }
 
 // A route the router serves but the document does not describe is a hole in
@@ -406,17 +438,17 @@ func TestResponsesMatchTheDocument(t *testing.T) {
 
 	key, _ := issued.JSONPath("token")
 	token, _ := key.(string)
-	api := app.Client(t).WithToken(token)
+	client := app.Client(t).WithToken(token)
 
 	app.Client(t).GetJSON("/api/v1/abilities").AssertOK().AssertMatchesOpenAPI()
-	api.GetJSON("/api/v1/me").AssertOK().AssertMatchesOpenAPI()
-	api.GetJSON("/api/v1/tokens").AssertOK().AssertMatchesOpenAPI()
+	client.GetJSON("/api/v1/me").AssertOK().AssertMatchesOpenAPI()
+	client.GetJSON("/api/v1/tokens").AssertOK().AssertMatchesOpenAPI()
 
 	// A key id that does not exist: the 404 problem document.
-	api.Delete("/api/v1/tokens/does-not-exist").AssertNotFound().AssertMatchesOpenAPI()
+	client.Delete("/api/v1/tokens/does-not-exist").AssertNotFound().AssertMatchesOpenAPI()
 
 	// And the 204, which documents no body.
-	api.Delete("/api/v1/tokens/current").AssertNoContent().AssertMatchesOpenAPI()
+	client.Delete("/api/v1/tokens/current").AssertNoContent().AssertMatchesOpenAPI()
 }
 
 // The cap on abilities is a literal in a `validate` tag, so it can only be

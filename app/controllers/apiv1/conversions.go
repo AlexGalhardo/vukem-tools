@@ -1,0 +1,380 @@
+package apiv1
+
+import (
+	"encoding/json"
+	"strconv"
+	"time"
+
+	"github.com/AlexGalhardo/vukem/auth"
+	"github.com/AlexGalhardo/vukem/errs"
+	"github.com/AlexGalhardo/vukem/sse"
+	"github.com/AlexGalhardo/vukem/web"
+
+	"github.com/AlexGalhardo/vukem-tools/app/models"
+	"github.com/AlexGalhardo/vukem-tools/internal/jobs"
+)
+
+// Conversions reads, cancels and streams conversions.
+type Conversions struct {
+	pipe  *jobs.Pipeline
+	store *jobs.Store
+	hub   *sse.Hub
+}
+
+// NewConversions returns the conversion handlers.
+func NewConversions(pipe *jobs.Pipeline, store *jobs.Store, hub *sse.Hub) *Conversions {
+	return &Conversions{pipe: pipe, store: store, hub: hub}
+}
+
+// ConversionView is one conversion as the API reports it.
+//
+// It is built by hand rather than serialised from the model, so adding a
+// column cannot accidentally publish it. error_detail in particular is
+// owner-only and must never appear here.
+type ConversionView struct {
+	ID     string `json:"id"     doc:"The conversion id, used to poll it, stream it or cancel it."`
+	Tool   string `json:"tool"   doc:"Which conversion produced it."`
+	Status string `json:"status" doc:"One of pending, running, finished, error, cancelled."`
+
+	Progress int    `json:"progress" doc:"Percentage from 0 to 100."`
+	Phase    string `json:"phase"    doc:"What it is doing now, empty once it has ended."`
+
+	BytesIn  int64 `json:"bytes_in"  doc:"Size of the input in bytes."`
+	BytesOut int64 `json:"bytes_out" doc:"Size of the result in bytes, 0 until it finishes."`
+
+	// ErrorType is a stable code; ErrorMessage is the sentence to show. Both
+	// are empty unless the conversion failed. GET /api/v1/conversion-errors
+	// lists every code.
+	ErrorType    string `json:"error_type"    doc:"A code from the error taxonomy, empty unless it failed."`
+	ErrorMessage string `json:"error_message" doc:"What to tell the user, empty unless it failed."`
+
+	StartedAt  *time.Time `json:"started_at"  doc:"When a worker picked it up, or null."`
+	FinishedAt *time.Time `json:"finished_at" doc:"When it ended, or null."`
+	ExpiresAt  time.Time  `json:"expires_at"  doc:"When the result stops being downloadable."`
+	CreatedAt  time.Time  `json:"created_at"  doc:"When it was submitted."`
+}
+
+// viewOf renders a conversion for the API.
+func viewOf(c models.Conversion) ConversionView {
+	v := ConversionView{
+		ID:        c.ID,
+		Tool:      c.Tool,
+		Status:    c.Status,
+		Progress:  c.Progress,
+		Phase:     c.Phase,
+		BytesIn:   c.BytesIn,
+		BytesOut:  c.BytesOut,
+		ExpiresAt: c.ExpiresAt,
+		CreatedAt: c.CreatedAt,
+	}
+
+	if c.ErrorType != nil {
+		v.ErrorType = *c.ErrorType
+		v.ErrorMessage = jobs.Describe(jobs.ErrorType(*c.ErrorType)).Message
+	}
+
+	if c.StartedAt.Valid {
+		at := c.StartedAt.V
+		v.StartedAt = &at
+	}
+
+	if c.FinishedAt.Valid {
+		at := c.FinishedAt.V
+		v.FinishedAt = &at
+	}
+
+	return v
+}
+
+// ConversionList is the answer to GET /api/v1/conversions.
+type ConversionList struct {
+	Data []ConversionView `json:"data" doc:"The caller's conversions, newest first."`
+}
+
+// ConversionIDInput is the path input of the per-conversion routes.
+//
+// ID carries no `doc` tag because the generator reads it for query parameters
+// only and drops it for path parameters; the description lives in
+// routes/apidocs.go instead (workaround(vukem): path parameters ignore the
+// doc tag).
+type ConversionIDInput struct {
+	ID string `json:"id" validate:"required"`
+}
+
+// ListInput is the query of GET /api/v1/conversions.
+type ListInput struct {
+	Limit int `json:"limit" validate:"min=0,max=100" doc:"How many to return, 1 to 100. Default 20."`
+}
+
+// defaultListLimit is what a caller gets without asking.
+const defaultListLimit = 20
+
+// Index lists the caller's conversions, newest first:
+// GET /api/v1/conversions.
+func (h *Conversions) Index(c *web.Ctx, in ListInput) (ConversionList, error) {
+	userID, err := callerID(c)
+	if err != nil {
+		return ConversionList{}, err
+	}
+
+	limit := in.Limit
+	if limit == 0 {
+		limit = defaultListLimit
+	}
+
+	rows, err := h.store.List(c.Context(), userID, limit)
+	if err != nil {
+		return ConversionList{}, err
+	}
+
+	// An empty array, never null: a client should not have to handle both.
+	out := ConversionList{Data: make([]ConversionView, 0, len(rows))}
+	for i := range rows {
+		out.Data = append(out.Data, viewOf(rows[i]))
+	}
+
+	return out, nil
+}
+
+// Show returns one conversion: GET /api/v1/conversions/{id}.
+//
+// This is also the polling endpoint. A client that cannot hold a stream open
+// — the Telegram bot, a shell script — asks for this until status is final.
+func (h *Conversions) Show(c *web.Ctx, in ConversionIDInput) (ConversionView, error) {
+	userID, err := callerID(c)
+	if err != nil {
+		return ConversionView{}, err
+	}
+
+	row, err := h.store.Find(c.Context(), userID, in.ID)
+	if err != nil {
+		return ConversionView{}, err
+	}
+
+	return viewOf(row), nil
+}
+
+// Cancel stops a conversion: DELETE /api/v1/conversions/{id}.
+//
+// It returns the conversion as it now stands rather than an empty body, so a
+// client learns in one round trip whether it was cancelled or had already
+// finished. Cancelling something that already ended is answered 409, which is
+// what the taxonomy says for that code.
+func (h *Conversions) Cancel(c *web.Ctx, in ConversionIDInput) (ConversionView, error) {
+	userID, err := callerID(c)
+	if err != nil {
+		return ConversionView{}, err
+	}
+
+	cancelled, err := h.store.Cancel(c.Context(), userID, in.ID)
+	if err != nil {
+		return ConversionView{}, err
+	}
+
+	// Re-read either way: on success it is the cancelled row, and on failure
+	// the read is what tells a missing conversion from a finished one.
+	row, err := h.store.Find(c.Context(), userID, in.ID)
+	if err != nil {
+		return ConversionView{}, err
+	}
+
+	if !cancelled {
+		info := jobs.Describe(jobs.CancelledByUser)
+
+		return ConversionView{}, errs.NewKey(info.Status, "conversion.not_cancellable",
+			"That conversion has already ended.", nil)
+	}
+
+	return viewOf(row), nil
+}
+
+// ErrorCatalog is the answer to GET /api/v1/conversion-errors.
+type ErrorCatalog struct {
+	Data []ErrorCatalogEntry `json:"data" doc:"Every error code a conversion can end with."`
+}
+
+// ErrorCatalogEntry is one code of the taxonomy.
+type ErrorCatalogEntry struct {
+	Type    string `json:"type"    doc:"The stable code, as it appears on a conversion."`
+	Message string `json:"message" doc:"What to tell the user."`
+	Retry   bool   `json:"retry"   doc:"Whether submitting the same input again could succeed."`
+}
+
+// Errors lists the error taxonomy: GET /api/v1/conversion-errors.
+//
+// It is published so a client does not have to hardcode the codes, and so the
+// interface and the API cannot drift apart about what a failure means.
+func (*Conversions) Errors(_ *web.Ctx, _ struct{}) (ErrorCatalog, error) {
+	catalog := jobs.Catalog()
+
+	out := ErrorCatalog{Data: make([]ErrorCatalogEntry, 0, len(catalog))}
+	for _, info := range catalog {
+		out.Data = append(out.Data, ErrorCatalogEntry{
+			Type:    string(info.Type),
+			Message: info.Message,
+			Retry:   info.Retry,
+		})
+	}
+
+	return out, nil
+}
+
+// ToolList is the answer to GET /api/v1/tools.
+type ToolList struct {
+	Data []string `json:"data" doc:"Every tool that can be submitted, by name."`
+}
+
+// Tools lists the registered tools: GET /api/v1/tools.
+func (h *Conversions) Tools(_ *web.Ctx, _ struct{}) (ToolList, error) {
+	return ToolList{Data: h.pipe.Tools()}, nil
+}
+
+// Stream sends a conversion's progress as server-sent events:
+// GET /api/v1/conversions/{id}/events.
+//
+// It is a plain handler, not a typed one, because a stream has no response
+// body an OpenAPI schema can describe; it is hidden from the generated
+// document and written up in docs/api.md instead.
+//
+// The order of what it sends matters. First the current state, so a client
+// that connects after the work is done still learns the outcome instead of
+// waiting for an event that will never arrive. Then the trail after
+// Last-Event-ID, so a reconnecting client misses nothing. Only then live
+// events. Subscribing before the replay — rather than after — is what closes
+// the gap: an event published during the replay is already buffered.
+func (h *Conversions) Stream(c *web.Ctx) error {
+	userID, err := callerID(c)
+	if err != nil {
+		return err
+	}
+
+	id := c.Request().PathValue("id")
+
+	// Authorise before opening the stream: a 404 must be a 404, not an empty
+	// stream that looks like a conversion with nothing to report.
+	current, err := h.store.Find(c.Context(), userID, id)
+	if err != nil {
+		return err
+	}
+
+	events, unsubscribe := h.hub.Subscribe(c.Context(), jobs.Topic(id))
+	defer unsubscribe()
+
+	return sse.Serve(c.Writer(), c.Request(), func(stream *sse.Stream) error {
+		if err := stream.SendJSON(jobs.EventName, jobs.Snapshot(current)); err != nil {
+			return err
+		}
+
+		last, err := h.replay(c, stream, id)
+		if err != nil {
+			return err
+		}
+
+		if jobs.Status(current.Status).Final() {
+			// Nothing more will ever be published. Ending the stream lets the
+			// client close instead of holding a connection open on a
+			// heartbeat forever.
+			return nil
+		}
+
+		return pump(stream, events, last)
+	})
+}
+
+// replay sends the trail after the client's Last-Event-ID and returns the id
+// of the last event sent, so the live pump can drop anything it has already
+// seen.
+func (h *Conversions) replay(c *web.Ctx, stream *sse.Stream, id string) (int64, error) {
+	after := int64(0)
+	if v, err := strconv.ParseInt(stream.LastEventID(), 10, 64); err == nil && v > 0 {
+		after = v
+	}
+
+	trail, err := h.store.Events(c.Context(), id, after)
+	if err != nil {
+		return 0, err
+	}
+
+	last := after
+
+	for i := range trail {
+		e := jobs.EventOf(id, trail[i])
+		if err := stream.SendEvent(sseEvent(e)); err != nil {
+			return 0, err
+		}
+
+		last = e.ID
+	}
+
+	return last, nil
+}
+
+// pump forwards live events until the conversion ends, the client goes away
+// or the server shuts down.
+//
+// An event at or below last was already replayed, so it is dropped: the
+// subscription is opened before the replay on purpose, which means the
+// overlap is expected rather than a bug.
+func pump(stream *sse.Stream, events <-chan sse.Event, last int64) error {
+	for {
+		select {
+		case ev, ok := <-events:
+			if !ok {
+				// The hub dropped this subscriber, which it does when a
+				// subscriber falls too far behind. Ending the stream makes the
+				// client reconnect and replay, which is the recovery.
+				return nil
+			}
+
+			if id, err := strconv.ParseInt(ev.ID, 10, 64); err == nil && id <= last {
+				continue
+			}
+
+			if err := stream.SendEvent(ev); err != nil {
+				return err
+			}
+
+			if finalEvent(ev) {
+				return nil
+			}
+		case <-sse.ShutdownSignal(stream.Context()):
+			return nil
+		case <-stream.Context().Done():
+			return nil
+		}
+	}
+}
+
+// sseEvent renders a progress event as a wire event. It mirrors
+// jobs.HubPublisher so a replayed event and a live one are identical.
+func sseEvent(e jobs.Event) sse.Event {
+	body, err := json.Marshal(e)
+	if err != nil {
+		// Encoding a struct of strings and integers cannot fail; if it ever
+		// does, an empty data frame beats a half-written stream.
+		body = []byte("{}")
+	}
+
+	return sse.Event{ID: strconv.FormatInt(e.ID, 10), Event: jobs.EventName, Data: string(body)}
+}
+
+// finalEvent reports whether a wire event ends the conversion, by reading the
+// status out of the payload the publisher wrote.
+func finalEvent(ev sse.Event) bool {
+	var e jobs.Event
+	if err := json.Unmarshal([]byte(ev.Data), &e); err != nil {
+		return false
+	}
+
+	return e.Final()
+}
+
+// callerID returns the authenticated caller's user id.
+func callerID(c *web.Ctx) (string, error) {
+	u, err := auth.User[models.User](c, "api")
+	if err != nil {
+		return "", err
+	}
+
+	return u.AuthID(), nil
+}

@@ -200,7 +200,7 @@ func newRig(t *testing.T, tl *tool) *rig {
 
 	pipe, err := jobs.NewPipeline(jobs.PipelineOptions{
 		Store:    store,
-		Queue:    q,
+		Queue:    func() (*queue.Queue, error) { return q, nil },
 		Tools:    []jobs.Tool{tl},
 		WorkRoot: root,
 		Now:      clk.Now,
@@ -973,7 +973,7 @@ func TestNewPipelineRefusesTwoToolsWithOneName(t *testing.T) {
 
 	_, err := jobs.NewPipeline(jobs.PipelineOptions{
 		Store:    r.store,
-		Queue:    r.queue,
+		Queue:    func() (*queue.Queue, error) { return r.queue, nil },
 		Tools:    []jobs.Tool{newTool(ok), newTool(ok)},
 		WorkRoot: r.root,
 	})

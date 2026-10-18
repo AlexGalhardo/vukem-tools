@@ -148,6 +148,54 @@ type AbilityList struct {
 	Data []string `json:"data,omitempty"`
 }
 
+type ConversionView struct {
+	// Size of the input in bytes.
+	BytesIn *int64 `json:"bytes_in,omitempty"`
+	// Size of the result in bytes, 0 until it finishes.
+	BytesOut *int64 `json:"bytes_out,omitempty"`
+	// When it was submitted.
+	CreatedAt *time.Time `json:"created_at,omitempty"`
+	// What to tell the user, empty unless it failed.
+	ErrorMessage *string `json:"error_message,omitempty"`
+	// A code from the error taxonomy, empty unless it failed.
+	ErrorType *string `json:"error_type,omitempty"`
+	// When the result stops being downloadable.
+	ExpiresAt *time.Time `json:"expires_at,omitempty"`
+	// When it ended, or null.
+	FinishedAt *time.Time `json:"finished_at,omitempty"`
+	// The conversion id, used to poll it, stream it or cancel it.
+	ID *string `json:"id,omitempty"`
+	// What it is doing now, empty once it has ended.
+	Phase *string `json:"phase,omitempty"`
+	// Percentage from 0 to 100.
+	Progress *int64 `json:"progress,omitempty"`
+	// When a worker picked it up, or null.
+	StartedAt *time.Time `json:"started_at,omitempty"`
+	// One of pending, running, finished, error, cancelled.
+	Status *string `json:"status,omitempty"`
+	// Which conversion produced it.
+	Tool *string `json:"tool,omitempty"`
+}
+
+type ConversionList struct {
+	// The caller's conversions, newest first.
+	Data []ConversionView `json:"data,omitempty"`
+}
+
+type ErrorCatalogEntry struct {
+	// What to tell the user.
+	Message *string `json:"message,omitempty"`
+	// Whether submitting the same input again could succeed.
+	Retry *bool `json:"retry,omitempty"`
+	// The stable code, as it appears on a conversion.
+	Type *string `json:"type,omitempty"`
+}
+
+type ErrorCatalog struct {
+	// Every error code a conversion can end with.
+	Data []ErrorCatalogEntry `json:"data,omitempty"`
+}
+
 type Token struct {
 	Abilities  []string   `json:"abilities,omitempty"`
 	ExpiresAt  *time.Time `json:"expires_at,omitempty"`
@@ -176,6 +224,11 @@ type TokenList struct {
 	Data []Token `json:"data,omitempty"`
 }
 
+type ToolList struct {
+	// Every tool that can be submitted, by name.
+	Data []string `json:"data,omitempty"`
+}
+
 type User struct {
 	CreatedAt       *time.Time `json:"created_at,omitempty"`
 	Email           *string    `json:"email,omitempty"`
@@ -183,6 +236,18 @@ type User struct {
 	ID              *int64     `json:"id,omitempty"`
 	Name            *string    `json:"name,omitempty"`
 	UpdatedAt       *time.Time `json:"updated_at,omitempty"`
+}
+
+type ConversionsIndexQuery struct {
+	Limit *int64 `json:"limit,omitempty"`
+}
+
+func (q ConversionsIndexQuery) values() url.Values {
+	v := url.Values{}
+	if q.Limit != nil {
+		v.Set("limit", queryString(*q.Limit))
+	}
+	return v
 }
 
 type TokensStoreBody struct {
@@ -204,6 +269,38 @@ type TokensStoreBody struct {
 func (c *Client) Abilities(ctx context.Context) (AbilityList, error) {
 	var out AbilityList
 	err := c.do(ctx, "GET", "/api/v1/abilities", nil, nil, &out)
+
+	return out, err
+}
+
+// ConversionsCancel calls DELETE /api/v1/conversions/{id}: Cancel a conversion.
+func (c *Client) ConversionsCancel(ctx context.Context, id string) (ConversionView, error) {
+	var out ConversionView
+	err := c.do(ctx, "DELETE", "/api/v1/conversions/"+url.PathEscape(queryString(id)), nil, nil, &out)
+
+	return out, err
+}
+
+// ConversionsErrors calls GET /api/v1/conversion-errors: List the conversion error codes.
+func (c *Client) ConversionsErrors(ctx context.Context) (ErrorCatalog, error) {
+	var out ErrorCatalog
+	err := c.do(ctx, "GET", "/api/v1/conversion-errors", nil, nil, &out)
+
+	return out, err
+}
+
+// ConversionsIndex calls GET /api/v1/conversions: List the caller's conversions.
+func (c *Client) ConversionsIndex(ctx context.Context, query ConversionsIndexQuery) (ConversionList, error) {
+	var out ConversionList
+	err := c.do(ctx, "GET", "/api/v1/conversions", query.values(), nil, &out)
+
+	return out, err
+}
+
+// ConversionsShow calls GET /api/v1/conversions/{id}: Show one conversion.
+func (c *Client) ConversionsShow(ctx context.Context, id string) (ConversionView, error) {
+	var out ConversionView
+	err := c.do(ctx, "GET", "/api/v1/conversions/"+url.PathEscape(queryString(id)), nil, nil, &out)
 
 	return out, err
 }
@@ -238,6 +335,14 @@ func (c *Client) TokensRevoke(ctx context.Context, token string) error {
 func (c *Client) TokensStore(ctx context.Context, body TokensStoreBody) (TokenIssued, error) {
 	var out TokenIssued
 	err := c.do(ctx, "POST", "/api/v1/tokens", nil, body, &out)
+
+	return out, err
+}
+
+// ToolsIndex calls GET /api/v1/tools: List the conversions on offer.
+func (c *Client) ToolsIndex(ctx context.Context) (ToolList, error) {
+	var out ToolList
+	err := c.do(ctx, "GET", "/api/v1/tools", nil, nil, &out)
 
 	return out, err
 }

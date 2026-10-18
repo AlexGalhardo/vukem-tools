@@ -12,6 +12,7 @@ import (
 
 	"github.com/AlexGalhardo/vukem-tools/app/jobs"
 	"github.com/AlexGalhardo/vukem-tools/app/listeners"
+	"github.com/AlexGalhardo/vukem-tools/app/services"
 	"github.com/AlexGalhardo/vukem-tools/database/migrations"
 	"github.com/AlexGalhardo/vukem-tools/database/seeders"
 	"github.com/AlexGalhardo/vukem-tools/resources"
@@ -20,17 +21,23 @@ import (
 
 // New builds the application; cmd/app and the tests call it.
 func New(opts ...vukem.Option) (*vukem.App, error) {
+	// One conversion pipeline per process, resolved at boot by
+	// services.Provider and shared by the routes, the worker and the
+	// scheduler. Two would mean two event hubs, and each hub holds a
+	// listening database connection per watched conversion.
+	conversions := services.NewConversions()
+
 	base := []vukem.Option{
 		// PostgreSQL in every environment: the queue, sessions, cache and the
 		// conversion tables all live there, and SQLite would not survive the
 		// web and worker services being separate processes.
 		vukem.WithDatabaseDrivers(postgres.Driver()),
-		vukem.WithProviders(Providers()...),
+		vukem.WithProviders(Providers(conversions)...),
 		vukem.WithMigrations(migrations.All()),
 		vukem.WithSeeders(seeders.All()...),
 		vukem.WithListeners(listeners.All()...),
-		vukem.WithJobsFunc(jobs.All),
-		vukem.WithSchedule(routes.Schedule),
+		vukem.WithJobsFunc(jobs.All(conversions)),
+		vukem.WithSchedule(routes.Schedule(conversions)),
 		vukem.WithViews(resources.Views()),
 		vukem.WithVite(resources.Public()),
 		vukem.WithInertia(inertia.Config{}),
@@ -39,6 +46,10 @@ func New(opts ...vukem.Option) (*vukem.App, error) {
 	for _, fn := range routes.All() {
 		base = append(base, vukem.WithRoutes(fn))
 	}
+
+	// Not in routes.All(): it needs the pipeline, and the generators append to
+	// that list.
+	base = append(base, vukem.WithRoutes(routes.Conversions(conversions)))
 
 	app, err := vukem.New(append(base, opts...)...)
 	if err != nil {

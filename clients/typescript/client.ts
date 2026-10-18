@@ -4,6 +4,36 @@ export type AbilityList = {
   data?: string[];
 };
 
+export type ConversionList = {
+  data?: ConversionView[];
+};
+
+export type ConversionView = {
+  bytes_in?: number;
+  bytes_out?: number;
+  created_at?: string;
+  error_message?: string;
+  error_type?: string;
+  expires_at?: string;
+  finished_at?: string | null;
+  id?: string;
+  phase?: string;
+  progress?: number;
+  started_at?: string | null;
+  status?: string;
+  tool?: string;
+};
+
+export type ErrorCatalog = {
+  data?: ErrorCatalogEntry[];
+};
+
+export type ErrorCatalogEntry = {
+  message?: string;
+  retry?: boolean;
+  type?: string;
+};
+
 export type Problem = {
   detail?: string;
   errors?: Record<string, string[]>;
@@ -36,6 +66,10 @@ export type TokenList = {
   data?: Token[];
 };
 
+export type ToolList = {
+  data?: string[];
+};
+
 export type User = {
   created_at?: string;
   email?: string;
@@ -46,6 +80,18 @@ export type User = {
 };
 
 export type AbilitiesResponse = AbilityList;
+
+export type ConversionsCancelResponse = ConversionView;
+
+export type ConversionsErrorsResponse = ErrorCatalog;
+
+export type ConversionsIndexQuery = {
+  limit?: number;
+};
+
+export type ConversionsIndexResponse = ConversionList;
+
+export type ConversionsShowResponse = ConversionView;
 
 export type MeResponse = User;
 
@@ -65,6 +111,16 @@ export type TokensStoreBody = {
 };
 
 export type TokensStoreResponse = TokenIssued;
+
+export type ToolsIndexResponse = ToolList;
+
+export type ConversionsCancelParams = {
+  id: string;
+};
+
+export type ConversionsShowParams = {
+  id: string;
+};
 
 export type TokensRevokeParams = {
   token: string;
@@ -193,6 +249,26 @@ export interface Client {
   abilities(): Promise<AbilitiesResponse>;
 
   /**
+   * DELETE /api/v1/conversions/{id}: Cancel a conversion
+   */
+  conversionsCancel(args: { params: ConversionsCancelParams }): Promise<ConversionsCancelResponse>;
+
+  /**
+   * GET /api/v1/conversion-errors: List the conversion error codes
+   */
+  conversionsErrors(): Promise<ConversionsErrorsResponse>;
+
+  /**
+   * GET /api/v1/conversions: List the caller's conversions
+   */
+  conversionsIndex(args?: { query?: ConversionsIndexQuery }): Promise<ConversionsIndexResponse>;
+
+  /**
+   * GET /api/v1/conversions/{id}: Show one conversion
+   */
+  conversionsShow(args: { params: ConversionsShowParams }): Promise<ConversionsShowResponse>;
+
+  /**
    * GET /api/v1/me: Show the authenticated account
    */
   me(): Promise<MeResponse>;
@@ -216,6 +292,11 @@ export interface Client {
    * POST /api/v1/tokens: Issue an API key
    */
   tokensStore(args: { body: TokensStoreBody }): Promise<TokensStoreResponse>;
+
+  /**
+   * GET /api/v1/tools: List the conversions on offer
+   */
+  toolsIndex(): Promise<ToolsIndexResponse>;
 }
 
 /** createClient returns a typed client; methods throw ApiError on non-2xx responses. */
@@ -224,10 +305,15 @@ export function createClient(options: ClientOptions = {}): Client {
 
   return {
     abilities: () => request<AbilitiesResponse>("GET", "/api/v1/abilities"),
+    conversionsCancel: (args) => request<ConversionsCancelResponse>("DELETE", "/api/v1/conversions/{id}", args),
+    conversionsErrors: () => request<ConversionsErrorsResponse>("GET", "/api/v1/conversion-errors"),
+    conversionsIndex: (args) => request<ConversionsIndexResponse>("GET", "/api/v1/conversions", args),
+    conversionsShow: (args) => request<ConversionsShowResponse>("GET", "/api/v1/conversions/{id}", args),
     me: () => request<MeResponse>("GET", "/api/v1/me"),
     tokensDestroy: () => request<TokensDestroyResponse>("DELETE", "/api/v1/tokens/current"),
     tokensIndex: () => request<TokensIndexResponse>("GET", "/api/v1/tokens"),
     tokensRevoke: (args) => request<TokensRevokeResponse>("DELETE", "/api/v1/tokens/{token}", args),
     tokensStore: (args) => request<TokensStoreResponse>("POST", "/api/v1/tokens", args),
+    toolsIndex: () => request<ToolsIndexResponse>("GET", "/api/v1/tools"),
   };
 }

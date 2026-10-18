@@ -68,7 +68,12 @@ func (message) Kind() string { return "conversion" }
 // Pipeline accepts conversions, queues them and runs them.
 type Pipeline struct {
 	store *Store
-	queue *queue.Queue
+	// queue is resolved on first use rather than held, because resolving it
+	// is what registers this pipeline's own handler: the queue asks the app
+	// for its job registrations, and the app asks this pipeline for one. A
+	// pipeline that resolved the queue while being built would deadlock on
+	// its own construction.
+	queue func() (*queue.Queue, error)
 	tools map[string]Tool
 	root  string
 	log   *slog.Logger
@@ -79,7 +84,10 @@ type Pipeline struct {
 // required.
 type PipelineOptions struct {
 	Store *Store
-	Queue *queue.Queue
+	// Queue returns the queue to dispatch on. It is a function, not a value,
+	// because resolving the queue registers this pipeline's handler: see the
+	// field of the same name on Pipeline.
+	Queue func() (*queue.Queue, error)
 	// Tools are the conversions on offer. A conversion naming a tool that is
 	// not here fails as internal rather than being retried forever.
 	Tools []Tool
@@ -97,7 +105,7 @@ func NewPipeline(o PipelineOptions) (*Pipeline, error) {
 	case o.Store == nil:
 		return nil, errors.New("jobs: pipeline needs a store")
 	case o.Queue == nil:
-		return nil, errors.New("jobs: pipeline needs a queue")
+		return nil, errors.New("jobs: pipeline needs a way to resolve the queue")
 	case o.WorkRoot == "":
 		return nil, errors.New("jobs: pipeline needs a working directory")
 	}
@@ -162,9 +170,14 @@ func (p *Pipeline) Submit(ctx context.Context, in Submission) (models.Conversion
 		}
 	}
 
+	q, err := p.queue()
+	if err != nil {
+		return models.Conversion{}, false, fmt.Errorf("jobs: resolve the queue: %w", err)
+	}
+
 	var created models.Conversion
 
-	err := p.store.db.Tx(ctx, func(tx *database.Tx) error {
+	err = p.store.db.Tx(ctx, func(tx *database.Tx) error {
 		c, err := p.store.Create(ctx, tx, in)
 		if err != nil {
 			return err
@@ -172,7 +185,7 @@ func (p *Pipeline) Submit(ctx context.Context, in Submission) (models.Conversion
 
 		created = c
 
-		return p.queue.DispatchTx(ctx, tx, message{ConversionID: c.ID},
+		return q.DispatchTx(ctx, tx, message{ConversionID: c.ID},
 			queue.Retries(maxAttempts-1),
 			queue.Backoff(queue.Exponential(retryBase)),
 			queue.Timeout(tool.Timeout()),

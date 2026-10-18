@@ -11,6 +11,7 @@ import (
 
 	"github.com/AlexGalhardo/vukem-tools/app/abilities"
 	"github.com/AlexGalhardo/vukem-tools/internal/httpx"
+	"github.com/AlexGalhardo/vukem-tools/internal/jobs"
 )
 
 // The security scheme names used by the OpenAPI document. Both authenticate
@@ -258,9 +259,14 @@ func componentExamples() map[string]any {
 			"abilities":  []any{abilities.ImageConvert, abilities.PDFCompress},
 			"expires_at": "2026-02-04T10:00:00Z",
 		},
-		"TokenList":   map[string]any{"data": []any{tokenExample()}},
-		"Token":       tokenExample(),
-		"AbilityList": map[string]any{"data": toAny(abilities.All())},
+		"TokenList":         map[string]any{"data": []any{tokenExample()}},
+		"Token":             tokenExample(),
+		"AbilityList":       map[string]any{"data": toAny(abilities.All())},
+		"ToolList":          map[string]any{"data": []any{"pixels-to-svg"}},
+		"ConversionView":    conversionExample(),
+		"ConversionList":    map[string]any{"data": []any{conversionExample()}},
+		"ErrorCatalog":      map[string]any{"data": errorCatalogExample()},
+		"ErrorCatalogEntry": errorCatalogExample()[0],
 		"User": map[string]any{
 			"id":                1,
 			"created_at":        "2026-01-05T09:58:12Z",
@@ -270,6 +276,41 @@ func componentExamples() map[string]any {
 			"email_verified_at": "2026-01-05T10:01:44Z",
 		},
 	}
+}
+
+// conversionExample is one conversion, shown mid-run so every field that is
+// null before a conversion ends is visible rather than guessed at.
+func conversionExample() map[string]any {
+	return map[string]any{
+		"id":            "01JQ8Z5X0K7M3N9P2R4T6V8W0Y",
+		"tool":          "pixels-to-svg",
+		"status":        "running",
+		"progress":      60,
+		"phase":         "tracing",
+		"bytes_in":      18_452,
+		"bytes_out":     0,
+		"error_type":    "",
+		"error_message": "",
+		"started_at":    "2026-02-03T10:00:02Z",
+		"finished_at":   nil,
+		"expires_at":    "2026-02-03T11:00:02Z",
+		"created_at":    "2026-02-03T10:00:00Z",
+	}
+}
+
+// errorCatalogExample is the real taxonomy, built from the same source the
+// endpoint serves, so the example cannot drift from the answer.
+func errorCatalogExample() []any {
+	out := make([]any, 0, len(jobs.Catalog()))
+	for _, info := range jobs.Catalog() {
+		out = append(out, map[string]any{
+			"type":    string(info.Type),
+			"message": info.Message,
+			"retry":   info.Retry,
+		})
+	}
+
+	return out
 }
 
 // tokenExample is one row of GET /api/v1/tokens. user_id is empty because the

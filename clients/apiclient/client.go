@@ -255,6 +255,17 @@ func (q ConversionsIndexQuery) values() url.Values {
 	return v
 }
 
+type ConversionsStoreBody struct {
+	// The id of an upload of yours, from the resumable upload endpoint.
+	FileID string `json:"file_id"`
+	// Repeat a submission safely: the same key returns the same conversion.
+	IdempotencyKey *string `json:"idempotency_key,omitempty"`
+	// The tool's options. GET /openapi.json describes each tool's shape.
+	Options json.RawMessage `json:"options,omitempty"`
+	// Which conversion to run; GET /api/v1/tools lists them.
+	Tool string `json:"tool"`
+}
+
 type TokensStoreBody struct {
 	// What the key may do; GET /api/v1/abilities lists the accepted values.
 	Abilities []string `json:"abilities"`
@@ -306,6 +317,14 @@ func (c *Client) ConversionsIndex(ctx context.Context, query ConversionsIndexQue
 func (c *Client) ConversionsShow(ctx context.Context, id string) (ConversionView, error) {
 	var out ConversionView
 	err := c.do(ctx, "GET", "/api/v1/conversions/"+url.PathEscape(queryString(id)), nil, nil, &out)
+
+	return out, err
+}
+
+// ConversionsStore calls POST /api/v1/conversions: Submit a conversion.
+func (c *Client) ConversionsStore(ctx context.Context, body ConversionsStoreBody) (ConversionView, error) {
+	var out ConversionView
+	err := c.do(ctx, "POST", "/api/v1/conversions", nil, body, &out)
 
 	return out, err
 }

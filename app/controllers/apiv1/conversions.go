@@ -1,16 +1,24 @@
 package apiv1
 
 import (
+	"context"
 	"encoding/json"
+	"errors"
+	"net/http"
+	"slices"
 	"strconv"
 	"time"
 
 	"github.com/AlexGalhardo/vukem/auth"
+	"github.com/AlexGalhardo/vukem/database"
 	"github.com/AlexGalhardo/vukem/errs"
 	"github.com/AlexGalhardo/vukem/sse"
 	"github.com/AlexGalhardo/vukem/web"
+	"github.com/AlexGalhardo/vukem/z"
 
 	"github.com/AlexGalhardo/vukem-tools/app/models"
+	"github.com/AlexGalhardo/vukem-tools/internal/detect"
+	"github.com/AlexGalhardo/vukem-tools/internal/files"
 	"github.com/AlexGalhardo/vukem-tools/internal/jobs"
 )
 
@@ -18,12 +26,13 @@ import (
 type Conversions struct {
 	pipe  *jobs.Pipeline
 	store *jobs.Store
+	files *files.Store
 	hub   *sse.Hub
 }
 
 // NewConversions returns the conversion handlers.
-func NewConversions(pipe *jobs.Pipeline, store *jobs.Store, hub *sse.Hub) *Conversions {
-	return &Conversions{pipe: pipe, store: store, hub: hub}
+func NewConversions(pipe *jobs.Pipeline, store *jobs.Store, f *files.Store, hub *sse.Hub) *Conversions {
+	return &Conversions{pipe: pipe, store: store, files: f, hub: hub}
 }
 
 // ConversionView is one conversion as the API reports it.
@@ -84,6 +93,119 @@ func viewOf(c models.Conversion) ConversionView {
 	}
 
 	return v
+}
+
+// SubmitInput is the body of POST /api/v1/conversions.
+type SubmitInput struct {
+	// Tool names the conversion. GET /api/v1/tools lists the accepted
+	// values.
+	Tool string `json:"tool" validate:"required,trim,min=1,max=64" doc:"Which conversion to run; GET /api/v1/tools lists them."`
+	// FileID is an upload of this caller's that is not already attached to a
+	// conversion.
+	FileID string `json:"file_id" validate:"required,trim" doc:"The id of an upload of yours, from the resumable upload endpoint."`
+	// Options are the tool's own options. Each tool validates and normalises
+	// them, and what is stored is what the worker reads.
+	Options json.RawMessage `json:"options" doc:"The tool's options. GET /openapi.json describes each tool's shape."`
+	// IdempotencyKey makes a repeated submission return the first conversion
+	// instead of starting a second one. Scoped to the caller.
+	IdempotencyKey string `json:"idempotency_key" validate:"trim,max=128" doc:"Repeat a submission safely: the same key returns the same conversion."`
+}
+
+// Store submits a conversion: POST /api/v1/conversions.
+//
+// The input is attached and the conversion created in one transaction, so a
+// conversion whose input failed to attach never exists — a worker would
+// otherwise find nothing to read and fail it for a reason that is not the
+// caller's.
+func (h *Conversions) Store(c *web.Ctx, in SubmitInput) (ConversionView, error) {
+	userID, err := callerID(c)
+	if err != nil {
+		return ConversionView{}, err
+	}
+
+	tool, ok := h.pipe.Tool(in.Tool)
+	if !ok {
+		return ConversionView{}, z.FieldError("tool",
+			"Unknown tool. GET /api/v1/tools lists the accepted values.")
+	}
+
+	if err := requireAbility(c, tool.Ability()); err != nil {
+		return ConversionView{}, err
+	}
+
+	input, err := h.files.Find(c.Context(), userID, in.FileID)
+	if err != nil {
+		// Someone else's upload, or one that does not exist: the same answer
+		// either way, so an id cannot be probed.
+		return ConversionView{}, z.FieldError("file_id", "That upload does not exist.")
+	}
+
+	if accepter, ok := tool.(jobs.Accepter); ok && !slices.Contains(accepter.Accepted(), input.MIME) {
+		// Refused here rather than in the worker: the caller is still on the
+		// phone, and no worker has been spent on a file this tool cannot read.
+		kind, _ := detect.KindOf(input.MIME)
+		if kind.Label == "" {
+			kind.Label = input.MIME
+		}
+
+		return ConversionView{}, z.FieldError("file_id",
+			"That upload is "+kind.Label+", which this tool cannot read.")
+	}
+
+	created, _, err := h.pipe.Submit(c.Context(), jobs.Submission{
+		UserID:         userID,
+		Tool:           in.Tool,
+		Options:        in.Options,
+		IdempotencyKey: in.IdempotencyKey,
+		BytesIn:        input.SizeBytes,
+		Attach: func(ctx context.Context, ex database.Executor, conversionID string) error {
+			attached, err := h.files.AttachTx(ctx, ex, userID, in.FileID, conversionID)
+			if err != nil {
+				return err
+			}
+
+			if !attached {
+				// Already used by another conversion, or taken by a
+				// concurrent submission. Either way this conversion must not
+				// exist, so the transaction rolls back.
+				return errInputAlreadyUsed
+			}
+
+			return nil
+		},
+	})
+	if err != nil {
+		if errors.Is(err, errInputAlreadyUsed) {
+			return ConversionView{}, z.FieldError("file_id",
+				"That upload has already been converted. Upload it again to convert it twice.")
+		}
+
+		return ConversionView{}, err
+	}
+
+	return viewOf(created), nil
+}
+
+// errInputAlreadyUsed is returned from inside the submit transaction when the
+// upload is no longer available to attach, which rolls the transaction back.
+var errInputAlreadyUsed = errors.New("apiv1: the upload is already attached to a conversion")
+
+// requireAbility refuses a key that was not granted the tool's ability.
+//
+// A session has no abilities and is allowed everything the user is; an API key
+// lists what it may do, so a key minted for one tool cannot start another.
+func requireAbility(c *web.Ctx, ability string) error {
+	tok, ok := auth.CurrentToken(c, "api")
+	if !ok {
+		return nil
+	}
+
+	if !tok.Can(ability) {
+		return errs.NewKey(http.StatusForbidden, "conversion.ability",
+			"This key may not use that tool. It needs the "+ability+" ability.", nil)
+	}
+
+	return nil
 }
 
 // ConversionList is the answer to GET /api/v1/conversions.

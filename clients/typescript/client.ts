@@ -97,6 +97,15 @@ export type ConversionsIndexResponse = ConversionList;
 
 export type ConversionsShowResponse = ConversionView;
 
+export type ConversionsStoreBody = {
+  file_id: string;
+  idempotency_key?: string;
+  options?: unknown;
+  tool: string;
+};
+
+export type ConversionsStoreResponse = ConversionView;
+
 export type MeResponse = User;
 
 export type TokensDestroyResponse = void;
@@ -275,6 +284,11 @@ export interface Client {
   conversionsShow(args: { params: ConversionsShowParams }): Promise<ConversionsShowResponse>;
 
   /**
+   * POST /api/v1/conversions: Submit a conversion
+   */
+  conversionsStore(args: { body: ConversionsStoreBody }): Promise<ConversionsStoreResponse>;
+
+  /**
    * GET /api/v1/me: Show the authenticated account
    */
   me(): Promise<MeResponse>;
@@ -320,6 +334,7 @@ export function createClient(options: ClientOptions = {}): Client {
     conversionsErrors: () => request<ConversionsErrorsResponse>("GET", "/api/v1/conversion-errors"),
     conversionsIndex: (args) => request<ConversionsIndexResponse>("GET", "/api/v1/conversions", args),
     conversionsShow: (args) => request<ConversionsShowResponse>("GET", "/api/v1/conversions/{id}", args),
+    conversionsStore: (args) => request<ConversionsStoreResponse>("POST", "/api/v1/conversions", args),
     me: () => request<MeResponse>("GET", "/api/v1/me"),
     tokensDestroy: () => request<TokensDestroyResponse>("DELETE", "/api/v1/tokens/current"),
     tokensIndex: () => request<TokensIndexResponse>("GET", "/api/v1/tokens"),

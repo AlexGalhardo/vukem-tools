@@ -37,6 +37,27 @@ type Work struct {
 	Report func(Step) error
 }
 
+// OptionsValidator is implemented by a tool that has options.
+//
+// It is called when a conversion is submitted and the normalised result is
+// what gets stored, so the worker reads exactly the options that were
+// validated rather than something close to them. A tool without options does
+// not implement it and its conversions store "{}".
+type OptionsValidator interface {
+	// ValidateOptions checks raw and returns it normalised. The error should
+	// be a z validation error, so the API answers 422 on the right field.
+	ValidateOptions(raw json.RawMessage) (json.RawMessage, error)
+}
+
+// Accepter is implemented by a tool that reads only certain file types. The
+// upload endpoint accepts everything the service knows, so this is what
+// refuses a file to a tool that cannot read it — at submission, before a
+// worker is spent on it.
+type Accepter interface {
+	// Accepted returns the MIME types the tool reads.
+	Accepted() []string
+}
+
 // Tool converts one kind of input. One per entry on the tools page.
 type Tool interface {
 	// Name is the stable tool id stored on every conversion, e.g.
@@ -159,6 +180,15 @@ func (p *Pipeline) Submit(ctx context.Context, in Submission) (models.Conversion
 		return models.Conversion{}, false, fmt.Errorf("%w: %q", ErrUnknownTool, in.Tool)
 	}
 
+	if v, ok := tool.(OptionsValidator); ok {
+		normalised, err := v.ValidateOptions(in.Options)
+		if err != nil {
+			return models.Conversion{}, false, err
+		}
+
+		in.Options = normalised
+	}
+
 	if in.IdempotencyKey != "" {
 		existing, err := p.store.ByIdempotencyKey(ctx, in.UserID, in.IdempotencyKey)
 		if err == nil {
@@ -184,6 +214,12 @@ func (p *Pipeline) Submit(ctx context.Context, in Submission) (models.Conversion
 		}
 
 		created = c
+
+		if in.Attach != nil {
+			if err := in.Attach(ctx, tx, c.ID); err != nil {
+				return err
+			}
+		}
 
 		return q.DispatchTx(ctx, tx, message{ConversionID: c.ID},
 			queue.Retries(maxAttempts-1),

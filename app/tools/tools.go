@@ -7,13 +7,14 @@
 // and fuzzed without a queue, a database or an HTTP request.
 package tools
 
-import "github.com/AlexGalhardo/vukem-tools/internal/jobs"
+import (
+	"github.com/AlexGalhardo/vukem-tools/internal/files"
+	"github.com/AlexGalhardo/vukem-tools/internal/jobs"
+)
 
 // All returns every registered tool. Adding one here is what makes it
 // submittable, listed by GET /api/v1/tools and described in the OpenAPI
 // document.
-//
-// It is empty until the upload and storage path exists: a tool needs somewhere
-// to read its input from and somewhere to put its result, and the web service
-// and the worker do not share a filesystem (phase S1.7).
-func All() []jobs.Tool { return nil }
+func All(f *files.Store) []jobs.Tool {
+	return []jobs.Tool{NewPixelSVG(f)}
+}

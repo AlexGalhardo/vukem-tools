@@ -171,13 +171,19 @@ func (c *Conversions) build(app *vukem.App) error {
 		root = defaultWorkRoot
 	}
 
+	// The file store comes before the pipeline: every tool reads its input
+	// and writes its result through it.
+	if err := c.buildFiles(app, ttl); err != nil {
+		return err
+	}
+
 	c.pipe, err = jobs.NewPipeline(jobs.PipelineOptions{
 		Store: c.store,
 		// Resolved on demand: app.Queue() asks for the job registrations,
 		// which ask for this pipeline, so resolving it here would be a
 		// circular build.
 		Queue:    app.Queue,
-		Tools:    tools.All(),
+		Tools:    tools.All(c.files),
 		WorkRoot: root,
 		Log:      app.Log,
 		Now:      app.Now,
@@ -192,11 +198,8 @@ func (c *Conversions) build(app *vukem.App) error {
 		Log:   app.Log,
 		Now:   app.Now,
 	})
-	if err != nil {
-		return err
-	}
 
-	return c.buildFiles(app, ttl)
+	return err
 }
 
 // buildFiles wires the file store: the bucket, the signer for download links,

@@ -305,11 +305,21 @@ func (s *Store) ForConversion(ctx context.Context, conversionID, role string) ([
 // attach rather than quietly sharing one file between two conversions whose
 // lifetimes then disagree.
 func (s *Store) Attach(ctx context.Context, userID, fileID, conversionID string) (bool, error) {
+	return s.AttachTx(ctx, s.db, userID, fileID, conversionID)
+}
+
+// AttachTx is Attach through a given executor, so the attach and the
+// conversion that needs it commit together.
+func (s *Store) AttachTx(
+	ctx context.Context,
+	ex database.Executor,
+	userID, fileID, conversionID string,
+) (bool, error) {
 	if !ids.Valid(fileID) || !ids.Valid(conversionID) {
 		return false, ErrNotFound
 	}
 
-	n, err := orm.QueryOf[models.File](s.db).
+	n, err := orm.QueryOf[models.File](ex).
 		Where("user_id", userID).
 		Where("id", fileID).
 		Where("role", models.FileInput).

@@ -87,6 +87,13 @@ type Submission struct {
 	IdempotencyKey string
 	// BytesIn is the size of the input, for the quota and for the UI.
 	BytesIn int64
+	// Attach runs inside the transaction that creates the conversion, after
+	// the row exists and before the queue message is sent. It is how an
+	// uploaded input is bound to the conversion atomically: a conversion
+	// whose input failed to attach must not exist at all, because a worker
+	// would find nothing to read and fail it for a reason that is not the
+	// user's.
+	Attach func(ctx context.Context, ex database.Executor, conversionID string) error
 }
 
 // Create inserts a pending conversion and returns it. ex is the executor to

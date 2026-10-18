@@ -47,13 +47,16 @@ func Conversions(c *services.Conversions) func(r *router.Router, app *vukem.App)
 			return err
 		}
 
-		h := apiv1.NewConversions(c.Pipeline(), c.Store(), c.Hub())
+		h := apiv1.NewConversions(c.Pipeline(), c.Store(), c.Files(), c.Hub())
 
 		perIP := ratelimit.Middleware(limiters("api.ip", 120, time.Minute), ratelimit.ByIP)
 		perToken := ratelimit.Middleware(limiters("api.token", 60, time.Minute), ratelimit.ByToken)
 		// A stream costs a connection and a database listener for as long as
 		// it is open, so opening them is limited harder than reading a row.
 		openStream := ratelimit.Middleware(limiters("api.stream", 20, time.Minute), ratelimit.ByToken)
+		// Starting work is limited harder than reading about it: a conversion
+		// costs CPU, and the quota in S1.8 is the budget, not the brake.
+		submit := ratelimit.Middleware(limiters("api.submit", 30, time.Minute), ratelimit.ByToken)
 
 		r.Group("/api/v1", func(g *router.Group) {
 			g.Use(middleware.JSONOnly(), httpx.AcceptAPIKeyHeader, perIP)
@@ -79,6 +82,16 @@ func Conversions(c *services.Conversions) func(r *router.Router, app *vukem.App)
 
 			g.Group("", func(p *router.Group) {
 				p.Use(auth.Required(acc.API), perToken)
+
+				api.Register(p, "POST /conversions", api.Op{
+					Name:    "conversions.store",
+					Summary: "Submit a conversion",
+					Description: "Runs a tool over an upload of yours. The upload and the conversion " +
+						"are bound in one transaction, so a conversion always has its input. Send an " +
+						"idempotency_key to make a retry safe.",
+					Tags:     []string{tagConversions},
+					Security: []string{SchemeBearer},
+				}, h.Store).Use(submit)
 
 				api.Register(p, "GET /conversions", api.Op{
 					Name:        "conversions.index",

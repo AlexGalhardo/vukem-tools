@@ -130,10 +130,14 @@ type MediaView struct {
 	Duration  float64 `json:"duration_seconds" doc:"How long it is."`
 	// EstimatedBytes is what the size cap is checked against before the
 	// download starts, so a client can show the refusal before submitting.
-	EstimatedBytes int64         `json:"estimated_bytes" doc:"The expected download size. The cap is checked against this."`
-	MaxBytes       int64         `json:"max_bytes"       doc:"The largest download this server allows."`
-	TooLarge       bool          `json:"too_large"       doc:"Whether the estimate is already past the cap."`
-	Formats        []MediaFormat `json:"formats"         doc:"Every stream the platform offers."`
+	EstimatedBytes int64 `json:"estimated_bytes" doc:"The expected size at best quality. The cap is checked against this for quality=best."`
+	// SmallestBytes is the same figure for quality=smallest. The two differ
+	// by more than an order of magnitude, so a client showing "too large"
+	// has to know which one applies to the request it is about to make.
+	SmallestBytes int64         `json:"smallest_bytes" doc:"The expected size at quality=smallest, 0 when the platform declares none."`
+	MaxBytes      int64         `json:"max_bytes"      doc:"The largest download this server allows."`
+	TooLarge      bool          `json:"too_large"      doc:"Whether even the smallest stream is past the cap."`
+	Formats       []MediaFormat `json:"formats"        doc:"Every stream the platform offers."`
 }
 
 // DownloadMetadata reports what a platform says about a URL:
@@ -181,11 +185,15 @@ func (h *Conversions) DownloadMetadata(c *web.Ctx, in MediaProbe) (MediaView, er
 		Thumbnail:      media.Thumbnail,
 		Duration:       media.Duration,
 		EstimatedBytes: media.EstimatedBytes,
+		SmallestBytes:  media.SmallestBytes,
 		MaxBytes:       tool.MaxBytes(),
 		Formats:        make([]MediaFormat, 0, len(media.Formats)),
 	}
 
-	view.TooLarge = view.MaxBytes > 0 && view.EstimatedBytes > view.MaxBytes
+	// too_large only when *nothing* fits: a 4K video past the cap is still
+	// downloadable at a smaller quality, and reporting it as too large would
+	// hide that.
+	view.TooLarge = view.MaxBytes > 0 && media.EstimateFor(downloader.QualitySmallest) > view.MaxBytes
 
 	for i := range media.Formats {
 		f := media.Formats[i]

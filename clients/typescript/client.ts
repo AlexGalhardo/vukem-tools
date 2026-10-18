@@ -94,6 +94,7 @@ export type MediaView = {
   formats?: MediaFormat[];
   max_bytes?: number;
   platform?: string;
+  smallest_bytes?: number;
   thumbnail?: string;
   title?: string;
   too_large?: boolean;

@@ -558,3 +558,172 @@ func TestADownloaderNeedsARunnerAndABinary(t *testing.T) {
 		t.Error("a downloader was built without yt-dlp")
 	}
 }
+
+func TestTheEstimateDependsOnTheQualityBeingAskedFor(t *testing.T) {
+	t.Parallel()
+
+	// A 4K video: the best stream is three orders of magnitude larger than
+	// the smallest pre-muxed one. Checking a `smallest` request against the
+	// 4K figure refuses a download that comfortably fits, which users report
+	// as "it says the video is too large and it is not".
+	runner := &fakeRunner{stdout: `{
+		"title": "Big Buck Bunny 4K",
+		"duration": 635,
+		"formats": [
+			{"format_id":"18","ext":"mp4","vcodec":"avc1","acodec":"mp4a","filesize":5000000,"tbr":500},
+			{"format_id":"22","ext":"mp4","vcodec":"avc1","acodec":"mp4a","filesize":40000000,"tbr":1200},
+			{"format_id":"315","ext":"mp4","vcodec":"vp9","acodec":"none","filesize":700000000,"tbr":20000}
+		]
+	}`}
+
+	d := newDownloader(t, runner, downloader.Options{})
+
+	media, err := d.Metadata(t.Context(), t.TempDir(), "https://youtu.be/abc")
+	if err != nil {
+		t.Fatalf("metadata: %v", err)
+	}
+
+	if media.EstimatedBytes != 700_000_000 {
+		t.Errorf("best estimate %d, want the largest stream", media.EstimatedBytes)
+	}
+
+	// The video-only 4K stream is not a candidate for "smallest": the
+	// selector wants picture and sound.
+	if media.SmallestBytes != 5_000_000 {
+		t.Errorf("smallest estimate %d, want the smallest pre-muxed stream", media.SmallestBytes)
+	}
+
+	if got := media.EstimateFor(downloader.QualityBest); got != 700_000_000 {
+		t.Errorf("EstimateFor(best) = %d", got)
+	}
+
+	if got := media.EstimateFor(downloader.QualitySmallest); got != 5_000_000 {
+		t.Errorf("EstimateFor(smallest) = %d", got)
+	}
+}
+
+func TestASmallestDownloadIsNotRefusedBecauseThe4KStreamIsLarge(t *testing.T) {
+	t.Parallel()
+
+	runner := &fakeRunner{files: map[string]int{"download.mp4": 4 << 20}}
+	d := newDownloader(t, runner, downloader.Options{MaxBytes: 100 << 20})
+
+	media := downloader.Media{EstimatedBytes: 700 << 20, SmallestBytes: 5 << 20}
+
+	if _, err := d.Download(t.Context(), downloader.Request{
+		URL:      "https://youtu.be/abc",
+		Dir:      t.TempDir(),
+		Kind:     downloader.KindVideo,
+		Quality:  downloader.QualitySmallest,
+		Estimate: media.EstimateFor(downloader.QualitySmallest),
+	}); err != nil {
+		t.Fatalf("a download that fits was refused: %v", err)
+	}
+
+	// The best-quality request against the same video is still refused.
+	_, err := d.Download(t.Context(), downloader.Request{
+		URL:      "https://youtu.be/abc",
+		Dir:      t.TempDir(),
+		Kind:     downloader.KindVideo,
+		Quality:  downloader.QualityBest,
+		Estimate: media.EstimateFor(downloader.QualityBest),
+	})
+
+	if failure := downloader.Classify(err); failure == nil || failure.Reason != downloader.ReasonTooLarge {
+		t.Fatalf("error %v, want too_large for the best-quality request", err)
+	}
+}
+
+func TestTheSmallestEstimateIgnoresFormatsWithNoDeclaredSize(t *testing.T) {
+	t.Parallel()
+
+	// A format with no size would otherwise be estimated from the *highest*
+	// bitrate on offer, which would make the "smallest" figure the largest
+	// one. Zero is the honest answer, and EstimateFor then falls back to the
+	// best-quality figure, which is the safe direction.
+	runner := &fakeRunner{stdout: `{
+		"title": "No sizes on the muxed formats",
+		"duration": 100,
+		"tbr": 800,
+		"formats": [{"format_id":"18","ext":"mp4","vcodec":"avc1","acodec":"mp4a","tbr":500}]
+	}`}
+
+	d := newDownloader(t, runner, downloader.Options{})
+
+	media, err := d.Metadata(t.Context(), t.TempDir(), "https://youtu.be/abc")
+	if err != nil {
+		t.Fatalf("metadata: %v", err)
+	}
+
+	if media.SmallestBytes != 0 {
+		t.Errorf("smallest estimate %d, want 0 when nothing declares a size", media.SmallestBytes)
+	}
+
+	if media.EstimateFor(downloader.QualitySmallest) != media.EstimatedBytes {
+		t.Error("EstimateFor(smallest) did not fall back to the best-quality figure")
+	}
+}
+
+func TestADownloadAsksYtDlpToPrintProgressDespiteQuietMode(t *testing.T) {
+	t.Parallel()
+
+	// yt-dlp's --quiet suppresses the progress template, and --progress is
+	// documented as "show progress bar, even if in quiet mode". Without both
+	// the download still succeeds and no progress line is ever emitted, so
+	// the user watches a bar that never moves — a silent failure a fake
+	// runner cannot catch, which is why it is pinned here.
+	runner := &fakeRunner{files: map[string]int{"download.mp4": 1024}}
+	d := newDownloader(t, runner, downloader.Options{})
+
+	if _, err := d.Download(t.Context(), downloader.Request{
+		URL:  "https://youtu.be/abc",
+		Dir:  t.TempDir(),
+		Kind: downloader.KindVideo,
+	}); err != nil {
+		t.Fatalf("download: %v", err)
+	}
+
+	args := runner.last(t)
+
+	for _, want := range []string{"--progress", "--newline", "--progress-template"} {
+		if !slices.Contains(args, want) {
+			t.Errorf("%s is missing, so progress would be silent: %v", want, args)
+		}
+	}
+
+	// The template has to be the one the parser understands.
+	template, ok := argValue(args, "--progress-template")
+	if !ok {
+		t.Fatal("no progress template")
+	}
+
+	if !strings.HasPrefix(template, "download:{") {
+		t.Errorf("the template is not a download-scoped JSON object: %q", template)
+	}
+
+	// Round-trip: a line rendered from this template must parse. The field
+	// names in the template and the ones ParseProgress reads are the one
+	// thing that can silently disagree.
+	rendered := strings.Replace(template, "download:", "", 1)
+	for placeholder, value := range map[string]string{
+		"%(progress.status)s":               "downloading",
+		"%(progress.downloaded_bytes)s":     "512",
+		"%(progress.total_bytes)s":          "1024",
+		"%(progress.total_bytes_estimate)s": "NA",
+	} {
+		rendered = strings.ReplaceAll(rendered, placeholder, value)
+	}
+
+	if strings.Contains(rendered, "%(") {
+		t.Fatalf("the template holds a field this test does not substitute: %q", rendered)
+	}
+
+	progress, parsed := downloader.ParseProgress(rendered)
+	if !parsed {
+		t.Fatalf("a line rendered from the template does not parse: %q", rendered)
+	}
+
+	if progress.Percent() != 50 {
+		t.Errorf("the round-tripped line reports %d%%, want 50%%", progress.Percent())
+	}
+}

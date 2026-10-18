@@ -154,12 +154,30 @@ type Media struct {
 	Uploader  string  `json:"uploader"`
 	Thumbnail string  `json:"thumbnail"`
 	Duration  float64 `json:"duration_seconds"`
-	// EstimatedBytes is the best available guess at the download size: the
-	// platform's own figure when it gives one, and duration times bitrate
-	// when it does not. It is what the size cap is checked against before
-	// any bytes are fetched.
-	EstimatedBytes int64    `json:"estimated_bytes"`
-	Formats        []Format `json:"formats"`
+	// EstimatedBytes is the best available guess at the size of a
+	// best-quality download: the platform's own figure when it gives one,
+	// and duration times bitrate when it does not.
+	EstimatedBytes int64 `json:"estimated_bytes"`
+	// SmallestBytes is the same guess for the smallest stream that still
+	// carries picture and sound.
+	//
+	// It exists because the two differ by more than an order of magnitude —
+	// Big Buck Bunny is 690 MB at 4K and a few megabytes at its lowest
+	// format — so checking a `smallest` request against the 4K figure would
+	// refuse a download that comfortably fits. The cap has to be accurate,
+	// not merely safe: refusing work that would have succeeded is a bug
+	// users report as "it says the video is too large and it is not".
+	SmallestBytes int64    `json:"smallest_bytes"`
+	Formats       []Format `json:"formats"`
+}
+
+// EstimateFor is the size to check the cap against for a given quality.
+func (m Media) EstimateFor(q Quality) int64 {
+	if q == QualitySmallest && m.SmallestBytes > 0 {
+		return m.SmallestBytes
+	}
+
+	return m.EstimatedBytes
 }
 
 // probePayload is the part of yt-dlp's -J output this service reads.
@@ -245,6 +263,7 @@ func mediaOf(platform Platform, p probePayload) Media {
 		Thumbnail:      p.Thumbnail,
 		Duration:       p.Duration,
 		EstimatedBytes: estimateBytes(p),
+		SmallestBytes:  smallestBytes(p),
 		Formats:        make([]Format, 0, len(p.Formats)),
 	}
 
@@ -297,6 +316,44 @@ func estimateBytes(p probePayload) int64 {
 
 	// tbr is in kilobits per second, so a kilobit is 125 bytes.
 	return int64(bitrate * p.Duration * 125)
+}
+
+// smallestBytes is the size of the smallest stream that carries both picture
+// and sound, or the smallest of anything when none does.
+//
+// Only declared sizes are considered: a format with no size is skipped rather
+// than estimated, because the arithmetic fallback uses the *highest* bitrate
+// on offer and would therefore make the "smallest" figure the largest one.
+// Zero means nothing could be measured, and EstimateFor then falls back to
+// the best-quality figure, which is the safe direction.
+func smallestBytes(p probePayload) int64 {
+	var (
+		smallest int64
+		found    bool
+	)
+
+	for i := range p.Formats {
+		f := p.Formats[i]
+
+		size := max(f.FileSize, f.FileSizeApprox)
+		if size <= 0 {
+			continue
+		}
+
+		// A pre-muxed format, which is what the `smallest` selector prefers:
+		// "none" is what yt-dlp reports for an absent stream.
+		muxed := f.VideoCodec != "" && f.VideoCodec != "none" &&
+			f.AudioCodec != "" && f.AudioCodec != "none"
+		if !muxed {
+			continue
+		}
+
+		if !found || size < smallest {
+			smallest, found = size, true
+		}
+	}
+
+	return smallest
 }
 
 // Kind is what to keep from a video.
@@ -387,8 +444,20 @@ func (d *Downloader) Download(ctx context.Context, in Request) (Result, error) {
 	}
 
 	args := append(d.commonArgs(platform), d.formatArgs(in.Kind, in.Quality)...)
-	args = append(args, "--newline", "--progress-template", progressTemplate,
-		"-o", outputTemplate, "--", in.URL)
+	args = append(args,
+		// --newline makes each update its own line instead of a redraw, and
+		// --progress is not optional next to the --quiet in commonArgs:
+		// yt-dlp documents it as "show progress bar, even if in quiet mode",
+		// and without it --quiet suppresses the progress template entirely.
+		// That failure is silent — the download succeeds and the user watches
+		// a bar that never moves — so it is worth the one argument and the
+		// test that pins it.
+		"--newline",
+		"--progress",
+		"--progress-template", progressTemplate,
+		"-o", outputTemplate,
+		"--", in.URL,
+	)
 
 	result, err := d.run.Run(ctx, engine.Command{
 		Path:     d.binary,

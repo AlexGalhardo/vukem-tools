@@ -530,11 +530,15 @@ func (t *VideoDownload) fetch(
 	var reportErr error
 
 	result, err := t.down.Download(ctx, downloader.Request{
-		URL:      opts.URL,
-		Dir:      w.Dir,
-		Kind:     downloader.Kind(opts.Kind),
-		Quality:  downloader.Quality(opts.Quality),
-		Estimate: media.EstimatedBytes,
+		URL:     opts.URL,
+		Dir:     w.Dir,
+		Kind:    downloader.Kind(opts.Kind),
+		Quality: downloader.Quality(opts.Quality),
+		// The estimate that matches the quality being asked for, not the
+		// best-quality one: the two differ by more than an order of
+		// magnitude, and checking a `smallest` request against the 4K figure
+		// refuses a download that comfortably fits.
+		Estimate: media.EstimateFor(downloader.Quality(opts.Quality)),
 		Progress: func(p downloader.Progress) {
 			if reportErr != nil {
 				return

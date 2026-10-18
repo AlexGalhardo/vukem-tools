@@ -282,7 +282,7 @@ type MediaFormat struct {
 type MediaView struct {
 	// How long it is.
 	DurationSeconds *float64 `json:"duration_seconds,omitempty"`
-	// The expected download size. The cap is checked against this.
+	// The expected size at best quality. The cap is checked against this for quality=best.
 	EstimatedBytes *int64 `json:"estimated_bytes,omitempty"`
 	// Every stream the platform offers.
 	Formats []MediaFormat `json:"formats,omitempty"`
@@ -290,11 +290,13 @@ type MediaView struct {
 	MaxBytes *int64 `json:"max_bytes,omitempty"`
 	// youtube, instagram, x or tiktok.
 	Platform *string `json:"platform,omitempty"`
+	// The expected size at quality=smallest, 0 when the platform declares none.
+	SmallestBytes *int64 `json:"smallest_bytes,omitempty"`
 	// A link to the platform's own thumbnail.
 	Thumbnail *string `json:"thumbnail,omitempty"`
 	// The video's title, as the platform gives it.
 	Title *string `json:"title,omitempty"`
-	// Whether the estimate is already past the cap.
+	// Whether even the smallest stream is past the cap.
 	TooLarge *bool `json:"too_large,omitempty"`
 	// Who posted it.
 	Uploader *string `json:"uploader,omitempty"`

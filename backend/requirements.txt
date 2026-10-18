@@ -1,4 +1,4 @@
-fastapi==0.141.1
+fastapi==0.143.1
 uvicorn[standard]==0.54.0
 # yt-dlp acompanha as mudanças das plataformas: extração quebrada em produção = bump + redeploy.
 yt-dlp==2026.8.19

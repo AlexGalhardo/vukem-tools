@@ -572,78 +572,158 @@ Target version: `v0.3.0`.
 
 ### S3.1 Video download
 
-- [ ] `internal/downloader` driving yt-dlp
-  - [ ] Platform detection for YouTube, Instagram, X and TikTok from the URL, with a restricted
+- [x] `internal/downloader` driving yt-dlp
+  - [x] Platform detection for YouTube, Instagram, X and TikTok from the URL, with a restricted
         extractor set per platform; the `generic` extractor is never enabled
-  - [ ] Metadata endpoint: title, uploader, duration, thumbnail, available formats, estimated size
-  - [ ] Download MP4 (best or smallest) or MP3, optionally compressed afterwards, delivering
+  - [x] Metadata endpoint: title, uploader, duration, thumbnail, available formats, estimated size
+  - [x] Download MP4 (best or smallest) or MP3, optionally compressed afterwards, delivering
         whichever file is smaller and reporting the saving
-  - [ ] Clips mode: consecutive segments of at most 60 seconds, downloadable individually or as a
+  - [x] Clips mode: consecutive segments of at most 60 seconds, downloadable individually or as a
         `.zip`
-  - [ ] Progress parsed from yt-dlp's structured output, mapped onto the job's phase and percentage
-  - [ ] Cookie file, PO-token provider and sleep/retry settings all configurable, and their
+  - [x] Progress parsed from yt-dlp's structured output, mapped onto the job's phase and percentage
+  - [x] Cookie file, PO-token provider and sleep/retry settings all configurable, and their
         absence degraded gracefully rather than crashing
-  - [ ] The size cap enforced from the estimate before the download starts, and again on the
+  - [x] The size cap enforced from the estimate before the download starts, and again on the
         finished file
-- [ ] Errors explained in plain English, mapped from the taxonomy: out of memory, disk full,
+- [x] Errors explained in plain English, mapped from the taxonomy: out of memory, disk full,
       platform block, unsupported URL, age-restricted, private, too large
 
 #### Quality asserts
 
-- Every error type reachable in a test with a fixture, including the platform-block path
-- A download of a known public video produces a playable file whose duration matches the metadata
-- Clips are at most 60 seconds and the `.zip` entry count matches the reported clip count
-- Cancelling a download kills yt-dlp and ffmpeg and leaves no temporary file behind
-- yt-dlp's version is logged at startup and surfaced on the deep readiness check
-- The README states that downloading may breach a platform's terms of service and that the user is
-  responsible
+- [x] Every error type reachable in a test with a fixture, including the platform-block path
+      (`go test ./internal/downloader/`: `TestEveryErrorTypeIsReachableFromAFixture` and
+      `TestEveryReasonTheRoadmapNamesHasAFixture`; and through the taxonomy in
+      `go test ./app/tools/`: `TestEveryDownloadFailureReachesTheUserAsItsOwnSentence`)
+- [x] A download of a known public video produces a playable file whose duration matches the
+      metadata (`VUKEM_TOOLS_NETWORK_TESTS=1 go test -run TestARealDownload ./internal/downloader/`
+      gives a 634.7 s file against 635.0 s of metadata, with 696 progress updates ending at 100 %).
+      The test is opt-in: it depends on a platform that deliberately tries to stop it
+      (`docs/web-research.md` section 4.3) and it fetches somebody else's copyrighted video, so on
+      every CI build it would be a test that fails for reasons nobody can fix.
+- [x] Clips are at most 60 seconds and the `.zip` entry count matches the reported clip count
+      (`go test ./internal/editor/`: `TestEveryClipIsAtMostTheSegmentLengthEvenWithSparseKeyframes`
+      against the real ffmpeg, and `TestAnOverrunningCopiedSplitIsRedoneWithForcedKeyframes`;
+      `go test ./app/tools/`: `TestTheZipHoldsOneEntryPerClip`)
+- [ ] Cancelling a download kills yt-dlp and ffmpeg and leaves no temporary file behind.
+      **Partly proven, so left unticked.** The process-group kill is covered by
+      `internal/engine`'s `TestKillingTheEngineKillsItsChildren`, which only works on Linux and
+      passes in the image (`docs/deployment.md`, "Verifying the image"), and the working directory
+      is removed by the defer in `jobs.Pipeline.execute`, which also runs on a panic. What is not
+      asserted is the path end to end: cancelling a live yt-dlp that has already started ffmpeg,
+      then checking the directory is empty. That needs a queued conversion and a real download, so
+      it belongs with an integration suite rather than a unit test.
+- [ ] yt-dlp's version is logged at startup and surfaced on the deep readiness check.
+      **Half met, so left unticked.** Logged at startup: yes, `engine.Registry.Log` prints
+      `engine resolved engine=yt-dlp version=2026.08.19`. Surfaced on the deep check: no.
+      `Health.engineCheck` reports only which engines are *missing*. `engine.Registry.Versions()`
+      already exists and its own doc comment says it is "for the health probe", but
+      `app/controllers/health.go` never calls it. The versions are available today on
+      `GET /api/v1/capabilities` (authenticated). Closing this means extending `engineCheck`,
+      which is in a shared file that no domain owns.
+- [x] The README states that downloading may breach a platform's terms of service and that the user
+      is responsible (README, "Downloading from a platform")
 
 ### S3.2 Cut and crop
 
-- [ ] `internal/editor` driving ffmpeg
-  - [ ] Trim by time, with `-c copy` when the cut lands on keyframes and a re-encode when frame
+- [x] `internal/editor` driving ffmpeg
+  - [x] Trim by time, with `-c copy` when the cut lands on keyframes and a re-encode when frame
         accuracy is requested
-  - [ ] Crop by area, validated against the real stream dimensions from ffprobe
-  - [ ] A maximum output duration, enforced before work starts
-  - [ ] Capabilities endpoint reporting which engines are actually present
+  - [x] Crop by area, validated against the real stream dimensions from ffprobe
+  - [x] A maximum output duration, enforced before work starts
+  - [x] Capabilities endpoint reporting which engines are actually present
+        (`GET /api/v1/capabilities`, behind the API guard: it reports each engine's exact version,
+        which is this deployment's CVE surface and not something to hand an anonymous caller)
 
 #### Quality asserts
 
-- A trim with `-c copy` finishes in a fraction of the re-encode time, both recorded in a benchmark
-- A crop beyond the stream's dimensions is refused with a message naming the real dimensions
-- Output duration and resolution are asserted with ffprobe in tests, not eyeballed
+- [x] A trim with `-c copy` finishes in a fraction of the re-encode time, both recorded in a
+      benchmark: **235 ms/op against 2 643 ms/op**, so the copy is 8.9 % of the re-encode, measured
+      in the image on 2 CPUs. Commands and figures in `docs/benchmarks.md`, "Trim: copy against
+      re-encode".
+- [x] A crop beyond the stream's dimensions is refused with a message naming the real dimensions
+      (`go test ./internal/editor/`: `TestACropBeyondTheStreamIsRefusedWithTheRealDimensions`, and
+      `TestACropBeyondTheRealStreamIsRefusedByTheRealProbe` against the real ffprobe)
+- [x] Output duration and resolution are asserted with ffprobe in tests, not eyeballed
+      (`TestATrimProducesTheDurationThatWasAskedFor`,
+      `TestAFrameAccurateTrimProducesTheDurationThatWasAskedFor`,
+      `TestACropProducesTheResolutionThatWasAskedFor`)
 
 ### S3.3 Compression
 
-- [ ] `internal/compressor`
-  - [ ] Video to MP4 H.264 CRF 28 + AAC 128k; audio to MP3 128k
-  - [ ] PDF through Ghostscript, images resampled to roughly 150 dpi
-  - [ ] When the result is not smaller, return the original unchanged and say so
-  - [ ] Report the saving in MB and as a percentage
-- [ ] Ghostscript pinned and declared on `/licenses` as AGPL-3.0
+- [x] `internal/compressor`
+  - [x] Video to MP4 H.264 CRF 28 + AAC 128k; audio to MP3 128k
+  - [x] PDF through Ghostscript, images resampled to roughly 150 dpi (the `pdf-compress` tool
+        itself belongs to the PDF domain; this is the engine behind it)
+  - [x] When the result is not smaller, return the original unchanged and say so
+  - [x] Report the saving in MB and as a percentage
+- [x] Ghostscript pinned and declared on `/licenses` as AGPL-3.0 (already pinned to
+      `10.05.1~dfsg-1+deb13u3` in the Dockerfile and declared `AGPL-3.0-or-later` with
+      `Copyleft: true` in `app/licenses/licenses.go`; verified, nothing needed adding)
 
 #### Quality asserts
 
-- A file that cannot be made smaller is reported as such and leaves no artefact behind
-- The reported MB and percentage match the real byte sizes in a test
-- A malicious PDF fixture neither escapes the job's working directory nor outlives the timeout
+- [x] A file that cannot be made smaller is reported as such and leaves no artefact behind
+      (`go test ./internal/compressor/`:
+      `TestAFileThatCannotBeMadeSmallerIsReportedAsSuchAndLeavesNoArtefact` and
+      `TestACandidateTheSameSizeIsNotKept`, since equal is not smaller)
+- [x] The reported MB and percentage match the real byte sizes in a test
+      (`TestVideoCompressionReportsTheRealSaving`, and against the real Ghostscript in
+      `TestARealPDFIsCompressedAndTheFiguresAreTheRealByteSizes`: 708 119 bytes down to 105 328,
+      85.1 %, checked against `os.Stat` of the file actually delivered)
+- [x] A malicious PDF fixture neither escapes the job's working directory nor outlives the timeout
+      (`TestAHostileDocumentCannotWriteOutsideTheJobDirectory` and
+      `TestAnEndlessDocumentIsStoppedByTheTimeout`, both against the real Ghostscript in the
+      image). **This assert found a real escape.** Ghostscript's `-dSAFER` permits writing to the
+      temp directory, and `TMPDIR` defaults to `/tmp`, so a hostile PostScript program wrote
+      `/tmp/elsewhere/escaped.txt` while Ghostscript reported success. `engine.Runner` now sets
+      `TMPDIR`, `TEMP` and `TMP` to the job's own directory, which closes it for every engine
+      rather than for Ghostscript alone; the same document is then refused with
+      `/invalidfileaccess`.
 
 ### S3.4 Telegram bot
 
-- [ ] `cmd/bot` on vukem's Telegram support
-  - [ ] Paste a URL, choose format and quality, receive the file
-  - [ ] Clips delivered as separate videos
-  - [ ] An allow-list of user IDs, fail-closed, including updates with no sender
-  - [ ] A status command reporting the bot and API deploy targets
-  - [ ] Errors in the same plain English as the web UI, from the same taxonomy
-  - [ ] Talks to the API over HTTP with an API key that carries only the abilities it needs
+- [x] `cmd/bot`, with the conversation in `internal/bot`. Note on "vukem's Telegram support":
+      `vukem/logging/telegram` is a `log/slog` handler that pushes log records to a chat, not a Bot
+      API client. There is no `getUpdates`, no keyboard and no file send in the framework, so the
+      Bot API client is hand-rolled in `internal/bot/telegram.go` over `net/http`. See the
+      framework feedback.
+  - [x] Paste a URL, choose format and quality, receive the file
+  - [x] Clips delivered as separate videos (the `.zip` the web interface also produces is skipped:
+        in a chat the separate videos are what anybody wants, and sending both uploads everything
+        twice)
+  - [x] An allow-list of user IDs, fail-closed, including updates with no sender
+  - [x] A status command reporting the bot and API deploy targets (the API's own target is read off
+        the `X-Deploy-Target` response header, which the generated client does not expose, so a
+        transport captures it)
+  - [x] Errors in the same plain English as the web UI, from the same taxonomy — the bot shows the
+        API's `error_message` and problem-document details rather than wording anything itself
+  - [x] Talks to the API over HTTP with an API key that carries only the abilities it needs
+        (`video:download`, and nothing else)
 
 #### Quality asserts
 
-- A scripted conversation covers a download, clips, an error and the status command, end to end
-- A user outside the allow-list is refused, and the refusal is asserted in a test
-- `go test -race ./cmd/bot/...` green with the Telegram API stubbed
-- The bot's API key has no ability it does not use, asserted against the route table
+- [x] A scripted conversation covers a download, clips, an error and the status command, end to end
+      (`go test -race ./internal/bot/`: `TestAScriptedConversationCoversADownloadEndToEnd`,
+      `TestAScriptedConversationDeliversClipsAsSeparateVideos`,
+      `TestAScriptedConversationShowsTheAPIsOwnSentenceForAFailure`,
+      `TestTheStatusCommandReportsBothDeployTargets`,
+      `TestTheStatusCommandSaysSoWhenTheAPIIsDown`)
+- [x] A user outside the allow-list is refused, and the refusal is asserted in a test
+      (`TestAUserOutsideTheAllowListIsRefused`, `TestAnUpdateWithNoSenderIsRefused`,
+      `TestAnEmptyAllowListRefusesEverybody`). The refusal also must not confirm the bot is the one
+      the sender was looking for, which the first of those asserts.
+- [x] `go test -race ./cmd/bot/...` green with the Telegram API stubbed. It was green but vacuous —
+      no test files — so `cmd/bot/main_test.go` now covers the one piece of logic in `main`: the
+      allow-list parsing, including that `0` is refused, since an update with no sender would
+      compare as `0`.
+- [x] The bot's API key has no ability it does not use, asserted against the route table
+      (`go test -run Bot ./tests/`: `TestTheBotsKeyHasNoAbilityItDoesNotUse` walks
+      `app.Router.Routes()`, derives the operations the bot can reach from the `bot.API` interface
+      by reflection, reads each submit route's required ability off the registered tool, and checks
+      both directions. `TestTheBotCannotReachAnAbilityCarryingRouteItDoesNotDeclare` is the
+      converse, and `TestEveryRouteTheBotCallsExistsInTheRouteTable` requires every one of them to
+      be behind the API guard.) That last test found that `GET /api/v1/capabilities` was public
+      while reporting each engine's exact version; it is now behind the guard.
 
 ## Phase S4 — Image, video and audio conversion
 

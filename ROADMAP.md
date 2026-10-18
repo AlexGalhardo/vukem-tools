@@ -812,10 +812,11 @@ optimisation.
 - [x] Video: MP4 ↔ WebM ↔ MKV ↔ MOV, with CRF ladders per codec from the research document
 - [ ] Video → GIF using the two-pass palette filter, with `gifski` as an optional higher-quality
       path (confirm its licence first)
-  - The two-pass palette path is done, tested and benchmarked. `gifski` is **not** added, and its
-    licence is the reason the bullet asked: the project states AGPL-3.0-or-commercial, so adding it
-    puts a second AGPL engine in the image and a second copyleft entry on `/licenses`. An owner
-    decision, not a default.
+  - The two-pass palette path is done, tested and benchmarked. **`gifski` will not be added** —
+    owner's decision, 2026-10-18, after the licence check the bullet asked for: the project is
+    AGPL-3.0-or-commercial, and a second copyleft engine is not worth it for a path that already
+    works and benchmarks at 0.79 s for a 5 s 480-wide clip. The same decision covers any second
+    AGPL engine. This bullet therefore stays unticked permanently rather than pending.
 - [x] Audio: MP3, WAV, FLAC, Opus, AAC, with bitrate and quality options
 - [x] Extract audio from video; replace a video's audio track
 - [x] Loudness normalisation with `loudnorm`, two-pass when accuracy matters

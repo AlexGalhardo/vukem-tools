@@ -160,6 +160,17 @@ func Media(c *services.Conversions) func(r *router.Router, app *vukem.App) error
 // ENGINE_WORKDIR is where conversions already write, so the probe uses a
 // directory under it rather than a second configured path.
 //
+// This function is temporary and should be deleted. The media tools need the
+// same probe, and once services.Conversions builds one in its own build() —
+// the change that registers the tools at all — it should expose it and this
+// whole function becomes `media := c.Media()`. Until then the probe runs
+// twice per process: once here and once there. It is idempotent and costs
+// about nine small processes, so running it twice is wasteful rather than
+// wrong, but it is still two sources of one answer.
+//
+// Agreed with the owner; the accessor is theirs to add, in a file this
+// domain does not own.
+//
 // A probe failure is a boot error on purpose. An engine that is present and
 // cannot answer is a broken image, and a broken image should fail the deploy
 // rather than the first conversion that needs it — which is the rule the rest

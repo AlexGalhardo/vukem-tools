@@ -4,6 +4,33 @@ export type AbilityList = {
   data?: string[];
 };
 
+export type AudioCapabilities = {
+  formats?: AudioFormat[];
+  loudness_target?: number;
+  max_seconds?: number;
+  readable?: string[];
+  sample_rates?: number[];
+  writable?: string[];
+};
+
+export type AudioConvertOptions = {
+  bitrate?: number;
+  channels?: number;
+  normalise?: boolean;
+  sample_rate?: number;
+  to?: string;
+  two_pass?: boolean;
+};
+
+export type AudioFormat = {
+  extension?: string;
+  label?: string;
+  lossy?: boolean;
+  mime?: string;
+  name?: string;
+  write?: boolean;
+};
+
 export type ConversionList = {
   data?: ConversionView[];
 };
@@ -32,6 +59,44 @@ export type ErrorCatalogEntry = {
   message?: string;
   retry?: boolean;
   type?: string;
+};
+
+export type ImageConvertOptions = {
+  crop_height?: number;
+  crop_left?: number;
+  crop_top?: number;
+  crop_width?: number;
+  effort?: number;
+  flip?: string;
+  height?: number;
+  keep_animation?: boolean;
+  keep_metadata?: boolean;
+  lossless?: boolean;
+  quality?: number;
+  resize?: string;
+  rotate?: number;
+  to?: string;
+  upscale?: boolean;
+  width?: number;
+};
+
+export type ImageFormat = {
+  animated?: boolean;
+  extension?: string;
+  label?: string;
+  mime?: string;
+  name?: string;
+  read?: boolean;
+  write?: boolean;
+};
+
+export type MediaCapabilities = {
+  flips?: string[];
+  formats?: ImageFormat[];
+  readable?: string[];
+  resize_modes?: string[];
+  rotations?: number[];
+  writable?: string[];
 };
 
 export type PixelSVGOptions = {
@@ -117,6 +182,41 @@ export type User = {
   updated_at?: string;
 };
 
+export type VideoCapabilities = {
+  codecs?: string[];
+  containers?: VideoContainer[];
+  dithers?: string[];
+  gpl_build?: boolean;
+  max_gif_seconds?: number;
+  max_seconds?: number;
+};
+
+export type VideoContainer = {
+  audio_codecs?: string[];
+  extension?: string;
+  label?: string;
+  name?: string;
+  video_codecs?: string[];
+};
+
+export type VideoConvertOptions = {
+  audio?: string;
+  audio_bitrate?: number;
+  container?: string;
+  crf?: number;
+  frame_rate?: number;
+  height?: number;
+  video?: string;
+};
+
+export type VideoToGIFOptions = {
+  dither?: string;
+  duration_seconds?: number;
+  fps?: number;
+  start_seconds?: number;
+  width?: number;
+};
+
 export type AbilitiesResponse = AbilityList;
 
 export type ConversionsCancelResponse = ConversionView;
@@ -152,6 +252,26 @@ export type TokensStoreBody = {
 
 export type TokensStoreResponse = TokenIssued;
 
+export type ToolsAudioConvertBody = {
+  file_id: string;
+  idempotency_key?: string;
+  options?: AudioConvertOptions;
+};
+
+export type ToolsAudioConvertResponse = ConversionView;
+
+export type ToolsAudioConvertFormatsResponse = AudioCapabilities;
+
+export type ToolsImageConvertBody = {
+  file_id: string;
+  idempotency_key?: string;
+  options?: ImageConvertOptions;
+};
+
+export type ToolsImageConvertResponse = ConversionView;
+
+export type ToolsImageConvertFormatsResponse = MediaCapabilities;
+
 export type ToolsIndexResponse = ToolList;
 
 export type ToolsPixelsToSvgBody = {
@@ -161,6 +281,24 @@ export type ToolsPixelsToSvgBody = {
 };
 
 export type ToolsPixelsToSvgResponse = ConversionView;
+
+export type ToolsVideoConvertBody = {
+  file_id: string;
+  idempotency_key?: string;
+  options?: VideoConvertOptions;
+};
+
+export type ToolsVideoConvertResponse = ConversionView;
+
+export type ToolsVideoConvertCapabilitiesResponse = VideoCapabilities;
+
+export type ToolsVideoToGifBody = {
+  file_id: string;
+  idempotency_key?: string;
+  options?: VideoToGIFOptions;
+};
+
+export type ToolsVideoToGifResponse = ConversionView;
 
 export type UploadsIndexResponse = UploadList;
 
@@ -355,6 +493,26 @@ export interface Client {
   tokensStore(args: { body: TokensStoreBody }): Promise<TokensStoreResponse>;
 
   /**
+   * POST /api/v1/tools/audio-convert: Convert audio, or extract a video's soundtrack
+   */
+  toolsAudioConvert(args: { body: ToolsAudioConvertBody }): Promise<ToolsAudioConvertResponse>;
+
+  /**
+   * GET /api/v1/tools/audio-convert/formats: List the audio formats this server can write
+   */
+  toolsAudioConvertFormats(): Promise<ToolsAudioConvertFormatsResponse>;
+
+  /**
+   * POST /api/v1/tools/image-convert: Convert, resize, crop, rotate or flip an image
+   */
+  toolsImageConvert(args: { body: ToolsImageConvertBody }): Promise<ToolsImageConvertResponse>;
+
+  /**
+   * GET /api/v1/tools/image-convert/formats: List the image formats this server can read and write
+   */
+  toolsImageConvertFormats(): Promise<ToolsImageConvertFormatsResponse>;
+
+  /**
    * GET /api/v1/tools: List the conversions on offer
    */
   toolsIndex(): Promise<ToolsIndexResponse>;
@@ -363,6 +521,21 @@ export interface Client {
    * POST /api/v1/tools/pixels-to-svg: Turn pixel art into SVG
    */
   toolsPixelsToSvg(args: { body: ToolsPixelsToSvgBody }): Promise<ToolsPixelsToSvgResponse>;
+
+  /**
+   * POST /api/v1/tools/video-convert: Convert a video between containers and codecs
+   */
+  toolsVideoConvert(args: { body: ToolsVideoConvertBody }): Promise<ToolsVideoConvertResponse>;
+
+  /**
+   * GET /api/v1/tools/video-convert/capabilities: List the containers and codecs this server can produce
+   */
+  toolsVideoConvertCapabilities(): Promise<ToolsVideoConvertCapabilitiesResponse>;
+
+  /**
+   * POST /api/v1/tools/video-to-gif: Turn part of a video into an animated GIF
+   */
+  toolsVideoToGif(args: { body: ToolsVideoToGifBody }): Promise<ToolsVideoToGifResponse>;
 
   /**
    * GET /api/v1/uploads: List your unclaimed uploads
@@ -391,8 +564,15 @@ export function createClient(options: ClientOptions = {}): Client {
     tokensIndex: () => request<TokensIndexResponse>("GET", "/api/v1/tokens"),
     tokensRevoke: (args) => request<TokensRevokeResponse>("DELETE", "/api/v1/tokens/{token}", args),
     tokensStore: (args) => request<TokensStoreResponse>("POST", "/api/v1/tokens", args),
+    toolsAudioConvert: (args) => request<ToolsAudioConvertResponse>("POST", "/api/v1/tools/audio-convert", args),
+    toolsAudioConvertFormats: () => request<ToolsAudioConvertFormatsResponse>("GET", "/api/v1/tools/audio-convert/formats"),
+    toolsImageConvert: (args) => request<ToolsImageConvertResponse>("POST", "/api/v1/tools/image-convert", args),
+    toolsImageConvertFormats: () => request<ToolsImageConvertFormatsResponse>("GET", "/api/v1/tools/image-convert/formats"),
     toolsIndex: () => request<ToolsIndexResponse>("GET", "/api/v1/tools"),
     toolsPixelsToSvg: (args) => request<ToolsPixelsToSvgResponse>("POST", "/api/v1/tools/pixels-to-svg", args),
+    toolsVideoConvert: (args) => request<ToolsVideoConvertResponse>("POST", "/api/v1/tools/video-convert", args),
+    toolsVideoConvertCapabilities: () => request<ToolsVideoConvertCapabilitiesResponse>("GET", "/api/v1/tools/video-convert/capabilities"),
+    toolsVideoToGif: (args) => request<ToolsVideoToGifResponse>("POST", "/api/v1/tools/video-to-gif", args),
     uploadsIndex: () => request<UploadsIndexResponse>("GET", "/api/v1/uploads"),
     uploadsTypes: () => request<UploadsTypesResponse>("GET", "/api/v1/upload-types"),
   };

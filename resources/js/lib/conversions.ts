@@ -146,6 +146,206 @@ export function submitPixelSVG(
   });
 }
 
+/* ------------------------------------------------------------------------- *
+ * The S4 media tools: images, video and audio.
+ *
+ * Every option type mirrors its Go counterpart in app/tools, and every field
+ * is optional except the output format, because the server fills each default
+ * and refuses an unknown value with the field name. Nothing here validates:
+ * the server owns the rules, and a second copy of them in the browser would
+ * be a second thing to keep in step.
+ *
+ * The format and codec lists are fetched rather than declared, because what
+ * this build can produce is probed at boot. Debian's libvips has heifsave and
+ * libheif ships no encoder, so AVIF is readable and not writable — a
+ * hard-coded list would offer a conversion the server refuses.
+ * ------------------------------------------------------------------------- */
+
+/** ImageConvertOptions mirrors tools.ImageConvertOptions. */
+export interface ImageConvertOptions {
+  to: string;
+  quality?: number;
+  effort?: number;
+  lossless?: boolean;
+  resize?: "fit" | "fill" | "exact";
+  width?: number;
+  height?: number;
+  upscale?: boolean;
+  crop_left?: number;
+  crop_top?: number;
+  crop_width?: number;
+  crop_height?: number;
+  rotate?: 0 | 90 | 180 | 270;
+  flip?: "horizontal" | "vertical";
+  keep_metadata?: boolean;
+  keep_animation?: boolean;
+}
+
+/** VideoConvertOptions mirrors tools.VideoConvertOptions. */
+export interface VideoConvertOptions {
+  container: string;
+  video?: string;
+  audio?: string;
+  crf?: number;
+  height?: number;
+  frame_rate?: number;
+  audio_bitrate?: number;
+}
+
+/** VideoToGifOptions mirrors tools.VideoToGIFOptions. */
+export interface VideoToGifOptions {
+  fps?: number;
+  width?: number;
+  start_seconds?: number;
+  duration_seconds?: number;
+  dither?: string;
+}
+
+/** AudioConvertOptions mirrors tools.AudioConvertOptions. */
+export interface AudioConvertOptions {
+  to: string;
+  bitrate?: number;
+  sample_rate?: number;
+  channels?: 1 | 2;
+  normalise?: boolean;
+  two_pass?: boolean;
+}
+
+/** ImageFormat is one format's support in this build. */
+export interface ImageFormat {
+  name: string;
+  label: string;
+  mime: string;
+  extension: string;
+  read: boolean;
+  write: boolean;
+  animated: boolean;
+}
+
+/** MediaCapabilities is what GET /tools/image-convert/formats answers. */
+export interface MediaCapabilities {
+  formats: ImageFormat[];
+  writable: string[];
+  readable: string[];
+  resize_modes: string[];
+  flips: string[];
+  rotations: number[];
+}
+
+/** VideoContainer is one container and the codecs it carries here. */
+export interface VideoContainer {
+  name: string;
+  label: string;
+  extension: string;
+  video_codecs: string[];
+  audio_codecs: string[];
+}
+
+/** VideoCapabilities is what GET /tools/video-convert/capabilities answers.
+ *  gpl_build is published so a client can explain why H.264 is missing rather
+ *  than only report that it is. */
+export interface VideoCapabilities {
+  containers: VideoContainer[];
+  codecs: string[];
+  gpl_build: boolean;
+  dithers: string[];
+  max_gif_seconds: number;
+  max_seconds: number;
+}
+
+/** AudioFormat is one output format; lossy decides whether a bit rate applies
+ *  at all, so a client hides the control rather than sending one and being
+ *  refused. */
+export interface AudioFormat {
+  name: string;
+  label: string;
+  mime: string;
+  extension: string;
+  write: boolean;
+  lossy: boolean;
+}
+
+/** AudioCapabilities is what GET /tools/audio-convert/formats answers. */
+export interface AudioCapabilities {
+  formats: AudioFormat[];
+  writable: string[];
+  readable: string[];
+  sample_rates: number[];
+  loudness_target: number;
+  max_seconds: number;
+}
+
+/** imageCapabilities reads what this server can read and write. */
+export function imageCapabilities(): Promise<MediaCapabilities> {
+  return request("/api/v1/tools/image-convert/formats");
+}
+
+/** videoCapabilities reads the containers and codecs this server can produce. */
+export function videoCapabilities(): Promise<VideoCapabilities> {
+  return request("/api/v1/tools/video-convert/capabilities");
+}
+
+/** audioCapabilities reads the audio formats this server can write. */
+export function audioCapabilities(): Promise<AudioCapabilities> {
+  return request("/api/v1/tools/audio-convert/formats");
+}
+
+/** submitImageConvert converts, resizes, crops, rotates or flips an image. */
+export function submitImageConvert(
+  fileID: string,
+  options: ImageConvertOptions,
+  idempotencyKey?: string,
+): Promise<Conversion> {
+  return submitTool("image-convert", fileID, options, idempotencyKey);
+}
+
+/** submitVideoConvert transcodes a video. */
+export function submitVideoConvert(
+  fileID: string,
+  options: VideoConvertOptions,
+  idempotencyKey?: string,
+): Promise<Conversion> {
+  return submitTool("video-convert", fileID, options, idempotencyKey);
+}
+
+/** submitVideoToGif turns part of a video into an animated GIF. */
+export function submitVideoToGif(
+  fileID: string,
+  options: VideoToGifOptions,
+  idempotencyKey?: string,
+): Promise<Conversion> {
+  return submitTool("video-to-gif", fileID, options, idempotencyKey);
+}
+
+/** submitAudioConvert converts audio, or extracts a video's soundtrack. */
+export function submitAudioConvert(
+  fileID: string,
+  options: AudioConvertOptions,
+  idempotencyKey?: string,
+): Promise<Conversion> {
+  return submitTool("audio-convert", fileID, options, idempotencyKey);
+}
+
+/** submitTool is the body every per-tool submit shares. The tool name is a
+ *  literal at each call site rather than a parameter a caller chooses, so a
+ *  typo is a compile error in the four functions above and not a 404 at
+ *  runtime. */
+function submitTool(
+  tool: "image-convert" | "video-convert" | "video-to-gif" | "audio-convert",
+  fileID: string,
+  options: object,
+  idempotencyKey?: string,
+): Promise<Conversion> {
+  return request(`/api/v1/tools/${tool}`, {
+    method: "POST",
+    body: JSON.stringify({
+      file_id: fileID,
+      options,
+      ...(idempotencyKey ? { idempotency_key: idempotencyKey } : {}),
+    }),
+  });
+}
+
 /** show reads one conversion. It is the polling endpoint, and the fallback
  *  whenever the stream is not available. */
 export function show(id: string): Promise<Conversion> {

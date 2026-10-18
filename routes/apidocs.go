@@ -10,9 +10,12 @@ import (
 	"github.com/AlexGalhardo/vukem/web"
 
 	"github.com/AlexGalhardo/vukem-tools/app/abilities"
+	"github.com/AlexGalhardo/vukem-tools/app/tools"
+	"github.com/AlexGalhardo/vukem-tools/internal/audio"
 	"github.com/AlexGalhardo/vukem-tools/internal/detect"
 	"github.com/AlexGalhardo/vukem-tools/internal/httpx"
 	"github.com/AlexGalhardo/vukem-tools/internal/jobs"
+	"github.com/AlexGalhardo/vukem-tools/internal/video"
 )
 
 // The security scheme names used by the OpenAPI document. Both authenticate
@@ -251,6 +254,58 @@ func requestExamples() map[string]any {
 			"device_name": "cli",
 			"abilities":   []any{abilities.ImageConvert, abilities.PDFCompress},
 		},
+
+		// The S4 media tools. Each example is a request that would actually
+		// be accepted by the validation in app/tools, so somebody who copies
+		// it out of the reference and sends it gets a conversion rather than
+		// a 422: the enum values are real members, the geometry is
+		// consistent, and no bit rate is set on a lossless format.
+		"tools.image-convert": map[string]any{
+			"file_id":         "01JQ8Z5X0K7M3N9P2R4T6V8W0Y",
+			"idempotency_key": "avatar-batch-3",
+			"options": map[string]any{
+				"to":            "webp",
+				"quality":       82,
+				"resize":        "fit",
+				"width":         1024,
+				"height":        1024,
+				"keep_metadata": false,
+			},
+		},
+		"tools.video-convert": map[string]any{
+			"file_id":         "01JQ8Z5X0K7M3N9P2R4T6V8W0Y",
+			"idempotency_key": "lecture-7-720p",
+			"options": map[string]any{
+				"container":     "mp4",
+				"video":         "h264",
+				"audio":         "aac",
+				"crf":           23,
+				"height":        720,
+				"audio_bitrate": 128,
+			},
+		},
+		"tools.video-to-gif": map[string]any{
+			"file_id":         "01JQ8Z5X0K7M3N9P2R4T6V8W0Y",
+			"idempotency_key": "reaction-clip-1",
+			"options": map[string]any{
+				"fps":              12,
+				"width":            480,
+				"start_seconds":    4.5,
+				"duration_seconds": 6,
+				"dither":           "sierra2_4a",
+			},
+		},
+		"tools.audio-convert": map[string]any{
+			"file_id":         "01JQ8Z5X0K7M3N9P2R4T6V8W0Y",
+			"idempotency_key": "episode-12-mp3",
+			"options": map[string]any{
+				"to":        "mp3",
+				"bitrate":   192,
+				"channels":  2,
+				"normalise": true,
+				"two_pass":  true,
+			},
+		},
 	}
 }
 
@@ -293,6 +348,95 @@ func componentExamples() map[string]any {
 			"email":             "you@example.com",
 			"email_verified_at": "2026-01-05T10:01:44Z",
 		},
+
+		// The S4 media capability responses. These show what the production
+		// image actually answers, which is the point of the endpoints: AVIF
+		// and HEIC are read and not written, because Debian's libheif ships
+		// no encoder, and an example that implied otherwise would undo the
+		// probing it exists to publish.
+		"MediaCapabilities": mediaCapabilitiesExample(),
+		"ImageFormat":       imageFormatExample(),
+		"VideoCapabilities": videoCapabilitiesExample(),
+		"AudioCapabilities": audioCapabilitiesExample(),
+	}
+}
+
+// mediaCapabilitiesExample is the image-convert capability answer, abridged to
+// three formats: enough to show a readable-and-writable one, a write-only
+// shape and a read-only one, without repeating the whole table.
+func mediaCapabilitiesExample() map[string]any {
+	return map[string]any{
+		"formats": []any{
+			imageFormatExample(),
+			map[string]any{
+				"name": "avif", "label": "AVIF", "mime": "image/avif",
+				"extension": ".avif", "read": true, "write": false, "animated": false,
+			},
+			map[string]any{
+				"name": "bmp", "label": "BMP", "mime": "image/bmp",
+				"extension": ".bmp", "read": true, "write": false, "animated": false,
+			},
+		},
+		"writable":     []any{"jpeg", "png", "webp", "jxl", "gif", "tiff"},
+		"readable":     []any{"image/jpeg", "image/png", "image/webp", "image/gif", "image/tiff"},
+		"resize_modes": toAny(tools.ImageResizeModes()),
+		"flips":        toAny(tools.ImageFlips()),
+		"rotations":    []any{0, 90, 180, 270},
+	}
+}
+
+// imageFormatExample is one format a client can both send and receive.
+func imageFormatExample() map[string]any {
+	return map[string]any{
+		"name": "webp", "label": "WebP", "mime": "image/webp",
+		"extension": ".webp", "read": true, "write": true, "animated": true,
+	}
+}
+
+// videoCapabilitiesExample is the video-convert capability answer on the GPL
+// build this project ships, where H.264 and H.265 exist. gpl_build is in the
+// example because it is the field that explains their absence elsewhere.
+func videoCapabilitiesExample() map[string]any {
+	return map[string]any{
+		"containers": []any{
+			map[string]any{
+				"name": "mp4", "label": "MP4", "extension": ".mp4",
+				"video_codecs": []any{"h264", "h265", "av1"},
+				"audio_codecs": []any{"aac", "mp3", "copy", "mute"},
+			},
+			map[string]any{
+				"name": "webm", "label": "WebM", "extension": ".webm",
+				"video_codecs": []any{"vp9", "av1"},
+				"audio_codecs": []any{"opus", "vorbis", "copy", "mute"},
+			},
+		},
+		"codecs":          []any{"h264", "h265", "vp9", "av1"},
+		"gpl_build":       true,
+		"dithers":         toAny(video.DitherNames()),
+		"max_gif_seconds": video.MaxGIFDuration.Seconds(),
+		"max_seconds":     video.MaxDuration.Seconds(),
+	}
+}
+
+// audioCapabilitiesExample is the audio-convert capability answer, with one
+// lossy and one lossless format so the bit-rate rule is visible.
+func audioCapabilitiesExample() map[string]any {
+	return map[string]any{
+		"formats": []any{
+			map[string]any{
+				"name": "mp3", "label": "MP3", "mime": "audio/mpeg",
+				"extension": ".mp3", "write": true, "lossy": true,
+			},
+			map[string]any{
+				"name": "flac", "label": "FLAC", "mime": "audio/flac",
+				"extension": ".flac", "write": true, "lossy": false,
+			},
+		},
+		"writable":        []any{"mp3", "wav", "flac", "opus", "aac"},
+		"readable":        toAny(audio.MIMETypes()),
+		"sample_rates":    []any{44100, 48000},
+		"loudness_target": audio.LoudnessTarget,
+		"max_seconds":     audio.MaxDuration.Seconds(),
 	}
 }
 

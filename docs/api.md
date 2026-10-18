@@ -156,9 +156,33 @@ OPENAPI_PREFIX=/api/v1 go run ./cmd/app codegen:client -lang ts -o clients/types
 
 `OPENAPI_PREFIX` is what keeps the browser routes out of the clients: without it `codegen:client`
 describes the whole router, Inertia pages included. The commands run in warmup mode (no database
-connection) but still need `APP_KEY` set, because the session driver derives a key at boot. In Git
-Bash on Windows, prefix them with `MSYS_NO_PATHCONV=1`, or the `/api/v1` value is rewritten into a
-Windows path and the document comes out empty.
+connection) but still need `APP_KEY` set, because the session driver derives a key at boot.
+
+On Windows, mind the shell. In Git Bash, MSYS rewrites any value that looks like a Unix path, so
+`/api/v1` becomes `C:/Program Files/Git/api/v1` and the command fails with:
+
+```text
+openapi: path prefix matches no route "C:/Program Files/Git/api/v1": none of the 50 documentable
+routes is under it (check Info.PathPrefix / OPENAPI_PREFIX)
+```
+
+Nothing is written, so the mistake is loud rather than silent. Prefix each command with
+`MSYS_NO_PATHCONV=1`, which also stops `-o` being rewritten:
+
+```bash
+MSYS_NO_PATHCONV=1 OPENAPI_PREFIX=/api/v1 go run ./cmd/app codegen:client -lang go \
+  -package apiclient -o clients/apiclient/client.go
+MSYS_NO_PATHCONV=1 OPENAPI_PREFIX=/api/v1 go run ./cmd/app codegen:client -lang ts \
+  -o clients/typescript/client.ts
+```
+
+PowerShell does no such rewriting, so there the plain form works:
+
+```powershell
+$env:OPENAPI_PREFIX = "/api/v1"
+go run ./cmd/app codegen:client -lang go -package apiclient -o clients/apiclient/client.go
+go run ./cmd/app codegen:client -lang ts -o clients/typescript/client.ts
+```
 
 Neither client authenticates by itself. Both take a per-request header hook: `Client.Header` in Go,
 `headers` in `createClient` for TypeScript.

@@ -105,6 +105,46 @@ var pages = map[string]toolPage{ //nolint:gochecknoglobals // read-only table
 			}
 		},
 	},
+
+	// The S4 media tools.
+	//
+	// Only the enum lists are props. The formats, codecs and dithering modes
+	// are fetched by the page from the capability endpoints instead, because
+	// what this build can produce is probed at boot — Debian's libvips has
+	// heifsave while libheif ships no encoder, so AVIF is readable and not
+	// writable — and a server-rendered prop would be a second place for that
+	// answer to live and drift.
+	"image-convert": {
+		component: "Tools/ImageConvert",
+		props: func() inertia.Props {
+			return inertia.Props{
+				"resizeModes": tools.ImageResizeModes(),
+				"flips":       tools.ImageFlips(),
+				"rotations":   tools.ImageRotations(),
+			}
+		},
+	},
+	"video-convert": {
+		component: "Tools/VideoConvert",
+		// No props: the containers and codecs this build can encode come
+		// from GET /api/v1/tools/video-convert/capabilities, which also
+		// carries gpl_build so the page can explain why H.264 is missing
+		// rather than only report that it is.
+		props: func() inertia.Props { return inertia.Props{} },
+	},
+	"video-to-gif": {
+		component: "Tools/VideoToGif",
+		// No props: the dithering modes and the length limit come from the
+		// same capability endpoint.
+		props: func() inertia.Props { return inertia.Props{} },
+	},
+	"audio-convert": {
+		component: "Tools/AudioConvert",
+		// No props: the formats, sample rates and loudness target come from
+		// GET /api/v1/tools/audio-convert/formats, which also says which
+		// formats take a bit rate at all.
+		props: func() inertia.Props { return inertia.Props{} },
+	},
 }
 
 // Licenses renders the licence notice: GET /licenses.

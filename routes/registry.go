@@ -25,6 +25,7 @@ func All(
 		APIDocs,
 		Account(conversions),
 		Conversions(conversions),
+		Media(conversions),
 		Uploads(conversions),
 	}
 }

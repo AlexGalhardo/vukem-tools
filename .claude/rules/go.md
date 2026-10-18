@@ -13,5 +13,11 @@
   restates the rule instead of refuting it, is silencing.
 - Measure before claiming: `go test -bench . -benchmem`, and record wall-clock and peak RSS per
   conversion kind in `docs/benchmarks.md`.
-- Validate with the narrowest command (one package, one spec) before claiming done, and show the
-  command and its result.
+- Validate with the narrowest command (one package, one spec) while iterating, and show the command
+  and its result.
+- **Then run the wide command before handing back a task group: `go test -race -count=1 ./...`.**
+  This is a separate, required step, not the narrow rule repeated. `./internal/...` plus
+  `./app/...` *looks* like the suite and is not: `./tests/` holds the cross-cutting gates — the
+  OpenAPI example gate, the generated-client coverage gate, the HTTP hardening asserts — and a
+  domain author cannot see them from inside their own packages. A phase ran ten commits green on
+  the narrow command with `./tests/` red the whole time.

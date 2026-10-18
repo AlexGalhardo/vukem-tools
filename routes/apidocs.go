@@ -1,6 +1,7 @@
 package routes
 
 import (
+	"maps"
 	"net/http"
 
 	"github.com/AlexGalhardo/vukem"
@@ -234,8 +235,11 @@ func exampleResponse(doc *openapi.Document, name string, ex any) {
 }
 
 // requestExamples maps an operationId to its request body example.
+//
+// Built from this file's own entries plus one map per domain, so a domain can
+// document its tools without every other domain's examples being in the way.
 func requestExamples() map[string]any {
-	return map[string]any{
+	out := map[string]any{
 		"tools.pixels-to-svg": map[string]any{
 			"file_id":         "01JQ8Z5X0K7M3N9P2R4T6V8W0Y",
 			"idempotency_key": "sprite-batch-7",
@@ -307,6 +311,10 @@ func requestExamples() map[string]any {
 			},
 		},
 	}
+
+	maps.Copy(out, pdfRequestExamples())
+
+	return out
 }
 
 // examplePlaceholderKey shows the shape of an issued key, "vk_<id>.<secret>",

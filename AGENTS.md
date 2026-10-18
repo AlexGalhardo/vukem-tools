@@ -31,7 +31,9 @@ Regenerate the API clients after any change to `/api/v1` ([docs/api.md](docs/api
 ## Rules
 
 - Test first. A task is done only when its quality asserts in `ROADMAP.md` pass, and you show the
-  command and its result.
+  command and its result. Iterate with one package; **run `go test -race -count=1 ./...` before
+  handing back** — `./tests/` holds the cross-cutting gates and the narrow command never reaches
+  them.
 - `net/http`-native through vukem; no globals, no `init()` registration, no reflection DI;
   `context.Context` first.
 - **Stream, never buffer a whole file.** `io.Copy` to disk or object storage, `bufio` for generated

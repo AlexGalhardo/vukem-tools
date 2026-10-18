@@ -21,5 +21,7 @@
 - Railway MCP and CLI are available for deploy tasks; confirm destructive actions with the owner
   first, and never change production configuration without saying what will change.
 - Answer the owner in Portuguese (pt-BR); code, comments, docs, UI and commits stay in English.
-- Validate with the narrowest command (one Go package, one spec) before claiming done, and show the
-  command and its result.
+- Validate with the narrowest command (one Go package, one spec) while iterating, and show the
+  command and its result. Before handing back a task group, also run the wide
+  `go test -race -count=1 ./...` — a separate required step, because `./tests/` holds the
+  cross-cutting gates that the narrow command never reaches.

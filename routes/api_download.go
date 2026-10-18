@@ -8,10 +8,12 @@ import (
 	"github.com/AlexGalhardo/vukem/api"
 	"github.com/AlexGalhardo/vukem/auth"
 	"github.com/AlexGalhardo/vukem/middleware"
+	"github.com/AlexGalhardo/vukem/openapi"
 	"github.com/AlexGalhardo/vukem/ratelimit"
 	"github.com/AlexGalhardo/vukem/router"
 
 	"github.com/AlexGalhardo/vukem-tools/app/accounts"
+	"github.com/AlexGalhardo/vukem-tools/app/controllers"
 	"github.com/AlexGalhardo/vukem-tools/app/controllers/apiv1"
 	"github.com/AlexGalhardo/vukem-tools/app/services"
 	"github.com/AlexGalhardo/vukem-tools/internal/httpx"
@@ -43,6 +45,7 @@ func Downloads(c *services.Conversions) func(r *router.Router, app *vukem.App) e
 
 		h := apiv1.NewConversions(c.Pipeline(), c.Store(), c.Files(), c.Quota(), c.Hub())
 		capabilities := apiv1.NewCapabilities(c.Engines(), c.Pipeline())
+		pages := controllers.NewDownloadPages(c.Pipeline().Tools())
 
 		perIP := ratelimit.Middleware(limiters("api.ip", 120, time.Minute), ratelimit.ByIP)
 		perToken := ratelimit.Middleware(limiters("api.token", 60, time.Minute), ratelimit.ByToken)
@@ -155,6 +158,25 @@ func Downloads(c *services.Conversions) func(r *router.Router, app *vukem.App) e
 				}, h.VideoCompress).Use(submit)
 			})
 		}).Name("api.v1.")
+
+		// The tool's own page, at its exact path.
+		//
+		// net/http.ServeMux prefers the more specific pattern, so this wins
+		// over the "/tools/{name}" route that renders one component for every
+		// tool — which means this domain gets its own page without a switch
+		// over tool names in a file every domain shares. The Inertia
+		// middleware and the shared props come from routes/web.go, which is
+		// registered first.
+		// Named page.* and hidden from the document: an Inertia page is not
+		// an API operation, it has no response schema, and sharing the
+		// "tools.video-download" name with the submit route makes
+		// openapi.Build refuse the whole document for a duplicate
+		// operationId. The same reason routes/conversions.go hides the event
+		// stream.
+		r.Get("/tools/video-download", pages.VideoDownload).
+			Name("page.video-download").
+			Use(auth.Required(acc.Web)).
+			Doc(openapi.Skip{})
 
 		return nil
 	}

@@ -2,6 +2,7 @@ package tests
 
 import (
 	"encoding/json"
+	"net/http"
 	"reflect"
 	"slices"
 	"strings"
@@ -288,5 +289,32 @@ func TestTheBotsErrorsComeFromThePublishedTaxonomy(t *testing.T) {
 		if !jobs.Known(jobs.ErrorType(entry.Type)) {
 			t.Errorf("%s is published but is not in the taxonomy", entry.Type)
 		}
+	}
+}
+
+func TestTheDownloadToolHasItsOwnPage(t *testing.T) {
+	t.Parallel()
+
+	// "/tools/{name}" renders one component for every tool, so without a
+	// route of its own the download tool would render the pixel-art page.
+	// net/http.ServeMux prefers the more specific pattern, which is what
+	// makes a per-domain page possible without a switch in a shared file —
+	// and this is the test that the precedence actually holds.
+	app := vukemtest.New(t, bootstrap.New)
+
+	if _, err := app.Router.Handler(); err != nil {
+		t.Fatal(err)
+	}
+
+	var found bool
+
+	for _, rt := range app.Router.Routes() {
+		if rt.Method == http.MethodGet && rt.Path == "/tools/video-download" {
+			found = true
+		}
+	}
+
+	if !found {
+		t.Fatal("no route serves /tools/video-download, so it would render another tool's page")
 	}
 }

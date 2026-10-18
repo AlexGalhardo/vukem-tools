@@ -263,3 +263,155 @@ export function savedPercent(bytesIn: number, bytesOut: number): number | null {
 export function expiresIn(expiresAt: string, now: number = Date.now()): number {
   return Math.max(0, Math.floor((new Date(expiresAt).getTime() - now) / 1000));
 }
+
+/* ----------------------------------------------------------------------------
+ * Download, cut and compress (phase S3)
+ *
+ * Grouped at the end of the file rather than interleaved above, so each domain
+ * adds its own block instead of every tool conflicting in one list.
+ * ------------------------------------------------------------------------- */
+
+/** ResultFile mirrors apiv1.ResultFile: one output with a signed link. */
+export interface ResultFile {
+  name: string;
+  mime: string;
+  size_bytes: number;
+  url: string;
+  expires_at: string;
+}
+
+/** results reads the signed links of a finished conversion.
+ *
+ *  The link is signed when it is asked for, so it is never older than the
+ *  request — which is why this is called after the conversion finishes rather
+ *  than stored with the row. */
+export function results(id: string): Promise<{ data: ResultFile[] }> {
+  return request(`/api/v1/conversions/${encodeURIComponent(id)}/result`);
+}
+
+/** MediaFormat mirrors apiv1.MediaFormat: one stream a platform offers. */
+export interface MediaFormat {
+  id: string;
+  ext: string;
+  resolution: string;
+  vcodec: string;
+  acodec: string;
+  bytes: number;
+  bitrate_kbps: number;
+}
+
+/** Media mirrors apiv1.MediaView: what a platform says before anything is
+ *  fetched. */
+export interface Media {
+  platform: string;
+  title: string;
+  uploader: string;
+  thumbnail: string;
+  duration_seconds: number;
+  estimated_bytes: number;
+  smallest_bytes: number;
+  max_bytes: number;
+  /** too_large means even the smallest stream is past this server's cap, so
+   *  no quality would succeed. */
+  too_large: boolean;
+  formats: MediaFormat[];
+}
+
+/** DownloadOptions mirrors tools.DownloadOptions. Only the URL is required. */
+export interface DownloadOptions {
+  url: string;
+  kind?: "video" | "audio";
+  quality?: "best" | "smallest";
+  compress?: boolean;
+  clips?: boolean;
+  clip_seconds?: number;
+}
+
+/** probe asks what a platform has, without downloading anything.
+ *
+ *  A POST rather than a GET even though it changes nothing: a URL in a query
+ *  string ends up in every log between here and the server, and the URL is the
+ *  one part of this request that is the user's own business. */
+export function probe(url: string): Promise<Media> {
+  return request("/api/v1/tools/video-download/metadata", {
+    method: "POST",
+    body: JSON.stringify({ url }),
+  });
+}
+
+/** submitVideoDownload starts a download from a URL. It is the one conversion
+ *  with no upload, so there is no file id. */
+export function submitVideoDownload(
+  options: DownloadOptions,
+  idempotencyKey?: string,
+): Promise<Conversion> {
+  return request("/api/v1/tools/video-download", {
+    method: "POST",
+    body: JSON.stringify({
+      options,
+      ...(idempotencyKey ? { idempotency_key: idempotencyKey } : {}),
+    }),
+  });
+}
+
+/** Crop mirrors editor.Crop: the area to keep, in pixels from the top left. */
+export interface Crop {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+}
+
+/** ClipOptions mirrors tools.ClipOptions. */
+export interface ClipOptions {
+  mode?: "trim" | "split";
+  start_seconds?: number;
+  duration_seconds?: number;
+  frame_accurate?: boolean;
+  crop?: Crop;
+  clip_seconds?: number;
+}
+
+/** submitVideoClip starts a cut, a crop or a split of an uploaded video. */
+export function submitVideoClip(
+  fileID: string,
+  options: ClipOptions,
+  idempotencyKey?: string,
+): Promise<Conversion> {
+  return request("/api/v1/tools/video-clip", {
+    method: "POST",
+    body: JSON.stringify({
+      file_id: fileID,
+      options,
+      ...(idempotencyKey ? { idempotency_key: idempotencyKey } : {}),
+    }),
+  });
+}
+
+/** submitVideoCompress starts a compression. It carries no options: every knob
+ *  that could be exposed is a number nobody should have to choose, and the
+ *  profile is picked from what the file actually holds. */
+export function submitVideoCompress(
+  fileID: string,
+  idempotencyKey?: string,
+): Promise<Conversion> {
+  return request("/api/v1/tools/video-compress", {
+    method: "POST",
+    body: JSON.stringify({
+      file_id: fileID,
+      ...(idempotencyKey ? { idempotency_key: idempotencyKey } : {}),
+    }),
+  });
+}
+
+/** formatDuration renders a length in seconds as minutes and seconds. */
+export function formatDuration(seconds: number): string {
+  if (!Number.isFinite(seconds) || seconds <= 0) {
+    return "unknown";
+  }
+
+  const total = Math.round(seconds);
+  const minutes = Math.floor(total / 60);
+
+  return minutes > 0 ? `${minutes}m ${total % 60}s` : `${total}s`;
+}

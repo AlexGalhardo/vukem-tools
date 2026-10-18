@@ -4,6 +4,33 @@ export type AbilityList = {
   data?: string[];
 };
 
+export type AudioCapabilities = {
+  formats?: AudioFormat[];
+  loudness_target?: number;
+  max_seconds?: number;
+  readable?: string[];
+  sample_rates?: number[];
+  writable?: string[];
+};
+
+export type AudioConvertOptions = {
+  bitrate?: number;
+  channels?: number;
+  normalise?: boolean;
+  sample_rate?: number;
+  to?: string;
+  two_pass?: boolean;
+};
+
+export type AudioFormat = {
+  extension?: string;
+  label?: string;
+  lossy?: boolean;
+  mime?: string;
+  name?: string;
+  write?: boolean;
+};
+
 export type CapabilitiesView = {
   engines?: EngineView[];
   limits?: LimitsView;
@@ -71,11 +98,57 @@ export type ErrorCatalogEntry = {
   type?: string;
 };
 
+export type ImageConvertOptions = {
+  crop_height?: number;
+  crop_left?: number;
+  crop_top?: number;
+  crop_width?: number;
+  effort?: number;
+  flip?: string;
+  height?: number;
+  keep_animation?: boolean;
+  keep_metadata?: boolean;
+  lossless?: boolean;
+  quality?: number;
+  resize?: string;
+  rotate?: number;
+  to?: string;
+  upscale?: boolean;
+  width?: number;
+};
+
+export type ImageFormat = {
+  animated?: boolean;
+  extension?: string;
+  label?: string;
+  mime?: string;
+  name?: string;
+  read?: boolean;
+  write?: boolean;
+};
+
+export type ImagesToPDFOptions = {
+  fit?: string;
+  margin?: number;
+  orientation?: string;
+  page_size?: string;
+  quality?: number;
+};
+
 export type LimitsView = {
   max_clip_seconds?: number;
   max_clips?: number;
   max_download_bytes?: number;
   max_output_seconds?: number;
+};
+
+export type MediaCapabilities = {
+  flips?: string[];
+  formats?: ImageFormat[];
+  readable?: string[];
+  resize_modes?: string[];
+  rotations?: number[];
+  writable?: string[];
 };
 
 export type MediaFormat = {
@@ -103,6 +176,89 @@ export type MediaView = {
 
 export type NameList = {
   data?: string[];
+};
+
+export type PDFCompareOptions = Record<string, unknown>;
+
+export type PDFCompressOptions = {
+  level?: string;
+};
+
+export type PDFCropOptions = {
+  bottom?: number;
+  left?: number;
+  pages?: string;
+  right?: number;
+  top?: number;
+};
+
+export type PDFMergeOptions = Record<string, unknown>;
+
+export type PDFPageNumberOptions = {
+  format?: string;
+  pages?: string;
+  position?: string;
+  size?: number;
+  start_at?: number;
+};
+
+export type PDFPagesOptions = {
+  pages: string;
+};
+
+export type PDFProtectOptions = {
+  allow_extract?: boolean;
+  modify?: string;
+  owner_password: string;
+  print?: string;
+  user_password?: string;
+};
+
+export type PDFRepairOptions = Record<string, unknown>;
+
+export type PDFRotateOptions = {
+  absolute?: boolean;
+  degrees?: number;
+  pages?: string;
+};
+
+export type PDFSplitOptions = {
+  every?: number;
+  mode?: string;
+  ranges?: string[];
+};
+
+export type PDFToImageOptions = {
+  dpi?: number;
+  format?: string;
+  pages?: string;
+  quality?: number;
+};
+
+export type PDFToPDFAOptions = {
+  part?: number;
+};
+
+export type PDFToTextOptions = {
+  format?: string;
+  layout?: boolean;
+  page_rules?: boolean;
+  pages?: string;
+};
+
+export type PDFUnlockOptions = {
+  password: string;
+};
+
+export type PDFWatermarkOptions = {
+  bold?: boolean;
+  gray?: number;
+  opacity?: number;
+  pages?: string;
+  position?: string;
+  rotate?: number;
+  size?: number;
+  text: string;
 };
 
 export type PixelSVGOptions = {
@@ -198,6 +354,41 @@ export type User = {
   updated_at?: string;
 };
 
+export type VideoCapabilities = {
+  codecs?: string[];
+  containers?: VideoContainer[];
+  dithers?: string[];
+  gpl_build?: boolean;
+  max_gif_seconds?: number;
+  max_seconds?: number;
+};
+
+export type VideoContainer = {
+  audio_codecs?: string[];
+  extension?: string;
+  label?: string;
+  name?: string;
+  video_codecs?: string[];
+};
+
+export type VideoConvertOptions = {
+  audio?: string;
+  audio_bitrate?: number;
+  container?: string;
+  crf?: number;
+  frame_rate?: number;
+  height?: number;
+  video?: string;
+};
+
+export type VideoToGIFOptions = {
+  dither?: string;
+  duration_seconds?: number;
+  fps?: number;
+  start_seconds?: number;
+  width?: number;
+};
+
 export type AbilitiesResponse = AbilityList;
 
 export type CapabilitiesResponse = CapabilitiesView;
@@ -239,7 +430,171 @@ export type TokensStoreBody = {
 
 export type TokensStoreResponse = TokenIssued;
 
+export type ToolsAudioConvertBody = {
+  file_id: string;
+  idempotency_key?: string;
+  options?: AudioConvertOptions;
+};
+
+export type ToolsAudioConvertResponse = ConversionView;
+
+export type ToolsAudioConvertFormatsResponse = AudioCapabilities;
+
+export type ToolsImageConvertBody = {
+  file_id: string;
+  idempotency_key?: string;
+  options?: ImageConvertOptions;
+};
+
+export type ToolsImageConvertResponse = ConversionView;
+
+export type ToolsImageConvertFormatsResponse = MediaCapabilities;
+
+export type ToolsImagesToPdfBody = {
+  file_ids: string[];
+  idempotency_key?: string;
+  options?: ImagesToPDFOptions;
+};
+
+export type ToolsImagesToPdfResponse = ConversionView;
+
 export type ToolsIndexResponse = ToolList;
+
+export type ToolsPdfCompareBody = {
+  file_ids: string[];
+  idempotency_key?: string;
+  options?: PDFCompareOptions;
+};
+
+export type ToolsPdfCompareResponse = ConversionView;
+
+export type ToolsPdfCompressBody = {
+  file_id: string;
+  idempotency_key?: string;
+  options?: PDFCompressOptions;
+};
+
+export type ToolsPdfCompressResponse = ConversionView;
+
+export type ToolsPdfCropBody = {
+  file_id: string;
+  idempotency_key?: string;
+  options: PDFCropOptions;
+};
+
+export type ToolsPdfCropResponse = ConversionView;
+
+export type ToolsPdfExtractPagesBody = {
+  file_id: string;
+  idempotency_key?: string;
+  options: PDFPagesOptions;
+};
+
+export type ToolsPdfExtractPagesResponse = ConversionView;
+
+export type ToolsPdfMergeBody = {
+  file_ids: string[];
+  idempotency_key?: string;
+  options?: PDFMergeOptions;
+};
+
+export type ToolsPdfMergeResponse = ConversionView;
+
+export type ToolsPdfOrganiseBody = {
+  file_id: string;
+  idempotency_key?: string;
+  options: PDFPagesOptions;
+};
+
+export type ToolsPdfOrganiseResponse = ConversionView;
+
+export type ToolsPdfPageNumbersBody = {
+  file_id: string;
+  idempotency_key?: string;
+  options?: PDFPageNumberOptions;
+};
+
+export type ToolsPdfPageNumbersResponse = ConversionView;
+
+export type ToolsPdfProtectBody = {
+  file_id: string;
+  idempotency_key?: string;
+  options: PDFProtectOptions;
+};
+
+export type ToolsPdfProtectResponse = ConversionView;
+
+export type ToolsPdfRemovePagesBody = {
+  file_id: string;
+  idempotency_key?: string;
+  options: PDFPagesOptions;
+};
+
+export type ToolsPdfRemovePagesResponse = ConversionView;
+
+export type ToolsPdfRepairBody = {
+  file_id: string;
+  idempotency_key?: string;
+  options?: PDFRepairOptions;
+};
+
+export type ToolsPdfRepairResponse = ConversionView;
+
+export type ToolsPdfRotateBody = {
+  file_id: string;
+  idempotency_key?: string;
+  options?: PDFRotateOptions;
+};
+
+export type ToolsPdfRotateResponse = ConversionView;
+
+export type ToolsPdfSplitBody = {
+  file_id: string;
+  idempotency_key?: string;
+  options?: PDFSplitOptions;
+};
+
+export type ToolsPdfSplitResponse = ConversionView;
+
+export type ToolsPdfToImageBody = {
+  file_id: string;
+  idempotency_key?: string;
+  options?: PDFToImageOptions;
+};
+
+export type ToolsPdfToImageResponse = ConversionView;
+
+export type ToolsPdfToPdfaBody = {
+  file_id: string;
+  idempotency_key?: string;
+  options?: PDFToPDFAOptions;
+};
+
+export type ToolsPdfToPdfaResponse = ConversionView;
+
+export type ToolsPdfToTextBody = {
+  file_id: string;
+  idempotency_key?: string;
+  options?: PDFToTextOptions;
+};
+
+export type ToolsPdfToTextResponse = ConversionView;
+
+export type ToolsPdfUnlockBody = {
+  file_id: string;
+  idempotency_key?: string;
+  options: PDFUnlockOptions;
+};
+
+export type ToolsPdfUnlockResponse = ConversionView;
+
+export type ToolsPdfWatermarkBody = {
+  file_id: string;
+  idempotency_key?: string;
+  options: PDFWatermarkOptions;
+};
+
+export type ToolsPdfWatermarkResponse = ConversionView;
 
 export type ToolsPixelsToSvgBody = {
   file_id: string;
@@ -264,6 +619,16 @@ export type ToolsVideoCompressBody = {
 
 export type ToolsVideoCompressResponse = ConversionView;
 
+export type ToolsVideoConvertBody = {
+  file_id: string;
+  idempotency_key?: string;
+  options?: VideoConvertOptions;
+};
+
+export type ToolsVideoConvertResponse = ConversionView;
+
+export type ToolsVideoConvertCapabilitiesResponse = VideoCapabilities;
+
 export type ToolsVideoDownloadBody = {
   idempotency_key?: string;
   options?: DownloadOptions;
@@ -276,6 +641,14 @@ export type ToolsVideoDownloadMetadataBody = {
 };
 
 export type ToolsVideoDownloadMetadataResponse = MediaView;
+
+export type ToolsVideoToGifBody = {
+  file_id: string;
+  idempotency_key?: string;
+  options?: VideoToGIFOptions;
+};
+
+export type ToolsVideoToGifResponse = ConversionView;
 
 export type UploadsIndexResponse = UploadList;
 
@@ -485,9 +858,119 @@ export interface Client {
   tokensStore(args: { body: TokensStoreBody }): Promise<TokensStoreResponse>;
 
   /**
+   * POST /api/v1/tools/audio-convert: Convert audio, or extract a video's soundtrack
+   */
+  toolsAudioConvert(args: { body: ToolsAudioConvertBody }): Promise<ToolsAudioConvertResponse>;
+
+  /**
+   * GET /api/v1/tools/audio-convert/formats: List the audio formats this server can write
+   */
+  toolsAudioConvertFormats(): Promise<ToolsAudioConvertFormatsResponse>;
+
+  /**
+   * POST /api/v1/tools/image-convert: Convert, resize, crop, rotate or flip an image
+   */
+  toolsImageConvert(args: { body: ToolsImageConvertBody }): Promise<ToolsImageConvertResponse>;
+
+  /**
+   * GET /api/v1/tools/image-convert/formats: List the image formats this server can read and write
+   */
+  toolsImageConvertFormats(): Promise<ToolsImageConvertFormatsResponse>;
+
+  /**
+   * POST /api/v1/tools/images-to-pdf: Bind images into a PDF, one per page
+   */
+  toolsImagesToPdf(args: { body: ToolsImagesToPdfBody }): Promise<ToolsImagesToPdfResponse>;
+
+  /**
    * GET /api/v1/tools: List the conversions on offer
    */
   toolsIndex(): Promise<ToolsIndexResponse>;
+
+  /**
+   * POST /api/v1/tools/pdf-compare: Compare two PDFs' text, page by page
+   */
+  toolsPdfCompare(args: { body: ToolsPdfCompareBody }): Promise<ToolsPdfCompareResponse>;
+
+  /**
+   * POST /api/v1/tools/pdf-compress: Make a PDF smaller
+   */
+  toolsPdfCompress(args: { body: ToolsPdfCompressBody }): Promise<ToolsPdfCompressResponse>;
+
+  /**
+   * POST /api/v1/tools/pdf-crop: Trim a PDF's margins
+   */
+  toolsPdfCrop(args: { body: ToolsPdfCropBody }): Promise<ToolsPdfCropResponse>;
+
+  /**
+   * POST /api/v1/tools/pdf-extract-pages: Keep only the pages you name
+   */
+  toolsPdfExtractPages(args: { body: ToolsPdfExtractPagesBody }): Promise<ToolsPdfExtractPagesResponse>;
+
+  /**
+   * POST /api/v1/tools/pdf-merge: Join several PDFs into one
+   */
+  toolsPdfMerge(args: { body: ToolsPdfMergeBody }): Promise<ToolsPdfMergeResponse>;
+
+  /**
+   * POST /api/v1/tools/pdf-organise: Reorder or duplicate pages
+   */
+  toolsPdfOrganise(args: { body: ToolsPdfOrganiseBody }): Promise<ToolsPdfOrganiseResponse>;
+
+  /**
+   * POST /api/v1/tools/pdf-page-numbers: Stamp page numbers onto a PDF
+   */
+  toolsPdfPageNumbers(args: { body: ToolsPdfPageNumbersBody }): Promise<ToolsPdfPageNumbersResponse>;
+
+  /**
+   * POST /api/v1/tools/pdf-protect: Encrypt a PDF with a password
+   */
+  toolsPdfProtect(args: { body: ToolsPdfProtectBody }): Promise<ToolsPdfProtectResponse>;
+
+  /**
+   * POST /api/v1/tools/pdf-remove-pages: Remove the pages you name
+   */
+  toolsPdfRemovePages(args: { body: ToolsPdfRemovePagesBody }): Promise<ToolsPdfRemovePagesResponse>;
+
+  /**
+   * POST /api/v1/tools/pdf-repair: Rebuild a damaged PDF's structure
+   */
+  toolsPdfRepair(args: { body: ToolsPdfRepairBody }): Promise<ToolsPdfRepairResponse>;
+
+  /**
+   * POST /api/v1/tools/pdf-rotate: Rotate pages by 90, 180 or 270 degrees
+   */
+  toolsPdfRotate(args: { body: ToolsPdfRotateBody }): Promise<ToolsPdfRotateResponse>;
+
+  /**
+   * POST /api/v1/tools/pdf-split: Split a PDF into several files
+   */
+  toolsPdfSplit(args: { body: ToolsPdfSplitBody }): Promise<ToolsPdfSplitResponse>;
+
+  /**
+   * POST /api/v1/tools/pdf-to-image: Render pages to PNG or JPEG
+   */
+  toolsPdfToImage(args: { body: ToolsPdfToImageBody }): Promise<ToolsPdfToImageResponse>;
+
+  /**
+   * POST /api/v1/tools/pdf-to-pdfa: Convert to the archival PDF/A format
+   */
+  toolsPdfToPdfa(args: { body: ToolsPdfToPdfaBody }): Promise<ToolsPdfToPdfaResponse>;
+
+  /**
+   * POST /api/v1/tools/pdf-to-text: Extract a PDF's text, as text or Markdown
+   */
+  toolsPdfToText(args: { body: ToolsPdfToTextBody }): Promise<ToolsPdfToTextResponse>;
+
+  /**
+   * POST /api/v1/tools/pdf-unlock: Remove a password you know
+   */
+  toolsPdfUnlock(args: { body: ToolsPdfUnlockBody }): Promise<ToolsPdfUnlockResponse>;
+
+  /**
+   * POST /api/v1/tools/pdf-watermark: Stamp text across a PDF's pages
+   */
+  toolsPdfWatermark(args: { body: ToolsPdfWatermarkBody }): Promise<ToolsPdfWatermarkResponse>;
 
   /**
    * POST /api/v1/tools/pixels-to-svg: Turn pixel art into SVG
@@ -505,6 +988,16 @@ export interface Client {
   toolsVideoCompress(args: { body: ToolsVideoCompressBody }): Promise<ToolsVideoCompressResponse>;
 
   /**
+   * POST /api/v1/tools/video-convert: Convert a video between containers and codecs
+   */
+  toolsVideoConvert(args: { body: ToolsVideoConvertBody }): Promise<ToolsVideoConvertResponse>;
+
+  /**
+   * GET /api/v1/tools/video-convert/capabilities: List the containers and codecs this server can produce
+   */
+  toolsVideoConvertCapabilities(): Promise<ToolsVideoConvertCapabilitiesResponse>;
+
+  /**
    * POST /api/v1/tools/video-download: Download a video from a URL
    */
   toolsVideoDownload(args: { body: ToolsVideoDownloadBody }): Promise<ToolsVideoDownloadResponse>;
@@ -513,6 +1006,11 @@ export interface Client {
    * POST /api/v1/tools/video-download/metadata: Report what a platform says about a URL
    */
   toolsVideoDownloadMetadata(args: { body: ToolsVideoDownloadMetadataBody }): Promise<ToolsVideoDownloadMetadataResponse>;
+
+  /**
+   * POST /api/v1/tools/video-to-gif: Turn part of a video into an animated GIF
+   */
+  toolsVideoToGif(args: { body: ToolsVideoToGifBody }): Promise<ToolsVideoToGifResponse>;
 
   /**
    * GET /api/v1/uploads: List your unclaimed uploads
@@ -544,12 +1042,37 @@ export function createClient(options: ClientOptions = {}): Client {
     tokensIndex: () => request<TokensIndexResponse>("GET", "/api/v1/tokens"),
     tokensRevoke: (args) => request<TokensRevokeResponse>("DELETE", "/api/v1/tokens/{token}", args),
     tokensStore: (args) => request<TokensStoreResponse>("POST", "/api/v1/tokens", args),
+    toolsAudioConvert: (args) => request<ToolsAudioConvertResponse>("POST", "/api/v1/tools/audio-convert", args),
+    toolsAudioConvertFormats: () => request<ToolsAudioConvertFormatsResponse>("GET", "/api/v1/tools/audio-convert/formats"),
+    toolsImageConvert: (args) => request<ToolsImageConvertResponse>("POST", "/api/v1/tools/image-convert", args),
+    toolsImageConvertFormats: () => request<ToolsImageConvertFormatsResponse>("GET", "/api/v1/tools/image-convert/formats"),
+    toolsImagesToPdf: (args) => request<ToolsImagesToPdfResponse>("POST", "/api/v1/tools/images-to-pdf", args),
     toolsIndex: () => request<ToolsIndexResponse>("GET", "/api/v1/tools"),
+    toolsPdfCompare: (args) => request<ToolsPdfCompareResponse>("POST", "/api/v1/tools/pdf-compare", args),
+    toolsPdfCompress: (args) => request<ToolsPdfCompressResponse>("POST", "/api/v1/tools/pdf-compress", args),
+    toolsPdfCrop: (args) => request<ToolsPdfCropResponse>("POST", "/api/v1/tools/pdf-crop", args),
+    toolsPdfExtractPages: (args) => request<ToolsPdfExtractPagesResponse>("POST", "/api/v1/tools/pdf-extract-pages", args),
+    toolsPdfMerge: (args) => request<ToolsPdfMergeResponse>("POST", "/api/v1/tools/pdf-merge", args),
+    toolsPdfOrganise: (args) => request<ToolsPdfOrganiseResponse>("POST", "/api/v1/tools/pdf-organise", args),
+    toolsPdfPageNumbers: (args) => request<ToolsPdfPageNumbersResponse>("POST", "/api/v1/tools/pdf-page-numbers", args),
+    toolsPdfProtect: (args) => request<ToolsPdfProtectResponse>("POST", "/api/v1/tools/pdf-protect", args),
+    toolsPdfRemovePages: (args) => request<ToolsPdfRemovePagesResponse>("POST", "/api/v1/tools/pdf-remove-pages", args),
+    toolsPdfRepair: (args) => request<ToolsPdfRepairResponse>("POST", "/api/v1/tools/pdf-repair", args),
+    toolsPdfRotate: (args) => request<ToolsPdfRotateResponse>("POST", "/api/v1/tools/pdf-rotate", args),
+    toolsPdfSplit: (args) => request<ToolsPdfSplitResponse>("POST", "/api/v1/tools/pdf-split", args),
+    toolsPdfToImage: (args) => request<ToolsPdfToImageResponse>("POST", "/api/v1/tools/pdf-to-image", args),
+    toolsPdfToPdfa: (args) => request<ToolsPdfToPdfaResponse>("POST", "/api/v1/tools/pdf-to-pdfa", args),
+    toolsPdfToText: (args) => request<ToolsPdfToTextResponse>("POST", "/api/v1/tools/pdf-to-text", args),
+    toolsPdfUnlock: (args) => request<ToolsPdfUnlockResponse>("POST", "/api/v1/tools/pdf-unlock", args),
+    toolsPdfWatermark: (args) => request<ToolsPdfWatermarkResponse>("POST", "/api/v1/tools/pdf-watermark", args),
     toolsPixelsToSvg: (args) => request<ToolsPixelsToSvgResponse>("POST", "/api/v1/tools/pixels-to-svg", args),
     toolsVideoClip: (args) => request<ToolsVideoClipResponse>("POST", "/api/v1/tools/video-clip", args),
     toolsVideoCompress: (args) => request<ToolsVideoCompressResponse>("POST", "/api/v1/tools/video-compress", args),
+    toolsVideoConvert: (args) => request<ToolsVideoConvertResponse>("POST", "/api/v1/tools/video-convert", args),
+    toolsVideoConvertCapabilities: () => request<ToolsVideoConvertCapabilitiesResponse>("GET", "/api/v1/tools/video-convert/capabilities"),
     toolsVideoDownload: (args) => request<ToolsVideoDownloadResponse>("POST", "/api/v1/tools/video-download", args),
     toolsVideoDownloadMetadata: (args) => request<ToolsVideoDownloadMetadataResponse>("POST", "/api/v1/tools/video-download/metadata", args),
+    toolsVideoToGif: (args) => request<ToolsVideoToGifResponse>("POST", "/api/v1/tools/video-to-gif", args),
     uploadsIndex: () => request<UploadsIndexResponse>("GET", "/api/v1/uploads"),
     uploadsTypes: () => request<UploadsTypesResponse>("GET", "/api/v1/upload-types"),
   };

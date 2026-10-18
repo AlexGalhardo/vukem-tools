@@ -5,7 +5,10 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"maps"
 	"net/http"
+	"slices"
+	"strings"
 	"sync"
 	"time"
 
@@ -235,7 +238,9 @@ func (h *Health) engineCheck() Check {
 
 	missing := h.engines.Missing()
 	if len(missing) == 0 {
-		return Check{Status: "ok", Took: "0s"}
+		// The versions are the deployment's engine surface, which is what an
+		// operator comparing a CVE advisory against this instance needs.
+		return Check{Status: "ok", Detail: versionList(h.engines.Versions()), Took: "0s"}
 	}
 
 	return Check{
@@ -253,4 +258,18 @@ func noStore(c *web.Ctx) {
 	h := c.Writer().Header()
 	h.Set("Cache-Control", "no-store")
 	h.Set("X-Content-Type-Options", "nosniff")
+}
+
+// versionList renders the resolved engines as "name version" pairs in a
+// stable order, so two probes of the same deployment read identically and a
+// diff between deployments is meaningful.
+func versionList(versions map[string]string) string {
+	names := slices.Sorted(maps.Keys(versions))
+
+	parts := make([]string, 0, len(names))
+	for _, n := range names {
+		parts = append(parts, n+" "+versions[n])
+	}
+
+	return strings.Join(parts, ", ")
 }

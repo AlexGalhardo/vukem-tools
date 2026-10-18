@@ -126,12 +126,6 @@ var components = []Component{
 		Copyleft: true,
 	},
 	{
-		Name: "pdfcpu",
-		SPDX: "Apache-2.0",
-		URL:  "https://github.com/pdfcpu/pdfcpu",
-		Role: "PDF structure: merge, split, rotate, stamp",
-	},
-	{
 		Name: "qpdf",
 		SPDX: "Apache-2.0",
 		URL:  "https://github.com/qpdf/qpdf",

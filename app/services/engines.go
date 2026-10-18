@@ -54,8 +54,12 @@ const (
 	// write still stops.
 	engineFileSize = 2 << 30
 	// engineProcesses: ffmpeg and yt-dlp both fork, and yt-dlp calls ffmpeg.
-	// Low enough that an engine cannot fork its way out of its own limits.
-	engineProcesses = 64
+	// RLIMIT_NPROC counts per real UID, so the worker's own threads spend
+	// this budget too. Measured peaks in the image at -threads 2: x264 12,
+	// SVT-AV1 lp=1 25, lp=2 56, lp=4 79. At 64 an lp=2 encode left 8 threads
+	// for the entire worker process, which needs more than that; 512 leaves
+	// room for a filter graph without letting an engine fork unbounded.
+	engineProcesses = 512
 	engineOpenFiles = 512
 	// engineTimeout is the default wall clock for one program. A tool with a
 	// different shape (a long video, a short thumbnail) passes its own.

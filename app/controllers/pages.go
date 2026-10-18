@@ -145,6 +145,28 @@ var pages = map[string]toolPage{ //nolint:gochecknoglobals // read-only table
 		// formats take a bit rate at all.
 		props: func() inertia.Props { return inertia.Props{} },
 	},
+
+	// Every live PDF tool renders one page: the form is described
+	// client-side from the tool's own option schema, so there are no
+	// per-tool props to pass.
+	"pdf-merge":         {component: "Tools/Pdf"},
+	"pdf-split":         {component: "Tools/Pdf"},
+	"pdf-extract-pages": {component: "Tools/Pdf"},
+	"pdf-remove-pages":  {component: "Tools/Pdf"},
+	"pdf-organise":      {component: "Tools/Pdf"},
+	"pdf-rotate":        {component: "Tools/Pdf"},
+	"pdf-crop":          {component: "Tools/Pdf"},
+	"images-to-pdf":     {component: "Tools/Pdf"},
+	"pdf-to-image":      {component: "Tools/Pdf"},
+	"pdf-to-pdfa":       {component: "Tools/Pdf"},
+	"pdf-to-text":       {component: "Tools/Pdf"},
+	"pdf-compress":      {component: "Tools/Pdf"},
+	"pdf-repair":        {component: "Tools/Pdf"},
+	"pdf-protect":       {component: "Tools/Pdf"},
+	"pdf-unlock":        {component: "Tools/Pdf"},
+	"pdf-compare":       {component: "Tools/Pdf"},
+	"pdf-page-numbers":  {component: "Tools/Pdf"},
+	"pdf-watermark":     {component: "Tools/Pdf"},
 }
 
 // Licenses renders the licence notice: GET /licenses.

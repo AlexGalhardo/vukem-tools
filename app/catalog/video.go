@@ -16,6 +16,17 @@ package catalog
 // downgrades a Live entry and never promotes a Planned one.
 var videoCatalog = []Tool{
 	{
+		Name:     "video-convert",
+		Title:    "Convert a video",
+		Summary:  "Between MP4, WebM and MKV, with the codec and the resolution under your control.",
+		In:       []string{"MP4", "WebM", "MKV", "MOV", "AVI"},
+		Out:      []string{"MP4", "WebM", "MKV"},
+		Group:    GroupVideo,
+		Icon:     "video",
+		Status:   Live,
+		Keywords: []string{"ffmpeg", "h264", "av1", "transcode", "mp4"},
+	},
+	{
 		Name:  "video-to-gif",
 		Title: "Video to GIF",
 		Summary: "Turns a few seconds of a video into an animated GIF, with a palette computed " +

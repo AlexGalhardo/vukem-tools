@@ -14,4 +14,27 @@ package catalog
 // would list the tool twice on the index and make Find return whichever came
 // first. Moving it into this slice is a change to catalog.go, which this
 // domain does not own; see the report that accompanies this branch.
-var imageCatalog = []Tool{}
+var imageCatalog = []Tool{
+	{
+		Name:     "image-convert",
+		Title:    "Convert an image",
+		Summary:  "Between PNG, JPEG, WebP, AVIF and more, with control over quality and whether transparency is kept.",
+		In:       []string{"PNG", "JPEG", "WebP", "AVIF", "GIF", "TIFF", "BMP"},
+		Out:      []string{"PNG", "JPEG", "WebP", "AVIF"},
+		Group:    GroupImages,
+		Icon:     "image",
+		Status:   Live,
+		Keywords: []string{"png", "jpg", "jpeg", "webp", "avif", "heic", "resize"},
+	},
+	{
+		Name:     "image-compress",
+		Title:    "Compress an image",
+		Summary:  "Makes an image smaller without a visible difference, and reports exactly how much was saved.",
+		In:       []string{"PNG", "JPEG", "WebP", "GIF"},
+		Out:      []string{"PNG", "JPEG", "WebP", "GIF"},
+		Group:    GroupImages,
+		Icon:     "scale",
+		Status:   Planned,
+		Keywords: []string{"optimise", "optimize", "smaller", "lossless", "tinypng"},
+	},
+}

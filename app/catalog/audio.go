@@ -15,4 +15,16 @@ package catalog
 // the production image, so there is nothing to describe and no date to
 // promise; adding a Planned entry for it is the owner's call, since it needs
 // a model pinned at build time.
-var audioCatalog = []Tool{}
+var audioCatalog = []Tool{
+	{
+		Name:     "audio-convert",
+		Title:    "Convert audio",
+		Summary:  "Between MP3, WAV, FLAC, Ogg and AAC, with the bitrate under your control.",
+		In:       []string{"MP3", "WAV", "FLAC", "OGG", "AAC"},
+		Out:      []string{"MP3", "WAV", "FLAC", "OGG", "AAC"},
+		Group:    GroupVideo,
+		Icon:     "audio",
+		Status:   Live,
+		Keywords: []string{"mp3", "wav", "flac", "bitrate"},
+	},
+}

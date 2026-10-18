@@ -65,9 +65,9 @@ type PixelSVGOptions struct {
 	// Mode selects the geometry: one rectangle per pixel, merged rectangles,
 	// or traced outlines. rect is the default because it is both the
 	// smallest and the fastest for ordinary sprites.
-	Mode string `json:"mode" validate:"trim,oneof=square rect contour" doc:"square, rect or contour. Default rect."`
+	Mode string `json:"mode" validate:"trim,max=16" doc:"square, rect or contour. Default rect."`
 	// Alpha decides what happens to partly transparent pixels.
-	Alpha string `json:"alpha" validate:"trim,oneof=opacity drop" doc:"opacity keeps partial transparency, drop removes it. Default opacity."`
+	Alpha string `json:"alpha" validate:"trim,max=16" doc:"opacity keeps partial transparency, drop removes it. Default opacity."`
 	// MaxColors caps the palette. 0 means the library's cap; -1 means no cap,
 	// which refuses an image with more colours rather than quantising it.
 	MaxColors int `json:"max_colors" validate:"min=-1,max=256" doc:"Palette cap, 1 to 256. 0 uses the default, -1 means no reduction."`
@@ -81,25 +81,72 @@ type PixelSVGOptions struct {
 	Simplify float64 `json:"simplify" validate:"min=0,max=16" doc:"Contour simplification in pixels, contour mode only. 0 keeps it pixel-exact."`
 }
 
-// PixelSVGSchema validates the options a client sends.
-//
-// The oneof rules accept only the documented values, and empty is not one of
-// them, so the schema fills the defaults before validating rather than
-// letting a client discover that omitting a field is an error.
-func PixelSVGSchema() z.Schema[PixelSVGOptions] { return z.For[PixelSVGOptions]() }
+// Modes and alpha handlings a client may name, as the API documents them.
+var (
+	pixelSVGModes  = []string{string(pixelsvg.ModeSquare), string(pixelsvg.ModeRect), string(pixelsvg.ModeContour)}
+	pixelSVGAlphas = []string{string(pixelsvg.AlphaOpacity), string(pixelsvg.AlphaDrop)}
+)
 
-// defaults returns in with every omitted field set to its default.
-func (in PixelSVGOptions) defaults() PixelSVGOptions {
-	if in.Mode == "" {
+// PixelSVGModes returns the accepted mode names, for the documentation and
+// the interface.
+func PixelSVGModes() []string { return slices.Clone(pixelSVGModes) }
+
+// PixelSVGAlphas returns the accepted alpha handlings.
+func PixelSVGAlphas() []string { return slices.Clone(pixelSVGAlphas) }
+
+// Normalise fills in every omitted field and refuses a value that is not one
+// of the documented ones.
+//
+// The enums are checked here rather than with a `oneof` tag because an
+// omitted field must mean "the default", and `oneof` has no way to say "one
+// of these, or empty". Validating in code keeps "mode is optional" true and
+// still names the accepted values in the error.
+func (in PixelSVGOptions) Normalise() (PixelSVGOptions, error) {
+	if in.Mode = strings.TrimSpace(in.Mode); in.Mode == "" {
 		in.Mode = string(pixelsvg.ModeRect)
 	}
 
-	if in.Alpha == "" {
+	if !slices.Contains(pixelSVGModes, in.Mode) {
+		return PixelSVGOptions{}, z.FieldError("options.mode",
+			"Unknown mode. Use one of: "+strings.Join(pixelSVGModes, ", ")+".")
+	}
+
+	if in.Alpha = strings.TrimSpace(in.Alpha); in.Alpha == "" {
 		in.Alpha = string(pixelsvg.AlphaOpacity)
 	}
 
-	return in
+	if !slices.Contains(pixelSVGAlphas, in.Alpha) {
+		return PixelSVGOptions{}, z.FieldError("options.alpha",
+			"Unknown alpha handling. Use one of: "+strings.Join(pixelSVGAlphas, ", ")+".")
+	}
+
+	if in.MaxColors < -1 || in.MaxColors > pixelsvg.ColorCap {
+		return PixelSVGOptions{}, z.FieldError("options.max_colors",
+			fmt.Sprintf("The palette cap must be between -1 and %d.", pixelsvg.ColorCap))
+	}
+
+	if in.Tolerance < 0 || in.Tolerance > 255 {
+		return PixelSVGOptions{}, z.FieldError("options.tolerance", "The tolerance must be between 0 and 255.")
+	}
+
+	if in.Scale < 0 || in.Scale > maxPixelSVGScale {
+		return PixelSVGOptions{}, z.FieldError("options.scale",
+			fmt.Sprintf("The scale must be between 0 and %d.", maxPixelSVGScale))
+	}
+
+	if in.Simplify < 0 || in.Simplify > maxPixelSVGSimplify {
+		return PixelSVGOptions{}, z.FieldError("options.simplify",
+			fmt.Sprintf("The simplification must be between 0 and %g pixels.", maxPixelSVGSimplify))
+	}
+
+	return in, nil
 }
+
+// The bounds the API documents and enforces.
+const (
+	maxPixelSVGScale    = 64
+	maxPixelSVGSimplify = 16.0
+)
 
 // library turns the public options into the library's.
 func (in PixelSVGOptions) library() pixelsvg.Options {
@@ -125,14 +172,7 @@ func ParsePixelSVGOptions(raw json.RawMessage) (PixelSVGOptions, error) {
 		}
 	}
 
-	in = in.defaults()
-
-	out, err := PixelSVGSchema().Parse(in)
-	if err != nil {
-		return PixelSVGOptions{}, err
-	}
-
-	return out, nil
+	return in.Normalise()
 }
 
 // Run implements jobs.Tool.

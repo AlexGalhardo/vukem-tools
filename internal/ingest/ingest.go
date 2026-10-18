@@ -104,8 +104,9 @@ func New(o Options) (*Ingester, error) {
 // the same wording here as they would from a failed conversion.
 func (i *Ingester) Accept(ctx context.Context, userID string, info upload.TusInfo, open Opener) (models.File, error) {
 	if info.Length > i.maxBytes {
-		return models.File{}, jobs.Failf(jobs.InputTooLarge,
-			"upload is %d bytes, the limit is %d", info.Length, i.maxBytes)
+		return models.File{}, jobs.Refuse(jobs.InputTooLarge, nil,
+			fmt.Sprintf("That file is %d MB. The limit is %d MB.", info.Length>>20, i.maxBytes>>20),
+			fmt.Sprintf("upload is %d bytes, the limit is %d", info.Length, i.maxBytes))
 	}
 
 	kind, err := i.identify(ctx, info, open)
@@ -154,11 +155,11 @@ func (i *Ingester) identify(ctx context.Context, info upload.TusInfo, open Opene
 	// Both refusals carry a sentence written for the person who uploaded the
 	// file; the detail behind them is for the log.
 	if mismatch, ok := errors.AsType[*detect.MismatchError](err); ok {
-		return detect.Kind{}, jobs.Fail(jobs.UnsupportedInput, err, mismatch.Message())
+		return detect.Kind{}, jobs.Refuse(jobs.UnsupportedInput, err, mismatch.Message(), err.Error())
 	}
 
 	if unsupported, ok := errors.AsType[*detect.UnsupportedError](err); ok {
-		return detect.Kind{}, jobs.Fail(jobs.UnsupportedInput, err, unsupported.Message())
+		return detect.Kind{}, jobs.Refuse(jobs.UnsupportedInput, err, unsupported.Message(), err.Error())
 	}
 
 	return detect.Kind{}, jobs.Fail(jobs.Internal, err, "identify the upload")

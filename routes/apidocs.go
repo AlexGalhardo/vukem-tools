@@ -233,8 +233,7 @@ func exampleResponse(doc *openapi.Document, name string, ex any) {
 // requestExamples maps an operationId to its request body example.
 func requestExamples() map[string]any {
 	return map[string]any{
-		"conversions.store": map[string]any{
-			"tool":            "pixels-to-svg",
+		"tools.pixels-to-svg": map[string]any{
 			"file_id":         "01JQ8Z5X0K7M3N9P2R4T6V8W0Y",
 			"idempotency_key": "sprite-batch-7",
 			"options": map[string]any{

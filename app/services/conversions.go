@@ -11,6 +11,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"io"
 	"strconv"
 	"sync"
 	"time"
@@ -212,6 +213,15 @@ func (c *Conversions) buildFiles(app *vukem.App, ttl time.Duration) error {
 
 	if c.disk, err = openDisk(app); err != nil {
 		return err
+	}
+
+	// The local disk keeps the directory open through an os.Root, which on
+	// Windows stops that directory being removed while the handle lives. A
+	// test's temporary directory is removed right after the app shuts down,
+	// so without this the cleanup fails and every test that wrote a file
+	// reports an error that has nothing to do with what it was testing.
+	if closer, ok := c.disk.(io.Closer); ok {
+		app.OnShutdown(func(context.Context) error { return closer.Close() })
 	}
 
 	// A separate key for signing links, derived from APP_KEY: a link

@@ -83,15 +83,17 @@ func Conversions(c *services.Conversions) func(r *router.Router, app *vukem.App)
 			g.Group("", func(p *router.Group) {
 				p.Use(auth.Required(acc.API), perToken)
 
-				api.Register(p, "POST /conversions", api.Op{
-					Name:    "conversions.store",
-					Summary: "Submit a conversion",
-					Description: "Runs a tool over an upload of yours. The upload and the conversion " +
-						"are bound in one transaction, so a conversion always has its input. Send an " +
+				// One route per tool, so the document describes each
+				// tool's options exactly rather than saying "an object".
+				api.Register(p, "POST /tools/pixels-to-svg", api.Op{
+					Name:    "tools.pixels-to-svg",
+					Summary: "Turn pixel art into SVG",
+					Description: "Traces an uploaded image into SVG. The upload and the conversion are " +
+						"bound in one transaction, so a conversion always has its input. Send an " +
 						"idempotency_key to make a retry safe.",
 					Tags:     []string{tagConversions},
 					Security: []string{SchemeBearer},
-				}, h.Store).Use(submit)
+				}, h.PixelSVG).Use(submit)
 
 				api.Register(p, "GET /conversions", api.Op{
 					Name:        "conversions.index",

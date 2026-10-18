@@ -196,6 +196,21 @@ type ErrorCatalog struct {
 	Data []ErrorCatalogEntry `json:"data,omitempty"`
 }
 
+type PixelSVGOptions struct {
+	// opacity keeps partial transparency, drop removes it. Default opacity.
+	Alpha *string `json:"alpha,omitempty"`
+	// Palette cap, 1 to 256. 0 uses the default, -1 means no reduction.
+	MaxColors *int64 `json:"max_colors,omitempty"`
+	// square, rect or contour. Default rect.
+	Mode *string `json:"mode,omitempty"`
+	// Multiplies the rendered size. 0 and 1 both mean actual size.
+	Scale *int64 `json:"scale,omitempty"`
+	// Contour simplification in pixels, contour mode only. 0 keeps it pixel-exact.
+	Simplify *float64 `json:"simplify,omitempty"`
+	// Merge colours closer than this (0 to 255). 0 disables merging.
+	Tolerance *int64 `json:"tolerance,omitempty"`
+}
+
 type Token struct {
 	Abilities  []string   `json:"abilities,omitempty"`
 	ExpiresAt  *time.Time `json:"expires_at,omitempty"`
@@ -255,17 +270,6 @@ func (q ConversionsIndexQuery) values() url.Values {
 	return v
 }
 
-type ConversionsStoreBody struct {
-	// The id of an upload of yours, from the resumable upload endpoint.
-	FileID string `json:"file_id"`
-	// Repeat a submission safely: the same key returns the same conversion.
-	IdempotencyKey *string `json:"idempotency_key,omitempty"`
-	// The tool's options. GET /openapi.json describes each tool's shape.
-	Options json.RawMessage `json:"options,omitempty"`
-	// Which conversion to run; GET /api/v1/tools lists them.
-	Tool string `json:"tool"`
-}
-
 type TokensStoreBody struct {
 	// What the key may do; GET /api/v1/abilities lists the accepted values.
 	Abilities []string `json:"abilities"`
@@ -279,6 +283,15 @@ type TokensStoreBody struct {
 	Password string `json:"password"`
 	// A two-factor recovery code, instead of code.
 	RecoveryCode *string `json:"recovery_code,omitempty"`
+}
+
+type ToolsPixelsToSvgBody struct {
+	// The id of an upload of yours, from the resumable upload endpoint.
+	FileID string `json:"file_id"`
+	// Repeat a submission safely: the same key returns the same conversion.
+	IdempotencyKey *string `json:"idempotency_key,omitempty"`
+	// How to convert. Every field is optional.
+	Options *PixelSVGOptions `json:"options,omitempty"`
 }
 
 // Abilities calls GET /api/v1/abilities: List the abilities a key may be granted.
@@ -321,14 +334,6 @@ func (c *Client) ConversionsShow(ctx context.Context, id string) (ConversionView
 	return out, err
 }
 
-// ConversionsStore calls POST /api/v1/conversions: Submit a conversion.
-func (c *Client) ConversionsStore(ctx context.Context, body ConversionsStoreBody) (ConversionView, error) {
-	var out ConversionView
-	err := c.do(ctx, "POST", "/api/v1/conversions", nil, body, &out)
-
-	return out, err
-}
-
 // Me calls GET /api/v1/me: Show the authenticated account.
 func (c *Client) Me(ctx context.Context) (User, error) {
 	var out User
@@ -367,6 +372,14 @@ func (c *Client) TokensStore(ctx context.Context, body TokensStoreBody) (TokenIs
 func (c *Client) ToolsIndex(ctx context.Context) (ToolList, error) {
 	var out ToolList
 	err := c.do(ctx, "GET", "/api/v1/tools", nil, nil, &out)
+
+	return out, err
+}
+
+// ToolsPixelsToSvg calls POST /api/v1/tools/pixels-to-svg: Turn pixel art into SVG.
+func (c *Client) ToolsPixelsToSvg(ctx context.Context, body ToolsPixelsToSvgBody) (ConversionView, error) {
+	var out ConversionView
+	err := c.do(ctx, "POST", "/api/v1/tools/pixels-to-svg", nil, body, &out)
 
 	return out, err
 }

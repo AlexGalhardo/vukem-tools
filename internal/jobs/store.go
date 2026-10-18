@@ -320,7 +320,7 @@ func (s *Store) Finish(ctx context.Context, id string, out Outcome) (bool, error
 // quota is already spent.
 func (s *Store) Failure(ctx context.Context, id string, cause error) (bool, error) {
 	kind := Classify(cause)
-	info := Describe(kind)
+	message := MessageOf(cause)
 	detail := DetailOf(cause)
 	at := s.now().UTC()
 
@@ -343,7 +343,7 @@ func (s *Store) Failure(ctx context.Context, id string, cause error) (bool, erro
 		return false, nil
 	}
 
-	return true, s.record(ctx, id, Event{Status: Errored, ErrorType: kind, Message: info.Message})
+	return true, s.record(ctx, id, Event{Status: Errored, ErrorType: kind, Message: message})
 }
 
 // maxErrorDetail bounds what is stored for the owner. An engine that prints a

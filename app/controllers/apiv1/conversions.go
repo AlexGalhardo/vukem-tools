@@ -17,6 +17,7 @@ import (
 	"github.com/AlexGalhardo/vukem/z"
 
 	"github.com/AlexGalhardo/vukem-tools/app/models"
+	"github.com/AlexGalhardo/vukem-tools/app/tools"
 	"github.com/AlexGalhardo/vukem-tools/internal/detect"
 	"github.com/AlexGalhardo/vukem-tools/internal/files"
 	"github.com/AlexGalhardo/vukem-tools/internal/jobs"
@@ -95,29 +96,63 @@ func viewOf(c models.Conversion) ConversionView {
 	return v
 }
 
-// SubmitInput is the body of POST /api/v1/conversions.
-type SubmitInput struct {
-	// Tool names the conversion. GET /api/v1/tools lists the accepted
-	// values.
-	Tool string `json:"tool" validate:"required,trim,min=1,max=64" doc:"Which conversion to run; GET /api/v1/tools lists them."`
+// SubmitPixelSVG is the body of POST /api/v1/tools/pixels-to-svg.
+//
+// There is one submit route per tool rather than one generic route carrying
+// opaque JSON. Two reasons, and the second is the one that settled it: the
+// OpenAPI document then describes each tool's options exactly instead of
+// saying "an object", and the typed-handler validator derives its schema from
+// the Go type, so raw JSON cannot be an input field at all — neither
+// json.RawMessage nor map[string]any is a type it can describe.
+type SubmitPixelSVG struct {
 	// FileID is an upload of this caller's that is not already attached to a
 	// conversion.
 	FileID string `json:"file_id" validate:"required,trim" doc:"The id of an upload of yours, from the resumable upload endpoint."`
-	// Options are the tool's own options. Each tool validates and normalises
-	// them, and what is stored is what the worker reads.
-	Options json.RawMessage `json:"options" doc:"The tool's options. GET /openapi.json describes each tool's shape."`
 	// IdempotencyKey makes a repeated submission return the first conversion
 	// instead of starting a second one. Scoped to the caller.
 	IdempotencyKey string `json:"idempotency_key" validate:"trim,max=128" doc:"Repeat a submission safely: the same key returns the same conversion."`
+	// Options are the tool's own options. Every field is optional and has a
+	// documented default.
+	Options tools.PixelSVGOptions `json:"options" doc:"How to convert. Every field is optional."`
 }
 
-// Store submits a conversion: POST /api/v1/conversions.
+// PixelSVG submits a pixel-art to SVG conversion:
+// POST /api/v1/tools/pixels-to-svg.
+func (h *Conversions) PixelSVG(c *web.Ctx, in SubmitPixelSVG) (ConversionView, error) {
+	opts, err := in.Options.Normalise()
+	if err != nil {
+		return ConversionView{}, err
+	}
+
+	encoded, err := json.Marshal(opts)
+	if err != nil {
+		return ConversionView{}, err
+	}
+
+	return h.submit(c, submission{
+		Tool:           "pixels-to-svg",
+		FileID:         in.FileID,
+		IdempotencyKey: in.IdempotencyKey,
+		Options:        encoded,
+	})
+}
+
+// submission is what every per-tool handler reduces to.
+type submission struct {
+	Tool           string
+	FileID         string
+	IdempotencyKey string
+	Options        json.RawMessage
+}
+
+// submit is the shared path behind every per-tool route: check the ability,
+// check the file, then create the conversion and attach the input in one
+// transaction.
 //
-// The input is attached and the conversion created in one transaction, so a
-// conversion whose input failed to attach never exists — a worker would
-// otherwise find nothing to read and fail it for a reason that is not the
-// caller's.
-func (h *Conversions) Store(c *web.Ctx, in SubmitInput) (ConversionView, error) {
+// A conversion whose input failed to attach never exists, because a worker
+// would otherwise find nothing to read and fail it for a reason that is not
+// the caller's.
+func (h *Conversions) submit(c *web.Ctx, in submission) (ConversionView, error) {
 	userID, err := callerID(c)
 	if err != nil {
 		return ConversionView{}, err
@@ -125,8 +160,10 @@ func (h *Conversions) Store(c *web.Ctx, in SubmitInput) (ConversionView, error) 
 
 	tool, ok := h.pipe.Tool(in.Tool)
 	if !ok {
-		return ConversionView{}, z.FieldError("tool",
-			"Unknown tool. GET /api/v1/tools lists the accepted values.")
+		// A route exists for a tool the pipeline does not have: a wiring
+		// mistake, not a client error.
+		return ConversionView{}, errs.NewKey(http.StatusServiceUnavailable, "conversion.tool_unavailable",
+			"That tool is not available right now.", nil)
 	}
 
 	if err := requireAbility(c, tool.Ability()); err != nil {

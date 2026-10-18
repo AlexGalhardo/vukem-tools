@@ -166,11 +166,25 @@ type ConversionError struct {
 	Type   ErrorType
 	Detail string
 	Err    error
+	// Public, when set, is the sentence to show instead of the taxonomy's.
+	// It exists because the taxonomy's message is necessarily generic — "that
+	// file is not a format this tool can read" — while the code that detected
+	// the problem often knows something far more useful: "that file is an MP4
+	// video, but it is named holiday.png". Whatever goes here is read by
+	// whoever uploaded the file, so it must name nothing but the input.
+	Public string
 }
 
 // Fail returns a ConversionError of type t wrapping err. detail is owner-only.
 func Fail(t ErrorType, err error, detail string) *ConversionError {
 	return &ConversionError{Type: t, Detail: detail, Err: err}
+}
+
+// Refuse returns a ConversionError whose public sentence is given, for a
+// refusal the detecting code can explain better than the taxonomy can.
+// detail stays owner-only.
+func Refuse(t ErrorType, err error, public, detail string) *ConversionError {
+	return &ConversionError{Type: t, Detail: detail, Err: err, Public: public}
 }
 
 // Failf returns a ConversionError of type t whose detail is formatted, with no
@@ -225,6 +239,22 @@ func Classify(err error) ErrorType {
 
 // Retryable reports whether err is worth another attempt.
 func Retryable(err error) bool { return Describe(Classify(err)).Retry }
+
+// MessageOf returns the sentence to show for err: the specific one when the
+// failure carried it, the taxonomy's otherwise. It is the one function every
+// surface should call, so the API, the interface and the progress trail
+// cannot word the same failure differently.
+func MessageOf(err error) string {
+	if err == nil {
+		return ""
+	}
+
+	if ce, ok := errors.AsType[*ConversionError](err); ok && ce.Public != "" {
+		return ce.Public
+	}
+
+	return Describe(Classify(err)).Message
+}
 
 // DetailOf returns the owner-only detail of err, or its message when err is
 // not a ConversionError. Use it for the error_detail column and the log, never

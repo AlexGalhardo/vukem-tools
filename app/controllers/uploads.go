@@ -113,9 +113,7 @@ func asHTTP(err error) error {
 		return err
 	}
 
-	info := jobs.Describe(ce.Type)
-
-	return errs.NewKey(info.Status, "upload."+string(ce.Type), info.Message, nil)
+	return errs.NewKey(jobs.Describe(ce.Type).Status, "upload."+string(ce.Type), jobs.MessageOf(ce), nil)
 }
 
 // UploadedResponse is what the client is told once an upload is stored. The

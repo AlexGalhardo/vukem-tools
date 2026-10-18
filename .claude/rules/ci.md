@@ -10,3 +10,7 @@
   source to a commit, never to a branch.
 - Workflow templates under `.claude/skills/**/assets/` are **not** executed by GitHub Actions, but
   they are copied by hand. Apply every rule above before moving one into `.github/workflows/`.
+- `bun audit --audit-level=high` gates the build. When an advisory has **no fixed release**, do not
+  lower the level and do not drop the step: ignore that one advisory by its GHSA id, with a comment
+  saying what it is, why it is acceptable here (what reaches it, and whether it ships), and when to
+  remove the ignore. Re-check on every dependency bump.

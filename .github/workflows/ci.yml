@@ -70,7 +70,12 @@ jobs:
       - run: bun install --frozen-lockfile
       - run: bun run typecheck
       - run: bun run build
-      - run: bun audit --audit-level=high
+      # GHSA-vfj7-8cjw-p6xm (braces <=3.0.3, stack-exhaustion DoS on deeply nested
+      # glob patterns) has no fixed release: 3.0.3 is the latest published version.
+      # It is reachable only through markdownlint-cli2 > globby > fast-glob >
+      # micromatch > braces, a dev CLI we run over our own files, and braces is in
+      # no shipped artifact. Drop the ignore as soon as braces publishes a fix.
+      - run: bun audit --audit-level=high --ignore=GHSA-vfj7-8cjw-p6xm
 
   markdown:
     name: Markdown (markdownlint-cli2)
@@ -99,5 +104,8 @@ jobs:
           push: false
           load: true
           tags: vukem-tools:ci
+      # The image runs with APP_ENV=production, where vukem requires a real mailer;
+      # the smoke test only proves the binary links, boots and resolves its routes.
       - name: The binary starts and reports the app
-        run: docker run --rm -e APP_KEY="base64:$(head -c 32 /dev/urandom | base64 -w0)" vukem-tools:ci about
+        run: |
+          docker run --rm             -e APP_KEY="base64:$(head -c 32 /dev/urandom | base64 -w0)"             -e MAIL_MAILER=log             vukem-tools:ci about

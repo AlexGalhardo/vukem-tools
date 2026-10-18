@@ -767,157 +767,280 @@ proprietary or paid service, it needs a visual application rather than a convers
 open-source result would be bad enough that shipping it would be worse than not having it. A tool
 that would quietly produce a broken file is not a feature.
 
-Engines: `pdfcpu` (Apache-2.0, pure Go) for structure, `qpdf` (Apache-2.0) for encryption and
-repair, Ghostscript (**AGPL-3.0**, must be declared on `/licenses`) for compression, rasterisation
-and PDF/A, `pdftoppm`/`pdftotext` from Poppler (GPL-2.0) for rendering and text, OCRmyPDF
-(MPL-2.0) with Tesseract (Apache-2.0) for OCR, LibreOffice (MPL-2.0) headless for office formats.
-Licences verified in [docs/web-research.md](docs/web-research.md).
+Engines, as shipped. `qpdf` (Apache-2.0) does **all** the structural work as well as encryption
+and repair — merge, split, select, rotate, crop, stamp — because it edits the object graph instead
+of re-rendering, so a page it did not touch comes out exactly as it went in. `pdfcpu` was the
+plan and was **not** used: it would have been a new Go dependency to do what an engine already in
+the image does, and `qpdf --update-from-json` turned out to cover the one operation it has no flag
+for (the crop box). Ghostscript (**AGPL-3.0**, declared on `/licenses`) is used only where a page
+genuinely has to be re-rendered: lossy compression and PDF/A. `pdftoppm` and `pdftotext` from
+Poppler (GPL-2.0) render pages and extract text. `libvips` (LGPL-2.1) converts an input image to
+the one raster format a PDF carries without a second re-encode.
+
+Not in the image, so not built: OCRmyPDF with Tesseract for OCR, and LibreOffice headless for the
+office formats. Each would be a new pin, a new licence entry and a new CVE surface on an image
+that is already 1.2 GB; see the asserts under S6.2 and S6.4. Licences verified in
+[docs/web-research.md](docs/web-research.md).
 
 ### S6.1 Structure — take all
 
-- [ ] Merge PDF (*Juntar PDF*) — `pdfcpu merge`
-- [ ] Split PDF (*Dividir PDF*) — by page ranges, by every N pages, or into single pages
-- [ ] Extract pages (*Extrair páginas*) — a subset into one new file
-- [ ] Remove pages (*Remover páginas*) — the inverse of extract
-- [ ] Organise PDF (*Organizar PDF*) — reorder and delete pages from one page list
-- [ ] Rotate PDF (*Rodar PDF*) — per page or whole document, multiples of 90°
-- [ ] Crop PDF (*Recortar PDF*) — set the crop box, per page or uniformly
+Built on `qpdf` rather than `pdfcpu`: no new dependency, and `qpdf in.pdf --pages . <range> --`
+keeps the base document's catalog, which `--empty` discards. See the outline note below.
+
+- [x] Merge PDF (*Juntar PDF*) — `qpdf --pages`, in the order of `file_ids`
+- [x] Split PDF (*Dividir PDF*) — by page ranges, by every N pages, or into single pages
+- [x] Extract pages (*Extrair páginas*) — a subset into one new file
+- [x] Remove pages (*Remover páginas*) — the inverse of extract
+- [x] Organise PDF (*Organizar PDF*) — reorder and duplicate pages from one page list
+- [x] Rotate PDF (*Rodar PDF*) — per page or whole document, multiples of 90°
+- [x] Crop PDF (*Recortar PDF*) — the crop box, per page or uniformly, through qpdf's JSON object
+      editing: there is no qpdf flag for it, and Ghostscript would re-render the whole document to
+      change four numbers
 
 #### Quality asserts
 
-- Merging two files produces a page count equal to the sum, and page 1 of the second input is
-  byte-identical as rendered to page *n+1* of the output
-- Splitting then merging the parts returns a document whose rendered pages match the original
-  page for page
-- Every operation preserves the document's outline, named destinations and internal links, or the
-  tool says in its description that it does not — a silently broken table of contents is a
-  regression nobody notices until a reader does
-- An encrypted input is refused with `unsupported_input` rather than producing an empty file
+- [x] Merging two files produces a page count equal to the sum, and page 1 of the second input is
+      byte-identical as rendered to page *n+1* of the output —
+      `TestMergingTwoDocumentsSumsThePagesAndKeepsThemUnchanged`
+- [x] Splitting then merging the parts returns a document whose rendered pages match the original
+      page for page — `TestSplittingThenMergingReturnsTheSameDocumentPageForPage`
+- [x] Every operation preserves the document's outline, named destinations and internal links, or
+      the tool says in its description that it does not —
+      `TestWhichOperationsKeepTheOutlineIsWhatTheToolsClaim` and
+      `TestInternalLinksSurviveEveryPageOperation`. Link annotations survive every operation. The
+      outline survives rotation, cropping and a pure reordering; an operation that drops a page
+      drops the outline **on purpose**, because an entry pointing at a page that is no longer
+      there is exactly the silently broken table of contents this assert is about. A merge keeps
+      the first document's outline and cannot keep the others'. Each of those is stated in the
+      tool's catalogue summary, in its API description and in the conversion's own message
+- [x] An encrypted input is refused with `unsupported_input` rather than producing an empty file —
+      `TestAnEncryptedDocumentIsRefusedByEveryOperation` for the refusal, and
+      `TestEveryPDFFailureIsClassifiedOntoTheTaxonomy` for the code it arrives as
 
 ### S6.2 Convert to PDF — take all but HTML
 
-- [ ] JPG to PDF (*JPG para PDF*) — also PNG, WebP, TIFF, AVIF; page size, orientation and margin
+- [x] JPG to PDF (*JPG para PDF*) — also PNG, WebP, TIFF, AVIF, GIF, BMP; page size, orientation,
+      fit and margin. A JPEG input is embedded as a DCTDecode stream, re-encoded zero times;
+      anything else goes through libvips once, with transparency flattened onto white rather than
+      onto libvips' default black
 - [ ] Word to PDF (*WORD para PDF*) — LibreOffice headless, `.docx` and `.doc`
 - [ ] PowerPoint to PDF (*POWERPOINT para PDF*) — `.pptx` and `.ppt`
 - [ ] Excel to PDF (*EXCEL para PDF*) — `.xlsx` and `.xls`
-- [ ] **Skip** HTML to PDF (*HTML para PDF*) — it needs a headless Chromium in the image, which
+- [x] **Skip** HTML to PDF (*HTML para PDF*) — it needs a headless Chromium in the image, which
       roughly doubles it, plus a sandbox and an egress policy for a tool whose whole job is
       fetching URLs the user supplies. That is a server-side request forgery surface wrapped in a
       400 MB dependency. Revisit only with a dedicated, network-isolated worker
 
 #### Quality asserts
 
-- A 30-page `.docx` with embedded fonts converts with its fonts embedded, not substituted
-- LibreOffice runs with a per-job profile directory, so two concurrent conversions cannot corrupt
-  one another's user profile — the failure mode is a silent hang, so there is a test for it
-- The office engines are absent from the default image and the tools are hidden, not broken, when
-  the binary is missing: `/up?checks=1` reports which engines resolved
+The three office tools are **not built**. LibreOffice is not in the image, and
+[docs/web-research.md](docs/web-research.md) § 5.2 already recorded the decision: "because of the
+image size (~1 GB) and the operational cost, Office → PDF is a later phase". The image is 1.2 GB
+before it. Their catalogue entries are `Planned`, so the tools page lists them with no form.
+
+- [ ] A 30-page `.docx` with embedded fonts converts with its fonts embedded, not substituted —
+      **not met: there is no office engine to measure**
+- [ ] LibreOffice runs with a per-job profile directory, so two concurrent conversions cannot
+      corrupt one another's user profile — **not met: there is no office engine**
+- [ ] The office engines are absent from the default image and the tools are hidden, not broken,
+      when the binary is missing: `/up?checks=1` reports which engines resolved — **half met.**
+      The tools are hidden rather than broken: nothing is registered for them, and
+      `catalog.Grouped` marks an entry live only when a tool exists. The probe does not report
+      `soffice` as missing, because it is not declared in `app/services/engines.go`, and declaring
+      an engine is a change to a file this phase does not own. The general half holds: every PDF
+      tool names the engines it needs and refuses with "this tool is not available on this server"
+      when one is absent, which `pdfTool.Run` checks before any work
 
 ### S6.3 Convert from PDF — take the faithful ones
 
-- [ ] PDF to JPG (*PDF para JPG*) — per page, also PNG and WebP, with a DPI option
-- [ ] PDF to PDF/A (*PDF para PDF/A*) — Ghostscript, PDF/A-1b, 2b and 3b, with a conformance report
-- [ ] PDF to text and Markdown (*PDF para Markdown*) — **part**: `pdftotext -layout` plus heading
-      and list heuristics. Headings, paragraphs, lists and simple tables. Not a layout
-      reconstruction, and the tool page says so
-- [ ] **Skip** PDF to Word (*PDF para WORD*) — there is no open-source converter that produces an
+- [x] PDF to JPG (*PDF para JPG*) — per page, PNG or JPEG, 36 to 600 DPI. Rendered from the crop
+      box, so an exported page matches what a reader shows. **WebP is not offered**: `pdftoppm`
+      does not write it, and routing every page through a second engine would make the output a
+      re-encode of a render rather than a render
+- [x] PDF to PDF/A (*PDF para PDF/A*) — Ghostscript, PDF/A-1b, 2b and 3b, with a conformance
+      report. `PDFACompatibilityPolicy=1`: content is kept and conformance abandoned with the
+      reason reported, rather than a conformant document with a page's logo silently dropped
+- [x] PDF to text and Markdown (*PDF para Markdown*) — **part**: `pdftotext -layout` plus heading
+      and list heuristics. Headings, paragraphs and lists. A table comes out as the spaced text
+      `-layout` produced rather than as a Markdown table, and the tool page, the API description
+      and the conversion's own message all say so
+- [x] **Skip** PDF to Word (*PDF para WORD*) — there is no open-source converter that produces an
       editable, faithful `.docx`. LibreOffice imports a PDF as a Draw document of absolutely
       positioned text boxes; saving that as `.docx` yields a file that opens and cannot be edited.
       Shipping it would generate support rather than value
-- [ ] **Skip** PDF to PowerPoint (*PDF para POWERPOINT*) — the same, worse: slide semantics cannot
+- [x] **Skip** PDF to PowerPoint (*PDF para POWERPOINT*) — the same, worse: slide semantics cannot
       be recovered from page images
-- [ ] **Skip** PDF to Excel (*PDF para EXCEL*) — table extraction good enough to trust needs
+- [x] **Skip** PDF to Excel (*PDF para EXCEL*) — table extraction good enough to trust needs
       Camelot or Tabula (Python, and Tabula needs a JVM), and both still fail on merged cells and
       borderless tables. A spreadsheet that is subtly wrong is worse than no spreadsheet
 
 #### Quality asserts
 
-- Rasterising at 150 DPI a page whose size is known produces an image of the expected pixel
-  dimensions, within one pixel
-- A PDF/A conversion is validated by a second tool (`verapdf`, or Ghostscript's own report), not
-  by the absence of an error
-- The Markdown output of a document with three heading levels keeps all three, and a round trip
-  through Markdown does not lose a list
+- [x] Rasterising at 150 DPI a page whose size is known produces an image of the expected pixel
+      dimensions, within one pixel — `TestRasterisingAtAKnownResolutionGivesTheExpectedPixelSize`,
+      checked at 72, 150 and 300 DPI against A4's own dimensions
+- [x] A PDF/A conversion is validated by a second tool (`verapdf`, or Ghostscript's own report),
+      not by the absence of an error — `TestPDFAConversionReportsItsOwnConformance`. `verapdf` is
+      not in the image, so this is Ghostscript's own report, which the assert allows, plus two
+      checks the engine does not make: the output carries the XMP `pdfaid` identification, and
+      qpdf reads it back with the same page count
+- [x] The Markdown output of a document with three heading levels keeps all three, and a round
+      trip through Markdown does not lose a list — `TestMarkdownKeepsThreeHeadingLevelsAndAList`.
+      The headings the heuristics recognise reliably are numbered ones, which is what the fixture
+      uses and what the tool page documents
 
 ### S6.4 Optimise — take all
 
-- [ ] Compress PDF (*Comprimir PDF*) — Ghostscript, three levels, image downsampling, with the
-      before and after sizes reported
-- [ ] Repair PDF (*Reparar PDF*) — `qpdf --replace-input` structural rebuild, best effort, with the
-      limits stated on the page
+- [x] Compress PDF (*Comprimir PDF*) — Ghostscript, three levels, image downsampling, with the
+      before and after sizes reported. The levels are the image resolution directly (300, 150, 96
+      DPI) rather than Ghostscript's `/screen` and `/ebook` presets, each of which sets a dozen
+      parameters at once: "we asked for /ebook" is not an explanation anybody can act on when a
+      document comes back wrong
+- [x] Repair PDF (*Reparar PDF*) — `qpdf` structural rebuild, best effort, with the limits stated
+      on the page. Not `--replace-input`, which rewrites the uploaded file in place: a repair that
+      destroyed its own input would leave nothing to retry with. The output is read back and its
+      pages counted, so a file that "repaired" into something unreadable is a refusal
 - [ ] OCR PDF (*OCR PDF*) — OCRmyPDF plus Tesseract, searchable text layer, language selectable
 
 #### Quality asserts
 
-- Compression never increases the file size: a document already optimised is returned unchanged
-  with a message saying so, not re-encoded into something larger
-- Compression at the mildest level keeps every page's rendered appearance within a perceptual
-  threshold of the original, measured, not eyeballed
-- OCR on a scanned page produces text extractable with `pdftotext`, and the image layer is
-  unchanged
-- Repair is honest: a file it cannot rebuild fails with `unsupported_input` rather than returning a
-  document that opens empty
+OCR is **not built**: neither OCRmyPDF nor Tesseract is in the image, and adding them is a new
+pin, a new licence entry and a new CVE surface on an image that is already 1.2 GB — not a decision
+this phase takes on its own. Its catalogue entry is `Planned`.
+
+- [x] Compression never increases the file size: a document already optimised is returned
+      unchanged with a message saying so, not re-encoded into something larger —
+      `TestCompressionNeverReturnsALargerFile` and
+      `TestAnAlreadyOptimisedDocumentComesBackUnchanged`. The second uses a document of JPEG
+      pages, which is the realistic already-optimised case; both assert the file on disk, not only
+      the reported figure, and the conversion's message says which of the two happened
+- [x] Compression at the mildest level keeps every page's rendered appearance within a perceptual
+      threshold of the original, measured, not eyeballed —
+      `TestLightCompressionKeepsEveryPagesAppearance`. Every page is rendered before and after and
+      compared by root-mean-square luminance difference with Rec. 601 weights; the threshold is 4
+      of 255 and the measurement is **0.985**, on a fixture that really was compressed (698 kB to
+      74.5 kB). The test fails if the compression was declined, because comparing a file with
+      itself would pass this assert without proving anything
+- [ ] OCR on a scanned page produces text extractable with `pdftotext`, and the image layer is
+      unchanged — **not met: there is no OCR engine in the image**
+- [x] Repair is honest: a file it cannot rebuild fails with `unsupported_input` rather than
+      returning a document that opens empty — `TestRepairRebuildsWhatItCanAndRefusesWhatItCannot`,
+      which covers a document with a broken cross-reference table (rebuilt, pages recovered), a
+      file that was never a PDF (refused) and a truncated stub with no recoverable page (refused).
+      Each refusal is also checked to have left no output file behind, because a file in the job
+      directory is a file that could be offered as a result
 
 ### S6.5 Security — take most
 
-- [ ] Protect PDF (*Proteger PDF*) — `qpdf` AES-256, owner and user passwords, permission flags
-- [ ] Unlock PDF (*Desbloquear PDF*) — **only** with the password supplied by the user. The tool
+- [x] Protect PDF (*Proteger PDF*) — `qpdf` AES-256, owner and user passwords, permission flags.
+      Every password reaches qpdf through an `@argument` file rather than the command line,
+      because an argument in `argv` is readable from `/proc` by anything running as the same user
+- [x] Unlock PDF (*Desbloquear PDF*) — **only** with the password supplied by the user. The tool
       page states plainly that it removes a password you know; it does not attempt to recover one
-      it was not given, and there is no brute-force path in the code
-- [ ] Compare PDF (*Comparar PDF*) — **part**: a text-level diff through `pdftotext`, page aligned.
-      A visual pixel diff is a later addition
-- [ ] **Skip** Sign PDF (*Assinar PDF*) — a cryptographic signature means holding the signer's
+      it was not given, and there is no brute-force path in the code. The password goes down
+      qpdf's standard input, so it never appears in `argv` either
+- [x] Compare PDF (*Comparar PDF*) — **part**: a text-level diff through `pdftotext`, page
+      aligned, as a Markdown report. The alignment is a longest-common-subsequence walk, so
+      inserting one line does not report every line below it as changed. A visual pixel diff is a
+      later addition
+- [x] **Skip** Sign PDF (*Assinar PDF*) — a cryptographic signature means holding the signer's
       private key, or proxying a certificate authority. Key custody for other people is a
       liability this project will not take on, and a signature that is not legally meaningful is
       theatre. The honest alternative, a visible image stamp, is the watermark tool
-- [ ] **Skip** Redact PDF (*Ocultar PDF*) — true redaction removes the content, not just covers it.
+- [x] **Skip** Redact PDF (*Ocultar PDF*) — true redaction removes the content, not just covers it.
       Drawing a black rectangle over text that `pdftotext` still extracts is a security failure
       dressed as a feature, and it is the single most dangerous thing on this list to get wrong.
       Only with content-stream editing plus a test that greps the output for the redacted string
 
 #### Quality asserts
 
-- A protected file cannot be opened by `pdftotext` without the password, and can with it
-- Unlock refuses a wrong password with a dedicated message and never reveals whether the file had
-  an owner password, a user password or both
-- No code path takes more than one password attempt per request, proven by a test
+- [x] A protected file cannot be opened by `pdftotext` without the password, and can with it —
+      `TestAProtectedDocumentNeedsItsPasswordToBeRead`. Checked against the engine rather than
+      against our own encryption flag: the flag is what was asked for, and this is what a reader
+      actually gets
+- [x] Unlock refuses a wrong password with a dedicated message and never reveals whether the file
+      had an owner password, a user password or both —
+      `TestUnlockRefusesAWrongPasswordWithoutSayingWhatKindItWas`, which builds both shapes of
+      protected document and asserts the two refusals are **byte-identical** and mention neither
+      "owner" nor "user". The library never carries the distinction: `IsEncrypted` answers one
+      question, although `qpdf --requires-password` would answer three
+- [x] No code path takes more than one password attempt per request, proven by a test —
+      `TestAnUnlockMakesExactlyOnePasswordAttempt`. The proof is a counting runner wrapped around
+      the real subprocess runner: every command the unlock starts is recorded, and the ones
+      carrying a password on standard input are counted. A retry loop, a common-password list or
+      an empty-password fallback would show up here whatever it was called in the code.
+      `TestNoPasswordEverReachesASubprocessArgument` is the other half: it asserts no password
+      appears in any subprocess's arguments
 
 ### S6.6 Edit — mostly skipped, deliberately
 
-- [ ] Add page numbers (*Inserir números de página*) — `pdfcpu stamp`, position, format and range
-- [ ] Add watermark (*Inserir marca d'água*) — text or image, opacity, rotation, position, range
+- [x] Add page numbers (*Inserir números de página*) — position, format template and range,
+      starting at any number. The label is a template (`{n}`, `{total}`) rather than a choice from
+      a list, because "Page 3 of 12", "- 3 -" and "3" are all things people want and none is worth
+      an option of its own
+- [x] Add watermark (*Inserir marca d'água*) — **text only**, with opacity, rotation, position,
+      size, ink and range. An **image** watermark is not built: it would need the image converted,
+      embedded and composited per page, which is the images-to-PDF path pointed at an existing
+      document, and it is a separate piece of work rather than an option on this one
 - [ ] PDF forms (*Formulários PDF*) — **part**: list the fields, fill them from JSON, and flatten.
       Not a visual form designer
-- [ ] **Skip** Edit PDF (*Editar PDF*) — adding text, images and shapes on a canvas is an
+- [x] **Skip** Edit PDF (*Editar PDF*) — adding text, images and shapes on a canvas is an
       application, not a conversion: it needs a client-side PDF renderer, a content-stream editor
       and a document model with undo. It does not belong in a pipeline whose unit of work is "one
       file in, one file out", and half of it would be worse than none
-- [ ] **Skip** Scan to PDF (*Digitalize e transforme em PDF*) — it is a phone camera feature:
+- [x] **Skip** Scan to PDF (*Digitalize e transforme em PDF*) — it is a phone camera feature:
       capture, edge detection, perspective correction. The useful half we already have, as
       "images to PDF"
 
 #### Quality asserts
 
-- A watermark on a 500-page document is applied in one pass, with peak memory independent of the
-  page count, recorded in `docs/benchmarks.md`
-- Filling a form and flattening it produces text `pdftotext` can read at the field's position
-- A page range that names a page the document does not have is a validation error, not a silently
-  skipped page
+PDF forms are **not built**, and the reason is that it could not be verified. `qpdf` has the two
+pieces it needs — `--generate-appearances` to draw a filled field and `--flatten-annotations=all`
+to burn it into the page — but this package can write a form document to test against, and
+building that generator is its own task. Filling a field without regenerating its appearance
+produces a document whose values are invisible in most readers, which is the same shape of failure
+as a redaction that does not remove the text, so it is skipped rather than shipped unverified. Its
+catalogue entry is `Planned`.
+
+- [x] A watermark on a 500-page document is applied in one pass, with peak memory independent of
+      the page count, recorded in `docs/benchmarks.md` — `BenchmarkWatermark`, measured in the
+      production image. One pass means one engine invocation: the stamp document is written page
+      by page and composited by a single `qpdf --overlay`. Peak RSS is 11.9 MB at 10 pages, 11.8
+      MB at 50 and 12.1 MB at 500 — a 50-fold increase in pages moves the high-water mark by
+      about 2 %. `docs/benchmarks.md` also records that cumulative allocation is **not** flat
+      (about 6.3 kB per page, the page dictionary qpdf prints while the geometry is read) and why
+      that is not the same figure
+- [ ] Filling a form and flattening it produces text `pdftotext` can read at the field's position
+      — **not met: the tool is not built.** See above
+- [x] A page range that names a page the document does not have is a validation error, not a
+      silently skipped page — `TestStampingRefusesAPageTheDocumentDoesNotHave` for the two
+      stamping tools, `TestAPageOutsideTheDocumentIsRefused` for the parser every tool shares, and
+      `TestThePageRangeMessageNamesTheDocumentsLength` for the message naming the document's own
+      length, because "page 11 does not exist" is actionable and "invalid page range" is not
 
 ### S6.7 Not in scope — AI tools
 
-- [ ] **Skip** Summarise with AI (*Resumir com IA*), Translate PDF (*Traduzir PDF*) — both need a
+- [x] **Skip** Summarise with AI (*Resumir com IA*), Translate PDF (*Traduzir PDF*) — both need a
       language model. A self-hosted toolbox cannot ship one of a useful size, and routing a user's
       document to a third-party API contradicts the point of self-hosting. If this is ever wanted,
       it belongs behind an explicit, per-user opt-in with the provider named on the page
 
+Still correct, and nothing was built for either: no language model is shipped and no document
+leaves the service. Both appear on the tools page as skipped, with the reason.
+
 #### Quality asserts
 
-- `/licenses` lists Ghostscript as AGPL-3.0 and Poppler as GPL-2.0, with what that means for
-  anyone self-hosting this, before any tool that uses them ships
-- Every skipped tool above appears on the tools page as "not available", with the reason in one
-  sentence, rather than being silently absent: a visitor comparing us with iLovePDF should find the
-  answer here, not wonder
+- [x] `/licenses` lists Ghostscript as AGPL-3.0 and Poppler as GPL-2.0, with what that means for
+      anyone self-hosting this, before any tool that uses them ships — both were already declared
+      in `app/licenses/licenses.go` with `Copyleft: true`, which is what the page's own copyleft
+      section is built from. qpdf's role was corrected in this phase: it is the PDF domain's
+      primary engine, not only its encryption one
+- [x] Every skipped tool above appears on the tools page as "not available", with the reason in
+      one sentence, rather than being silently absent — all nine skips are in
+      `app/catalog/pdf.go` with `Status: Skipped` and the ROADMAP's own reason, and
+      `TestThePDFCatalogueAndTheRegisteredToolsAgree` asserts no skipped entry has an empty
+      reason. The planned-but-unbuilt tools (Word, PowerPoint, Excel, OCR, forms) are listed as
+      `Planned` for the same reason
 
 ---
 

@@ -486,8 +486,38 @@ func (p *Pipeline) settle(ctx context.Context, id, userID string, out Outcome, r
 	}
 
 	if Describe(kind).Retry {
+		// Out of attempts: settle the row now rather than leave it saying
+		// "running" until the reaper sweeps it half an hour later. The owner
+		// is watching a progress bar, and the difference between learning the
+		// answer now and learning it in thirty minutes is the whole value of
+		// asking the queue which attempt this is.
+		//
+		// The second return of AttemptFrom is checked rather than ignored: a
+		// handler called straight from a test has no attempt in its context,
+		// and reading the zero value there would be reasoning about a value
+		// nobody set. It happens to be safe today — Last() is
+		// Number > MaxRetries, so the zero value is false — but that is
+		// incidental, and vukem's own doc comment claims the opposite, so it
+		// is not something to depend on. TestThereIsNoAttemptOutsideTheQueue
+		// pins both facts.
+		if attempt, ok := queue.AttemptFrom(ctx); ok && attempt.Last() {
+			if _, err := p.store.Failure(settleCtx, id, runErr); err != nil {
+				return err
+			}
+
+			log.WarnContext(ctx, "jobs: last attempt failed, conversion settled",
+				"attempt", attempt.Number, "err", DetailOf(runErr))
+
+			// Returned as itself rather than wrapped in queue.ErrPermanent:
+			// the failure really was transient, the attempts simply ran out,
+			// and there are none left for the queue to skip. Wrapping it
+			// would file it under the wrong cause in the failed jobs.
+			return runErr
+		}
+
 		// Leave the row running and let the queue retry. The next attempt
-		// claims it again; the reaper closes it if no attempt ever does.
+		// claims it again; the reaper is the backstop for a worker that dies
+		// without ever reaching this function.
 		log.WarnContext(ctx, "jobs: attempt failed, will be retried", "err", DetailOf(runErr))
 
 		return runErr

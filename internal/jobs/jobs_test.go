@@ -568,8 +568,15 @@ func TestATransientFailureIsRetriedUntilItSucceeds(t *testing.T) {
 
 // A transient failure that never clears must not be retried forever, and the
 // conversion must not be left saying "running" once the attempts are spent.
-// The reaper is what closes it, because the queue cannot say "no more".
-func TestTheReaperClosesAConversionWhoseAttemptsRanOut(t *testing.T) {
+//
+// The handler settles it on the last attempt, which it knows from
+// queue.AttemptFrom. It did not always: this used to be the reaper's job,
+// because the handler had no way to ask which attempt it was on, and the
+// owner watched a dead conversion for up to half an hour. The reaper is still
+// the backstop for the case it is genuinely for — a worker killed mid-flight
+// that never runs settle at all — which
+// TestTheReaperClosesAConversionWhoseWorkerWasKilled covers.
+func TestTheLastAttemptSettlesAConversionThatKeepsFailing(t *testing.T) {
 	t.Parallel()
 
 	tl := newTool(func(context.Context, jobs.Work) (jobs.Outcome, error) {
@@ -584,8 +591,82 @@ func TestTheReaperClosesAConversionWhoseAttemptsRanOut(t *testing.T) {
 		r.clock.Advance(time.Minute)
 	}
 
+	settled := r.reload(t, c.ID)
+	if got := jobs.Status(settled.Status); got != jobs.Errored {
+		t.Fatalf("status = %q, want error: the last attempt should settle it rather than "+
+			"leave the owner waiting for the reaper", got)
+	}
+
+	// The code has to survive, or the owner is told something failed and not
+	// what.
+	if settled.ErrorType == nil || jobs.ErrorType(*settled.ErrorType) != jobs.DiskFull {
+		t.Fatalf("error_type = %v, want disk_full", settled.ErrorType)
+	}
+
+	// It was retried on the way there: settling on the last attempt must not
+	// turn a transient failure into a single-shot one.
+	if n := tl.calls.Load(); n != maxConversionAttempts {
+		t.Fatalf("the tool ran %d times, want %d: a transient failure is still retried",
+			n, maxConversionAttempts)
+	}
+
+	// And the reaper now has nothing to do, because the row is already final.
+	reaper, err := jobs.NewReaper(jobs.ReaperOptions{Store: r.store, After: 30 * time.Minute, Now: r.clock.Now})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	r.clock.Advance(time.Hour)
+
+	closed, err := reaper.Sweep(t.Context())
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if closed != 0 {
+		t.Fatalf("the reaper closed %d conversions that the handler had already settled", closed)
+	}
+}
+
+// maxConversionAttempts is how many times the pipeline lets the queue try a
+// conversion: three, from maxAttempts in pipeline.go.
+const maxConversionAttempts = 3
+
+// A worker killed mid-flight never runs settle, so the row stays "running"
+// with nobody coming back for it. That is the case the reaper is for, and it
+// is the one the handler cannot cover however much the queue tells it.
+//
+// The kill is real rather than simulated: the tool's context is cancelled
+// from under it and the handler never returns, which is what a SIGKILL looks
+// like to the database — a claimed row and no further writes.
+func TestTheReaperClosesAConversionWhoseWorkerWasKilled(t *testing.T) {
+	t.Parallel()
+
+	// The tool blocks until the attempt's context is cancelled and then
+	// returns that cancellation, so the pipeline's settle path sees an
+	// interrupted attempt and releases rather than failing it.
+	tl := newTool(func(ctx context.Context, _ jobs.Work) (jobs.Outcome, error) {
+		<-ctx.Done()
+
+		return jobs.Outcome{}, ctx.Err()
+	})
+	r := newRig(t, tl)
+
+	c := r.submit(t, jobs.Submission{})
+
+	// Claim the row the way a worker does, then stop without settling it:
+	// the row is now mid-flight and no attempt will ever come back.
+	claimed, err := r.store.Claim(t.Context(), c.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if !claimed {
+		t.Fatal("the conversion could not be claimed, so it was never mid-flight")
+	}
+
 	if got := jobs.Status(r.reload(t, c.ID).Status); got != jobs.Running {
-		t.Fatalf("status = %q; the queue is expected to leave it running", got)
+		t.Fatalf("status = %q, want running before the sweep", got)
 	}
 
 	reaper, err := jobs.NewReaper(jobs.ReaperOptions{Store: r.store, After: 30 * time.Minute, Now: r.clock.Now})
@@ -1035,5 +1116,62 @@ func TestConcurrencyIsAtLeastOne(t *testing.T) {
 
 	if got := jobs.Concurrency(); got < 1 {
 		t.Fatalf("Concurrency = %d, want at least 1", got)
+	}
+}
+
+// A failure with attempts still to come must leave the conversion running, so
+// settling on the last attempt did not turn a transient failure into a
+// single-shot one. It is the other half of
+// TestTheLastAttemptSettlesAConversionThatKeepsFailing.
+func TestAFailureWithRetriesLeftLeavesTheConversionRunning(t *testing.T) {
+	t.Parallel()
+
+	tl := newTool(func(context.Context, jobs.Work) (jobs.Outcome, error) {
+		return jobs.Outcome{}, jobs.Failf(jobs.DiskFull, "no space left")
+	})
+	r := newRig(t, tl)
+
+	c := r.submit(t, jobs.Submission{})
+
+	// One attempt of the three.
+	r.work(t)
+
+	if n := tl.calls.Load(); n != 1 {
+		t.Fatalf("the tool ran %d times, want 1", n)
+	}
+
+	if got := jobs.Status(r.reload(t, c.ID).Status); got != jobs.Running {
+		t.Errorf("status = %q, want running: there are attempts left, so nothing should be settled yet",
+			got)
+	}
+}
+
+// Outside a queue handler there is no attempt, and the pipeline must ask
+// whether there is one rather than read the zero value.
+//
+// Worth asserting because vukem's own documentation gets this backwards.
+// queue.AttemptFrom's comment says it reports false outside a handler
+// "where a zero Attempt would read as a last attempt" — but Last() is
+// Number > MaxRetries, so the zero value is 0 > 0, which is false. The guard
+// is therefore defence in depth rather than the only thing standing between a
+// directly-called handler and a premature settle. Both facts are pinned here
+// so a change to either is caught: if the zero value ever does read as a last
+// attempt, the guard becomes load-bearing and this test says so.
+func TestThereIsNoAttemptOutsideTheQueue(t *testing.T) {
+	t.Parallel()
+
+	if _, ok := queue.AttemptFrom(context.Background()); ok {
+		t.Error("a bare context reported an attempt")
+	}
+
+	if (queue.Attempt{}).Last() {
+		t.Error("a zero Attempt reads as the last one, so the AttemptFrom guard is load-bearing: " +
+			"check every caller treats a missing attempt as 'not the last'")
+	}
+
+	// And a real last attempt still reads as one, or settling would never
+	// happen.
+	if !(queue.Attempt{Number: 3, MaxRetries: 2}).Last() {
+		t.Error("attempt 3 of 3 does not read as the last one")
 	}
 }

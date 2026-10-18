@@ -180,7 +180,23 @@ func (r *Runner) Run(ctx context.Context, cmd Command) (Result, error) {
 	proc.Stdin = cmd.Stdin
 	// A minimal environment, not the server's: that one holds the database
 	// URL, the mail token and the bucket credentials.
-	proc.Env = append([]string{"PATH=/usr/local/bin:/usr/bin:/bin", "HOME=" + cmd.Dir}, cmd.Env...)
+	//
+	// TMPDIR, TEMP and TMP point at the job's own directory, and that is a
+	// containment boundary rather than tidiness. Ghostscript's -dSAFER
+	// permits writing to the temp directory, so with the default TMPDIR a
+	// hostile PostScript program can write anywhere under /tmp — verified
+	// against Ghostscript 10.05.1, where the same document is refused with
+	// /invalidfileaccess once TMPDIR is the job directory. ffmpeg's muxers
+	// and yt-dlp's fragment handling put their scratch files here too, so
+	// everything an engine writes now lands in the directory that is deleted
+	// when the job ends.
+	proc.Env = append([]string{
+		"PATH=/usr/local/bin:/usr/bin:/bin",
+		"HOME=" + cmd.Dir,
+		"TMPDIR=" + cmd.Dir,
+		"TEMP=" + cmd.Dir,
+		"TMP=" + cmd.Dir,
+	}, cmd.Env...)
 
 	stderr := &tailWriter{limit: stderrTail}
 	proc.Stderr = stderr

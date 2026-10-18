@@ -72,16 +72,6 @@ func Downloads(c *services.Conversions) func(r *router.Router, app *vukem.App) e
 				Tags: []string{tagCatalog},
 			}, h.DownloadPlatforms)
 
-			api.Register(g, "GET /capabilities", api.Op{
-				Name:    "capabilities",
-				Summary: "Report which engines this server has and what its limits are",
-				Description: "Every external program, whether it was resolved at startup and the " +
-					"version it reported, plus the registered tools and the numbers this server " +
-					"enforces. An engine the image does not carry hides its tools, and this is " +
-					"where that is visible.",
-				Tags: []string{tagCatalog},
-			}, capabilities.Show)
-
 			api.Register(g, "GET /clip-modes", api.Op{
 				Name:        "downloads.clip-modes",
 				Summary:     "List the cut modes",
@@ -91,6 +81,24 @@ func Downloads(c *services.Conversions) func(r *router.Router, app *vukem.App) e
 
 			g.Group("", func(p *router.Group) {
 				p.Use(auth.Required(acc.API), perToken)
+
+				// Behind the guard, unlike the rest of the catalogue, because
+				// it reports each engine's exact version. Which tools exist is
+				// public — the tool index says so — but which ffmpeg and which
+				// Ghostscript build is running is the CVE surface of this
+				// deployment, and that is not something to hand to an
+				// unauthenticated caller. An operator reads it from
+				// /health/deep instead.
+				api.Register(p, "GET /capabilities", api.Op{
+					Name:    "capabilities",
+					Summary: "Report which engines this server has and what its limits are",
+					Description: "Every external program, whether it was resolved at startup and the " +
+						"version it reported, plus the registered tools and the numbers this server " +
+						"enforces. An engine the image does not carry hides its tools, and this is " +
+						"where that is visible.",
+					Tags:     []string{tagCatalog},
+					Security: []string{SchemeBearer},
+				}, capabilities.Show)
 
 				api.Register(p, "POST /tools/video-download", api.Op{
 					Name:    "tools.video-download",

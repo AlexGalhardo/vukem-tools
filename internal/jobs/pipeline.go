@@ -288,12 +288,11 @@ func Concurrency() int { return cpu.Limit() }
 
 // run is the queue handler.
 //
-// It returns an error only when the attempt should be retried. A permanent
-// failure settles the conversion and returns nil, because the queue has no way
-// to be told "do not retry this" (see framework feedback): returning the error
-// would retry a file that can never convert, three times, with backoff.
-//
-// workaround(vukem): a queue handler cannot report a permanent failure.
+// Every failure is returned, and what the queue does with it depends on how
+// the taxonomy classifies it: a retryable failure comes back as itself and is
+// tried again with backoff, while a permanent one is wrapped in
+// queue.ErrPermanent so the queue skips the remaining attempts and records it
+// in the failed jobs. See settle.
 func (p *Pipeline) run(ctx context.Context, m message) error {
 	c, err := p.load(ctx, m.ConversionID)
 	if err != nil {
@@ -500,7 +499,16 @@ func (p *Pipeline) settle(ctx context.Context, id, userID string, out Outcome, r
 
 	log.InfoContext(ctx, "jobs: conversion failed", "err", DetailOf(runErr))
 
-	return nil
+	// The conversion row is settled above and the job is still returned as a
+	// failure, because the two are different records of the same event: the
+	// row is the state its owner sees, and the queue's failed jobs are the
+	// operator's view, reachable from queue:failed and queue:retry. Returning
+	// nil here would settle the row and leave no trace in the queue at all.
+	//
+	// queue.ErrPermanent is what keeps that from costing anything: it tells
+	// the queue to skip the remaining attempts rather than retry a file that
+	// can never convert twice more with backoff.
+	return fmt.Errorf("%w: %w", runErr, queue.ErrPermanent)
 }
 
 // charge records what a conversion spent.

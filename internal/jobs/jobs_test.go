@@ -442,6 +442,53 @@ func TestAPermanentFailureIsRecordedAndNotRetried(t *testing.T) {
 	}
 }
 
+// A permanent failure must also reach the queue, as a failed job.
+//
+// The two records are different things and both are wanted: the conversion row
+// is the state its owner sees, and the queue's failed jobs are the operator's
+// view, reachable from queue:failed and queue:retry. A handler that settled the
+// row and returned nil would leave the queue believing the job succeeded, so a
+// batch of files that all failed for the same reason would be invisible to the
+// operator who could fix it.
+//
+// queue.ErrPermanent is what makes returning the failure free: the queue skips
+// the remaining attempts instead of retrying a file that can never convert.
+func TestAPermanentFailureIsAlsoRecordedInTheQueuesFailedJobs(t *testing.T) {
+	t.Parallel()
+
+	tl := newTool(func(context.Context, jobs.Work) (jobs.Outcome, error) {
+		return jobs.Outcome{}, jobs.Failf(jobs.UnsupportedInput, "magic bytes say image/gif")
+	})
+	r := newRig(t, tl)
+
+	r.submit(t, jobs.Submission{})
+	r.work(t)
+
+	driver, ok := r.queue.Driver().(*queue.Memory)
+	if !ok {
+		t.Fatalf("the rig's driver is %T, and this test needs the memory driver's failed list",
+			r.queue.Driver())
+	}
+
+	failed := driver.Failed()
+	if len(failed) != 1 {
+		t.Fatalf("the queue holds %d failed jobs, want 1: a permanent failure that returns nil "+
+			"leaves the queue believing the job succeeded", len(failed))
+	}
+
+	// The queue's record has to say what went wrong, or an operator reading
+	// queue:failed learns only that something did.
+	if !strings.Contains(failed[0].LastError, string(jobs.UnsupportedInput)) {
+		t.Errorf("the failed job's error is %q, want it to name the taxonomy code",
+			failed[0].LastError)
+	}
+
+	// And it must not have been retried on the way there.
+	if n := tl.calls.Load(); n != 1 {
+		t.Errorf("the tool ran %d times, want 1", n)
+	}
+}
+
 // The owner-only detail must reach the database for the owner to debug with,
 // and must never reach the client-facing message.
 func TestTheOwnerOnlyDetailIsStoredAndNeverPublished(t *testing.T) {

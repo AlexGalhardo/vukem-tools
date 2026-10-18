@@ -13,9 +13,12 @@ import (
 // and the shared props that every other group builds on. It takes the
 // conversion pipeline because the tool index may only advertise a tool that is
 // actually registered.
-func All(conversions *services.Conversions) []func(r *router.Router, app *vukem.App) error {
+func All(
+	telemetry *services.Telemetry,
+	conversions *services.Conversions,
+) []func(r *router.Router, app *vukem.App) error {
 	return []func(r *router.Router, app *vukem.App) error{
-		Web(conversions),
+		Web(telemetry, conversions),
 		Auth,
 		API,
 		Social,

@@ -31,6 +31,7 @@ import (
 	"github.com/AlexGalhardo/vukem-tools/internal/files"
 	"github.com/AlexGalhardo/vukem-tools/internal/jobs"
 	"github.com/AlexGalhardo/vukem-tools/internal/quota"
+	"github.com/AlexGalhardo/vukem-tools/internal/telemetry"
 )
 
 // Conversions is the conversion pipeline and everything it needs, built once
@@ -53,8 +54,13 @@ type Conversions struct {
 
 	engines *engine.Registry
 	runner  *engine.Runner
-	disk    storage.Disk
-	quota   *quota.Counter
+
+	// telemetry is set before Resolve, so the pipeline can record into
+	// instruments the telemetry provider owns. It may be nil in a test that
+	// builds the service directly.
+	telemetry *Telemetry
+	disk      storage.Disk
+	quota     *quota.Counter
 
 	// uploadCleanup is set by the routes once the resumable-upload handler
 	// exists, so the scheduler can sweep abandoned uploads without the
@@ -88,6 +94,21 @@ func (c *Conversions) Reaper() *jobs.Reaper { return c.reaper }
 
 // Files returns the file store. Resolve must have succeeded.
 func (c *Conversions) Files() *files.Store { return c.files }
+
+// SetTelemetry gives the pipeline the conversion instruments. It is called
+// during wiring, before Resolve, because the telemetry provider is registered
+// first and the pipeline records into what it builds.
+func (c *Conversions) SetTelemetry(t *Telemetry) { c.telemetry = t }
+
+// Metrics are the conversion instruments, or no-op instruments when
+// telemetry was never set. Never nil, so a tool does not have to check.
+func (c *Conversions) Metrics() *telemetry.Metrics {
+	if c.telemetry == nil || c.telemetry.Metrics() == nil {
+		return telemetry.NoMetrics()
+	}
+
+	return c.telemetry.Metrics()
+}
 
 // Disk is the object store results are written to. Resolve must have
 // succeeded.

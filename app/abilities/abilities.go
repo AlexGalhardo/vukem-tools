@@ -21,6 +21,7 @@ const (
 	ImageEdit       = "image:edit"
 	PDFCompress     = "pdf:compress"
 	VideoTranscribe = "video:transcribe"
+	SpriteSheet     = "sprite:sheet"
 )
 
 // all is the closed set. Adding a tool means adding its ability here.
@@ -35,6 +36,7 @@ var all = []string{
 	ImageEdit,
 	PDFCompress,
 	VideoTranscribe,
+	SpriteSheet,
 }
 
 // All returns every ability a key may be granted, in a stable order.

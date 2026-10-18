@@ -147,6 +147,80 @@ until [ "$(curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:18080/health)
 echo "$(( $(date +%s%3N) - start )) ms"
 ```
 
+## Observability
+
+Nothing is exported unless it is configured, deliberately: an app that exports nothing should cost
+nothing, and running `serve` on a laptop should not require a collector.
+
+| Setting | Turns on |
+| --- | --- |
+| `OTEL_EXPORTER_OTLP_ENDPOINT` | traces and metrics over OTLP/HTTP to a collector |
+| `METRICS_TOKEN` | `GET /metrics`, the Prometheus scrape target |
+| `APP_VERSION` | the `service.version` attribute, so a trace says which build produced it |
+
+The two are independent. Push suits a collector; a scrape target is what an operator points at when
+there is no collector. Both read the same instruments, so nothing is counted twice.
+
+`/metrics` is guarded by a bearer token compared in constant time, and it answers **404** when
+`METRICS_TOKEN` is unset — an endpoint that exists but refuses tells a scanner the service has
+metrics worth coming back for, and one that was never enabled should look like one that does not
+exist. It serves its own Prometheus registry rather than the default one, so the body carries this
+service's instruments and not the Go runtime collectors anything linked into the binary could add.
+
+### What is recorded
+
+The vukem otel driver already records HTTP, database and queue signals.
+[`internal/telemetry`](../internal/telemetry/telemetry.go) adds the conversion ones:
+
+| Instrument | Unit | Attributes |
+| --- | --- | --- |
+| `vukem_tools.conversion.duration` | s | tool, status, error_type |
+| `vukem_tools.conversion.ended` | 1 | tool, status, error_type |
+| `vukem_tools.conversion.bytes.in` | By | tool |
+| `vukem_tools.conversion.bytes.out` | By | tool |
+| `vukem_tools.engine.failures` | 1 | engine, error_type |
+| `vukem_tools.queue.depth` | 1 | status |
+
+Every attribute is low-cardinality on purpose. A tool name, a status and an error type come from
+fixed sets in the code; a conversion id, a file name, a URL or an account would each give a metric
+unbounded cardinality, which is how a metrics backend is brought down by its own data. An error's
+**type** is recorded and its **message** is not, for the same reason — a message can contain a file
+name, and a label value is kept for every series indefinitely.
+
+### What is never recorded
+
+A trace is read by anybody with access to the tracing backend, which is a wider audience than the
+owner of the file being converted. An engine's command line is where secrets leak from: it carries
+the working directory, both file names, a token for anything authenticated, and for the downloader
+the URL somebody asked for. `telemetry.ScrubArgs` reduces it to its shape before it reaches a span.
+
+It is an **allowlist**, and the difference matters. The first version kept any argument that did not
+look like a path or a URL, which let `--token vkt_live_…` through untouched: a secret is a bare
+word, and so is a codec name. A bare argument now survives only when it matches something a trace
+is actually read for — a number, a dimension, a short lowercase identifier. Everything else becomes
+`?`. The SQL text is kept off database spans too; a parameterised query carries no values, but it
+does carry the shape of every table.
+
+`TestAnEngineCommandCarriesNoSecretAndNoIdentity` is that guarantee, not a note about it: it asserts
+a signed URL, an API key and an email address are all absent from a scrubbed command, **and** that
+the flags survive, because an attribute that keeps nothing is worth nothing.
+
+### Alerting
+
+These are the thresholds to set wherever the metrics land; the service exports the signals and does
+not page anybody itself.
+
+| Alert | Condition | Why this number |
+| --- | --- | --- |
+| Queue backing up | `vukem_tools.queue.depth{status="pending"}` above the worker's concurrency × 10 for 5 min | Below that it is a burst the workers will clear; above it, arrivals are outpacing the workers and every user is now waiting |
+| Error rate | `ended{status="error"}` over `ended` above 5 % for 10 min | Conversions fail legitimately — a corrupt upload, a password-protected PDF — so a non-zero rate is normal. A tenfold jump is an engine or a deploy |
+| An engine failing | any increase in `engine.failures{error_type="engine_failed"}` | This is the engine itself breaking, not a bad input: a bad input gets its own error type |
+| Conversions timing out | `ended{error_type="timeout"}` above 1 % for 15 min | A timeout is the user's work thrown away after the longest wait; it should be rare |
+| Nothing arriving | `ended` flat for 30 min during a period that normally has traffic | Catches the failure the others cannot: a submission path that is broken produces no metrics at all |
+
+The last one is the one usually missing. Every other alert fires on bad data; a broken upload path
+produces no data, and an alerting rule that only watches for bad values is silent exactly then.
+
 ## Startup behaviour
 
 The app resolves every engine before it wires anything else, logs each one's path and version, and

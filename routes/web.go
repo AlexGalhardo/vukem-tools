@@ -22,13 +22,21 @@ import (
 // It takes the resolved pipeline so the tool index can mark an entry as usable
 // only when that tool is actually registered: the catalogue is a claim, the
 // registry is the fact.
-func Web(c *services.Conversions) func(r *router.Router, app *vukem.App) error {
+func Web(
+	t *services.Telemetry,
+	c *services.Conversions,
+) func(r *router.Router, app *vukem.App) error {
 	return func(r *router.Router, app *vukem.App) error {
-		return registerWeb(c, r, app)
+		return registerWeb(t, c, r, app)
 	}
 }
 
-func registerWeb(conversions *services.Conversions, r *router.Router, app *vukem.App) error {
+func registerWeb(
+	telemetry *services.Telemetry,
+	conversions *services.Conversions,
+	r *router.Router,
+	app *vukem.App,
+) error {
 	if err := conversions.Resolve(app); err != nil {
 		return err
 	}
@@ -83,6 +91,21 @@ func registerWeb(conversions *services.Conversions, r *router.Router, app *vukem
 	// documented one and also reports uptime and the build.
 	r.Get("/health", health.Shallow).Name("health.live")
 	r.Get("/health/deep", health.Deep).Name("health.deep")
+
+	// The scrape target, guarded by METRICS_TOKEN and absent without one.
+	// Server level like the probes: a scraper has no session, and metrics
+	// must stay readable when the page pipeline is not.
+	r.UseServer(func(next http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
+			if req.URL.Path == "/metrics" && req.Method == http.MethodGet {
+				telemetry.Scrape(w, req)
+
+				return
+			}
+
+			next.ServeHTTP(w, req)
+		})
+	})
 
 	r.Get("/", pages.Index).Name("home")
 	r.Get("/licenses", pages.Licenses).Name("licenses")

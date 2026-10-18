@@ -17,6 +17,8 @@ export default {
 				"audio",
 				"pdf",
 				"pixelsvg",
+				"sprite",
+				"telemetry",
 				"downloader",
 				"editor",
 				"bot",

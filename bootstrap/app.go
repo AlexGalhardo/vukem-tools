@@ -27,12 +27,17 @@ func New(opts ...vukem.Option) (*vukem.App, error) {
 	// listening database connection per watched conversion.
 	conversions := services.NewConversions()
 
+	// Telemetry is its own service because it is registered before the
+	// pipeline, and the pipeline records into its instruments.
+	telemetry := services.NewTelemetry()
+	conversions.SetTelemetry(telemetry)
+
 	base := []vukem.Option{
 		// PostgreSQL in every environment: the queue, sessions, cache and the
 		// conversion tables all live there, and SQLite would not survive the
 		// web and worker services being separate processes.
 		vukem.WithDatabaseDrivers(postgres.Driver()),
-		vukem.WithProviders(Providers(conversions)...),
+		vukem.WithProviders(Providers(telemetry, conversions)...),
 		vukem.WithMigrations(migrations.All()),
 		vukem.WithSeeders(seeders.All()...),
 		vukem.WithListeners(listeners.All()...),
@@ -43,7 +48,7 @@ func New(opts ...vukem.Option) (*vukem.App, error) {
 		vukem.WithInertia(inertia.Config{}),
 	}
 
-	for _, fn := range routes.All(conversions) {
+	for _, fn := range routes.All(telemetry, conversions) {
 		base = append(base, vukem.WithRoutes(fn))
 	}
 

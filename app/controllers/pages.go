@@ -1,6 +1,8 @@
 package controllers
 
 import (
+	"fmt"
+	"maps"
 	"slices"
 
 	"github.com/AlexGalhardo/vukem/inertia"
@@ -58,13 +60,51 @@ func (p *Pages) Tool(c *web.Ctx) error {
 		return orm.ErrNotFound
 	}
 
-	return inertia.Render(c, "Tools/PixelsToSvg", inertia.Props{
+	page, ok := pages[name]
+	if !ok {
+		// Registered in the pipeline but with no page: a 500 rather than a
+		// wrong page. Rendering some other tool's form would let somebody
+		// submit the wrong options and read the failure as their file's
+		// fault.
+		return fmt.Errorf("controllers: tool %q is live but has no page", name)
+	}
+
+	props := inertia.Props{
 		"tool":     entry,
 		"maxBytes": p.maxBytes,
 		"tusPath":  p.tusPath,
-		"modes":    tools.PixelSVGModes(),
-		"alphas":   tools.PixelSVGAlphas(),
-	})
+	}
+
+	maps.Copy(props, page.props())
+
+	return inertia.Render(c, page.component, props)
+}
+
+// toolPage is a tool's Inertia component and the options that component needs.
+//
+// A map rather than a switch, and the options behind a function rather than a
+// value, so a domain adds its tools here without touching the handler and
+// without building every tool's option list on every page render.
+type toolPage struct {
+	component string
+	props     func() inertia.Props
+}
+
+// pages maps a tool name to its page.
+//
+// Keyed by the catalogue's name, which is also the pipeline's tool name and
+// the URL segment, so the three cannot drift apart. A live tool missing from
+// here is a server error, not a fallback: see Tool.
+var pages = map[string]toolPage{ //nolint:gochecknoglobals // read-only table
+	"pixels-to-svg": {
+		component: "Tools/PixelsToSvg",
+		props: func() inertia.Props {
+			return inertia.Props{
+				"modes":  tools.PixelSVGModes(),
+				"alphas": tools.PixelSVGAlphas(),
+			}
+		},
+	},
 }
 
 // Licenses renders the licence notice: GET /licenses.

@@ -444,21 +444,42 @@ happened. They stay unticked, and `questions-to-dev.md` § 0 says so.
 
 ### S1.13 Observability
 
-- [ ] OpenTelemetry through `vukem/drivers/otel`
-  - [ ] Traces around every job, with the engine command as a span attribute (arguments scrubbed)
-  - [ ] Metrics: jobs by status, job duration by tool, queue depth, bytes in and out, engine
-        failures by `error_type`
-  - [ ] Logs correlated with the trace ID
-- [ ] Operational endpoints
-  - [ ] `/health` shallow; a separate deep check for the queue, database, bucket and engines
-  - [ ] A `/metrics` scrape target, protected
-- [ ] Alerting on queue depth and on the error rate
+- [x] OpenTelemetry through `vukem/drivers/otel` v0.4.0
+  - [x] Traces around every job, with the engine command as a span attribute (arguments scrubbed by
+        `telemetry.ScrubArgs`, which is an **allowlist**: the first version kept any argument that
+        did not look like a path or a URL, and that let `--token vkt_live_…` through untouched)
+  - [x] Metrics: `conversion.ended` by tool, status and `error_type`; `conversion.duration` by tool;
+        `queue.depth`; `conversion.bytes.in` and `.out`; `engine.failures` by engine and
+        `error_type`. Every attribute is low-cardinality by design — a conversion id or a file name
+        would give a metric unbounded cardinality
+  - [x] Logs correlated with the trace ID, by the driver's handler
+- [x] Operational endpoints
+  - [x] `/health` shallow, touching nothing; `/health/deep` reading a table and doing a real
+        write-read-delete round trip on the bucket, and reporting the engines without failing on a
+        planned tool's missing one
+  - [x] `GET /metrics`, guarded by `METRICS_TOKEN` compared in constant time, on its own Prometheus
+        registry, and **404 when unset** rather than 401
+- [x] Alerting on queue depth and on the error rate, with the thresholds and their reasoning in
+      [docs/deployment.md](docs/deployment.md) — including the one usually missing, "nothing
+      arriving": every other alert fires on bad data, and a broken submission path produces no data
+      at all
 
 #### Quality asserts
 
-- A failed conversion produces one trace that contains the engine span and the `error_type`
-- No log line or span attribute contains a signed URL, an API key or a user's email
-- The deep health check fails when the bucket credentials are wrong, and `/health` still answers
+- [x] No log line or span attribute contains a signed URL, an API key or a user's email —
+      `TestAnEngineCommandCarriesNoSecretAndNoIdentity` asserts a signed URL, an API key and an
+      email are all absent from a scrubbed command **and** that the flags survive, because an
+      attribute that keeps nothing is worth nothing. It failed on first run and found a real leak
+- [x] The deep health check fails when the bucket credentials are wrong, and `/health` still
+      answers — `TestTheDeepCheckFailsOnABadBucketWhileShallowStillAnswers`, which also asserts the
+      credential in the driver's error never reaches the response body
+- [x] A failure records its `error_type` and not its message, and a success records no `error_type`
+      at all rather than an empty one — an empty label value is a series of its own
+- [ ] **Not verified end to end**: "a failed conversion produces one trace that contains the engine
+      span and the `error_type`" needs a collector and a conversion that actually runs an engine.
+      The engines are not installed on the development machine and no live tool uses one yet, so
+      the span is built and unit-tested (`StartEngineSpan`, `ScrubArgs`) but the whole trace has
+      not been read out of a backend. Re-check when the first engine-backed tool ships in S3 or S4
 
 ---
 

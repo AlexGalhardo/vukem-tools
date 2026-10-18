@@ -3,7 +3,9 @@ package video_test
 import (
 	"context"
 	"os"
+	"path/filepath"
 	"testing"
+	"time"
 
 	"github.com/AlexGalhardo/vukem-tools/internal/video"
 )
@@ -187,4 +189,72 @@ func sizeOf(tb testing.TB, path string) int64 {
 	}
 
 	return info.Size()
+}
+
+// largeInputEnv names a file to run TestALargeInputConvertsWithoutBeingKilled
+// against.
+//
+// It is opt-in because the fixture is half a gigabyte: generating one takes
+// longer than the rest of this package's suite, and committing one is out of
+// the question. The test is therefore a recorded manual verification rather
+// than a CI gate, and the figure it produces lives in docs/benchmarks.md with
+// the command that made it. The CI gate for the same property is
+// TestMemoryDoesNotGrowWithTheInputsLength, which measures that memory is not
+// a function of the input's length — the thing a single large file can only
+// suggest.
+const largeInputEnv = "VUKEM_TOOLS_LARGE_INPUT"
+
+// minimumLargeInput is how big the file has to be for the test to mean
+// anything. Below this it proves nothing a 20-second clip does not.
+const minimumLargeInput = 400 << 20
+
+// TestALargeInputConvertsWithoutBeingKilled is the ROADMAP's "a 500 MB input
+// converts without the container being OOM-killed" assert.
+//
+// It converts through the real code path rather than by running ffmpeg by
+// hand, so the argument building, the thread bounds and the progress parsing
+// are all in the measurement. The assertion is that it finishes and that the
+// engine's peak memory is nowhere near the container's allowance — a pipeline
+// that buffered would be killed rather than fail, so the test's own failure
+// mode is the container disappearing, and the peak it records is the evidence
+// that it will not.
+func TestALargeInputConvertsWithoutBeingKilled(t *testing.T) {
+	path := os.Getenv(largeInputEnv)
+	if path == "" {
+		t.Skipf("set %s to a video of at least %d MB; docs/benchmarks.md has the command that "+
+			"generates one and the figure this produced", largeInputEnv, minimumLargeInput>>20)
+	}
+
+	info, err := os.Stat(path)
+	if err != nil {
+		t.Fatalf("read %s: %v", path, err)
+	}
+
+	if info.Size() < minimumLargeInput {
+		t.Fatalf("%s is %d MB, and this test needs at least %d MB to prove anything",
+			path, info.Size()>>20, minimumLargeInput>>20)
+	}
+
+	e, r, caps := engines(t)
+
+	got, err := video.Convert(context.Background(), e, r, caps, filepath.Dir(path), path,
+		video.Options{Container: video.MP4, Height: 720}, nil)
+	if err != nil {
+		t.Fatalf("convert a %d MB input: %v", info.Size()>>20, err)
+	}
+
+	out, err := os.Stat(got.Path)
+	if err != nil {
+		t.Fatalf("stat the result: %v", err)
+	}
+
+	t.Logf("%d MB input (%v, %dx%d) converted to %d MB: peak RSS %.1f MB, engine CPU %d ms",
+		info.Size()>>20, got.Source.Duration.Round(time.Second),
+		got.Source.Video.Width, got.Source.Video.Height,
+		out.Size()>>20, float64(got.MaxRSS)/(1<<20), got.CPUTime)
+
+	if got.MaxRSS > PeakRSSCeiling720p {
+		t.Errorf("peak RSS was %.1f MB, past the recorded %.0f MB ceiling: memory is tracking the "+
+			"input's size", float64(got.MaxRSS)/(1<<20), float64(PeakRSSCeiling720p)/(1<<20))
+	}
 }

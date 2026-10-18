@@ -727,23 +727,34 @@ Target version: `v0.4.0`.
 
 ### S4.1 Image conversion
 
-- [ ] `internal/image` driving libvips
+- [x] `internal/image` driving libvips
   - [ ] Convert between JPEG, PNG, WebP, AVIF, JXL, HEIC, GIF, TIFF, BMP, ICO
-  - [ ] Shrink-on-load for JPEG; sequential access mode for large inputs
-  - [ ] Per-format quality and effort options, with sane defaults per format
-  - [ ] ICC handling: convert to sRGB before stripping metadata
+    - Reads all ten, writes six. Probed in the production image rather than assumed: AVIF and HEIC
+      go through `heifsave`, which exists and then fails with "Unsupported compression" because
+      Debian's libheif ships no encoder, and BMP and ICO have no libvips saver in any build. The
+      capability probe reports exactly this, so an unwritable format is never offered.
+  - [x] Shrink-on-load for JPEG; sequential access mode for large inputs
+  - [x] Per-format quality and effort options, with sane defaults per format
+  - [x] ICC handling: convert to sRGB before stripping metadata
   - [ ] EXIF stripped by default, with an opt-in to keep it, and the privacy implication stated in
         the UI
+    - The stripping and the opt-in are done and tested. The UI sentence is not: no frontend page
+      was built, because `app/controllers/pages.go` renders `Tools/PixelsToSvg` for every tool and
+      needs a per-tool dispatch this domain does not own. The API field's `doc:` string states the
+      privacy implication.
   - [ ] ImageMagick fallback for PSD and anything libvips cannot read, behind a restrictive policy
-- [ ] Format support surfaced by the API, not hard-coded in the frontend
+    - Not done. ImageMagick is deliberately absent from the image (brainstorming section 3.8), so
+      this needs a new engine pin, a `policy.xml`, a licence entry and a new CVE surface. An owner
+      decision, not a default.
+- [x] Format support surfaced by the API, not hard-coded in the frontend
 
 #### Quality asserts
 
-- A matrix test converts a fixture of each input format to each supported output and asserts the
-  result decodes, with the expected dimensions
-- Peak RSS for a 2K image conversion stays under a recorded ceiling, proven by a benchmark
-- A file claiming to be PNG but containing JPEG bytes is handled by the detected type
-- An image with an embedded colour profile keeps its appearance after conversion, asserted by a
+- [x] A matrix test converts a fixture of each input format to each supported output and asserts
+  the result decodes, with the expected dimensions
+- [x] Peak RSS for a 2K image conversion stays under a recorded ceiling, proven by a benchmark
+- [x] A file claiming to be PNG but containing JPEG bytes is handled by the detected type
+- [x] An image with an embedded colour profile keeps its appearance after conversion, asserted by a
   pixel-difference threshold
 
 ### S4.2 Image compression and optimisation
@@ -758,44 +769,67 @@ Target version: `v0.4.0`.
 
 #### Quality asserts
 
-- Every chain produces a file that is smaller or the original is returned unchanged with a note
-- Lossless chains are verified lossless: decoded pixels are byte-identical to the source
-- Lossy chains record the SSIM or `ssimulacra2` score of a fixture, and a regression fails the test
-- The reported "what it did" string names the actual tools used
+- [ ] Every chain produces a file that is smaller or the original is returned unchanged with a note
+- [ ] Lossless chains are verified lossless: decoded pixels are byte-identical to the source
+- [ ] Lossy chains record the SSIM or `ssimulacra2` score of a fixture, and a regression fails the
+  test
+- [ ] The reported "what it did" string names the actual tools used
+
+**Nothing in S4.2 is done, and nothing in it can be yet.** Not one of the optimisers it names is in
+the production image: `oxipng`, `jpegtran`, `gifsicle`, `cjpeg`, `cjpegli`, `pngquant`, `cwebp`,
+`avifenc` and `cjxl` are all absent, and so is `ssimulacra2` for the quality assert. Each is a new
+Dockerfile pin, a new `/licenses` entry and a new CVE surface, and three of them are copyleft or
+dual-licensed (`gifsicle` and `jpegoptim` are GPL, `pngquant` is GPL-or-commercial), which the
+engine rules make an owner decision. Building a "make this smaller" entry point on libvips
+re-encoding alone would meet none of these asserts and would label a lossy re-encode as
+optimisation.
 
 ### S4.3 Image editing
 
-- [ ] Resize (fit, fill, exact, with and without upscaling), crop, rotate, flip
+- [x] Resize (fit, fill, exact, with and without upscaling), crop, rotate, flip
 - [ ] Watermark: image and text, with position, opacity and margin
+  - Not done. `vips composite2` with `vips text` covers it, and the opacity needs a `vips linear`
+    pass over the overlay's alpha band; with pixel-sampling tests it is a day's careful work and
+    did not fit this phase.
 - [ ] Thumbnail and multi-size output through `vukem/contrib/imaging`
+  - A single thumbnail is done: it is a resize, and the geometry test covers it. Multi-size output
+    is not. `vukem/contrib/imaging` was deliberately not used — it is a pure-Go decoder, so a 4K
+    image would be decoded into this process's heap, which is exactly what `.claude/rules/go.md`
+    forbids. Everything here goes through libvips instead.
 - [ ] Batch: the same operation applied to many files, delivered as a `.zip`
+  - Not done. It needs one conversion with several inputs and several outputs, and the file store's
+    per-conversion lookup is shaped around one input; that is a design question for the owner.
 
 #### Quality asserts
 
-- Geometry is asserted numerically for every mode, including odd dimensions
-- A watermark is present at the requested position, asserted by sampling pixels
-- A batch of 50 images runs within a recorded time with bounded memory, and a single failure does
-  not fail the batch
+- [x] Geometry is asserted numerically for every mode, including odd dimensions
+- [ ] A watermark is present at the requested position, asserted by sampling pixels
+- [ ] A batch of 50 images runs within a recorded time with bounded memory, and a single failure
+  does not fail the batch
 
 ### S4.4 Video and audio conversion
 
-- [ ] Video: MP4 ↔ WebM ↔ MKV ↔ MOV, with CRF ladders per codec from the research document
+- [x] Video: MP4 ↔ WebM ↔ MKV ↔ MOV, with CRF ladders per codec from the research document
 - [ ] Video → GIF using the two-pass palette filter, with `gifski` as an optional higher-quality
       path (confirm its licence first)
-- [ ] Audio: MP3, WAV, FLAC, Opus, AAC, with bitrate and quality options
-- [ ] Extract audio from video; replace a video's audio track
-- [ ] Loudness normalisation with `loudnorm`, two-pass when accuracy matters
-- [ ] Thumbnail and sprite-sheet extraction
+  - The two-pass palette path is done, tested and benchmarked. `gifski` is **not** added, and its
+    licence is the reason the bullet asked: the project states AGPL-3.0-or-commercial, so adding it
+    puts a second AGPL engine in the image and a second copyleft entry on `/licenses`. An owner
+    decision, not a default.
+- [x] Audio: MP3, WAV, FLAC, Opus, AAC, with bitrate and quality options
+- [x] Extract audio from video; replace a video's audio track
+- [x] Loudness normalisation with `loudnorm`, two-pass when accuracy matters
+- [x] Thumbnail and sprite-sheet extraction
 
 #### Quality asserts
 
-- Every conversion's output is validated with ffprobe: container, codecs, duration, resolution
-- A GPL-build-only codec path fails with a clear message on an LGPL build, proven by a test that
-  fakes the build flags
-- Encoding presets are recorded with wall-clock and output size for a reference clip, in
+- [x] Every conversion's output is validated with ffprobe: container, codecs, duration, resolution
+- [x] A GPL-build-only codec path fails with a clear message on an LGPL build, proven by a test
+  that fakes the build flags
+- [x] Encoding presets are recorded with wall-clock and output size for a reference clip, in
   `docs/benchmarks.md`
-- A 500 MB input converts without the container being OOM-killed, with the worker's memory ceiling
-  recorded
+- [x] A 500 MB input converts without the container being OOM-killed, with the worker's memory
+  ceiling recorded
 
 ### S4.5 Transcription
 
@@ -807,9 +841,17 @@ Target version: `v0.4.0`.
 
 #### Quality asserts
 
-- A fixture with known speech produces an SRT whose timings fall within a recorded tolerance
-- A 30-minute input completes within a recorded time on the worker's CPU allocation
-- The model file's checksum is verified at build time
+- [ ] A fixture with known speech produces an SRT whose timings fall within a recorded tolerance
+- [ ] A 30-minute input completes within a recorded time on the worker's CPU allocation
+- [ ] The model file's checksum is verified at build time
+
+**Nothing in S4.5 is done, and nothing in it can be here.** whisper.cpp is not in the production
+image and neither is a model, and the phase cannot create either for itself: the first bullet
+requires the model pinned and fetched **at build time** with its checksum verified, which is a
+Dockerfile change, a download stage of roughly 150 MB for `ggml-base.en` or 1.5 GB for `large-v3`,
+and a choice between them that lands in the image size the ROADMAP gates at 20 %. A transcription
+tool with no model would accept work it cannot do, which is worse than an absent tool, so none was
+written.
 
 ---
 

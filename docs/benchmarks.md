@@ -36,3 +36,143 @@ Planned rows, in ROADMAP order:
 - **Image conversion** (S4.1): peak RSS for a 2K image, which must stay under the recorded ceiling.
 - **Video encoding** (S4.4): wall-clock and output size per preset for one reference clip.
 - **Transcription** (S4.5): wall-clock for a 30-minute input on the worker's CPU allocation.
+
+<!-- Appended by the S4 media domain. Kept as its own section so three domains
+     can record numbers in parallel without rewriting each other's rows. -->
+
+## S4 media conversion
+
+Every number below was measured **inside the production image**, not on a development machine.
+libvips is not installed on the owner's Windows host and the engine sandbox is Linux-only, so a
+figure taken outside the image would measure a different binary under no limits.
+
+The harness, for every row:
+
+```bash
+for p in ffmpeg video audio image; do
+  GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go test -c -o /tmp/t/$p.test ./internal/$p/
+done
+docker run --rm --cpus 2 -m 1g -v /tmp/t:/t:ro --entrypoint sh vukem-tools:local -c \
+  'cd /app/work && cp /t/*.test . && for p in image video audio; do
+     ./$p.test -test.run XXX -test.bench . -test.benchmem -test.benchtime 1x; done'
+```
+
+`--cpus 2` is the point of the invocation: it gives the container a CPU quota, which is what
+`internal/cpu` reads and what every thread bound in these packages is sized from. Without it the
+engines size themselves from the host's 16 cores and the numbers mean nothing.
+
+`peakMB` is the **engine subprocess's** peak RSS, read from the kernel's rusage by
+`internal/engine`. It is reported as a custom metric rather than through `-benchmem` because the
+Go side never holds a frame: the `B/op` column is the harness, and it is three orders of magnitude
+smaller than the pixels, which is the design working.
+
+### Image conversion (S4.1, S4.3) — libvips 8.16.1
+
+| Case | Wall clock | Engine CPU | Peak RSS | Go allocs |
+| --- | --- | --- | --- | --- |
+| 1080p JPEG → WebP | 566 ms | 628 ms | 69.0 MB | 239 KB / 308 |
+| 1080p JPEG → JPEG | 334 ms | 410 ms | 46.5 MB | 236 KB / 292 |
+| 2048×2048 PNG → JPEG | 534 ms | 796 ms | 52.9 MB | 276 KB / 292 |
+| 2048×2048 PNG → 512-wide JPEG | 218 ms | 145 ms | 48.3 MB | 277 KB / 292 |
+| 4K PNG → JPEG | 874 ms | 1453 ms | 72.8 MB | 359 KB / 293 |
+| 4K PNG → 512-wide JPEG | 247 ms | 159 ms | 57.1 MB | 359 KB / 290 |
+
+The 2K row is the ROADMAP's memory assert: **52.9 MB against a 128 MB ceiling**, enforced by
+`TestPeakMemoryForA2KConversionStaysUnderTheCeiling`. The ceiling has deliberate headroom — an
+ordinary libvips upgrade should not fail the build, while losing streaming costs a factor of ten
+rather than a third.
+
+Streaming is measured rather than asserted. A 4K frame is 33 MB as RGB and the whole pipeline peaks
+at 72.8 MB, so no stage materialises more than about two frames. Shrink-on-load is visible in the
+same table twice: the thumbnail rows cost a fifth of the engine CPU of the full-size rows on the
+same input, because the JPEG decoder is asked for a reduced image instead of a full one.
+`TestShrinkOnLoadIsCheaperThanAFullDecode` asserts it directly — a 3000×2000 JPEG peaks at 46.1 MB
+to a 375-wide output against 64.5 MB at full size.
+
+### Video encoding presets (S4.4) — ffmpeg 7.1.5, GPL build
+
+Reference clip: 6 s of `testsrc` at 1280×720, 25 fps, with an AAC tone.
+
+| Preset | Wall clock | Output | Peak RSS |
+| --- | --- | --- | --- |
+| H.264 MP4, CRF 23, preset medium | 1.27 s | 190 KB | 276 MB |
+| H.265 MP4, CRF 28, preset medium | 2.52 s | 127 KB | 304 MB |
+| VP9 WebM, CRF 32, `-b:v 0 -row-mt 1` | 4.12 s | 147 KB | 239 MB |
+| AV1 WebM, CRF 32, preset 6, `lp=1` | 4.11 s | 133 KB | 399 MB |
+| H.264 720p → 360p | 0.78 s | 132 KB | 138 MB |
+| Video → GIF, two-pass palette, 480 wide, 12 fps | 0.79 s | 769 KB | 73 MB |
+
+AV1 is the interesting row: at this preset it costs the same wall clock as VP9 and produces the
+smallest file, which is why it is worth having. It is also the row that does not work without
+`-svtav1-params lp=1` — see `internal/video/video.go`, `maxAV1LogicalProcessors`, for the thread
+arithmetic.
+
+### Audio conversion (S4.4)
+
+Reference recording: 30 s of pink noise, stereo, 44.1 kHz, from FLAC.
+
+| Case | Wall clock | Output | Peak RSS |
+| --- | --- | --- | --- |
+| MP3 192k | 480 ms | 705 KB | 57.0 MB |
+| Opus 96k | 489 ms | 235 KB | 58.0 MB |
+| AAC 160k | 689 ms | 592 KB | 57.4 MB |
+| FLAC level 8 | 290 ms | 3275 KB | 59.6 MB |
+| WAV PCM 16 | 256 ms | 5168 KB | 56.8 MB |
+| MP3 192k, one-pass loudness | 1015 ms | 704 KB | 156.4 MB |
+| MP3 192k, two-pass loudness | 1286 ms | 705 KB | 57.8 MB |
+
+The two loudness rows are worth reading together. The second pass costs 27 % more wall clock,
+because the file is decoded twice — and it peaks at a third of the memory, because the measuring
+pass writes to the null muxer and holds no output. The two-pass form is also the only one that hits
+the target: `TestTwoPassNormalisationMeasuresThenCorrects` asserts the result measures within
+1.5 LU of −16 LUFS, which the single pass does not manage on a quiet opening.
+
+### A 519 MB input in a 1 GB container
+
+| Date | Input | Output | Engine peak RSS | Container peak | OOM kills |
+| --- | --- | --- | --- | --- | --- |
+| 2026-10-18 | 519 MB, 7 s of raw 1080p yuv420p in NUT | 720p H.264 MP4 | **311.6 MB** | 815 MB | **0** |
+
+Run through `video.Convert`, not by invoking ffmpeg by hand, so the argument building, the thread
+bounds and the progress parsing are all inside the measurement:
+
+```bash
+docker run --rm --cpus 2 -m 1g -v /tmp/t:/t:ro --entrypoint sh vukem-tools:local -c '
+  cd /app/work
+  ffmpeg -nostdin -hide_banner -loglevel error -nostats -y     -f lavfi -i "testsrc=duration=7:size=1920x1080:rate=25"     -c:v rawvideo -pix_fmt yuv420p -threads 2 -f nut big.nut
+  cp /t/video.test .
+  VUKEM_TOOLS_LARGE_INPUT=/app/work/big.nut ./video.test -test.run ALargeInput -test.v
+  cat /sys/fs/cgroup/memory.events /sys/fs/cgroup/memory.peak'
+```
+
+The input is uncompressed on purpose: the assert is about the input's **size**, and a 519 MB H.264
+file would be two hours of video and a test about duration instead.
+
+`oom_kill 0` is the assertion. The 815 MB container peak is mostly page cache for the 519 MB file
+being read, which is reclaimable and is why the container survives at 1 GB with an engine that
+peaks at 312 MB. The engine figure is the one to size a worker from.
+
+The test is opt-in behind `VUKEM_TOOLS_LARGE_INPUT`, because generating the fixture takes longer
+than the rest of the package's suite and committing half a gigabyte is out of the question. It is a
+recorded manual verification; the CI gate for the same property is the next section.
+
+### Memory does not scale with the input's length
+
+One large file suggests the property; this measures it. `TestMemoryDoesNotGrowWithTheInputsLength`
+converts a 2 s and a 20 s clip of the same shape — ten times the input — and fails if the longer
+one costs more than a quarter extra. A pipeline that buffered would be close to ten times.
+
+Both the ceiling tests run in the image as part of the ordinary suite:
+
+```bash
+docker run --rm --cpus 2 -m 1g -v /tmp/t:/t:ro --entrypoint sh vukem-tools:local -c \
+  'cd /app/work && cp /t/*.test . && for p in ffmpeg video audio image; do ./$p.test; done'
+# ffmpeg PASS / video PASS / audio PASS / image PASS
+```
+
+### Worker memory requirement
+
+The highest engine peak recorded here is **399 MB**, for AV1 at 720p. Conversion concurrency is
+`internal/cpu`'s limit, so a two-CPU worker may run two conversions at once: a worker that encodes
+AV1 needs roughly **1 GB** of memory allowance, not the 512 MB a glance at the image rows would
+suggest. H.264, H.265 and VP9 all fit in half that.

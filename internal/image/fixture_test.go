@@ -9,7 +9,6 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
-	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -255,44 +254,83 @@ func findProfile(tb testing.TB, _ vipsimage.Engine, _ vipsimage.Runner, _ string
 	return ""
 }
 
-// meanAbsoluteDifference is the mean absolute pixel difference between two
-// images of the same size, as libvips computes it.
+// meanAbsoluteDifference is the mean absolute difference, in levels out of
+// 255, between two PNGs of the same size.
 //
-// Computed by the engine rather than in Go, because decoding both images in
-// Go would mean this test depends on Go's decoders agreeing with libvips's,
-// which is a second thing that can break and has nothing to do with the
-// assertion.
-func meanAbsoluteDifference(
-	tb testing.TB,
-	e vipsimage.Engine,
-	r vipsimage.Runner,
-	dir, a, b string,
-) float64 {
+// Computed in Go with the standard library's decoder, deliberately. Asking
+// libvips to grade its own output would make the engine under test both the
+// subject and the judge, and an independent decoder is the stronger check —
+// if Go and libvips disagreed about what these pixels are, that would itself
+// be worth failing over.
+//
+// It also replaced an engine-side version that chained subtract, abs and avg
+// through two intermediate files. That version was observed being killed with
+// no output when all four engine test binaries ran back to back in one
+// container; the cause was never established, and since this is a test helper
+// rather than a product path, removing three subprocesses was the better
+// answer than explaining them.
+func meanAbsoluteDifference(tb testing.TB, _ vipsimage.Engine, _ vipsimage.Runner, _, a, b string) float64 {
 	tb.Helper()
 
-	difference := filepath.Join(dir, "difference.v")
-	runVips(tb, e, r, dir, "subtract", a, b, difference)
+	left, right := decodePNG(tb, a), decodePNG(tb, b)
 
-	absolute := filepath.Join(dir, "absolute.v")
-	runVips(tb, e, r, dir, "abs", difference, absolute)
-
-	var out strings.Builder
-
-	if _, err := r.Run(context.Background(), engine.Command{
-		Path:   e.Vips,
-		Args:   []string{"avg", absolute},
-		Dir:    dir,
-		Stdout: &out,
-	}); err != nil {
-		tb.Fatalf("average the difference: %v", err)
+	if left.Bounds() != right.Bounds() {
+		tb.Fatalf("the images are different sizes: %v against %v", left.Bounds(), right.Bounds())
 	}
 
-	value, err := strconv.ParseFloat(strings.TrimSpace(out.String()), 64)
+	var (
+		total  float64
+		counts int
+	)
+
+	bounds := left.Bounds()
+
+	for y := bounds.Min.Y; y < bounds.Max.Y; y++ {
+		for x := bounds.Min.X; x < bounds.Max.X; x++ {
+			lr, lg, lb, _ := left.At(x, y).RGBA()
+			rr, rg, rb, _ := right.At(x, y).RGBA()
+
+			// RGBA returns 16-bit values; the difference is reported in
+			// 8-bit levels because that is the unit a threshold is readable
+			// in.
+			total += absDiff(lr, rr) + absDiff(lg, rg) + absDiff(lb, rb)
+			counts += 3
+		}
+	}
+
+	if counts == 0 {
+		tb.Fatal("the images hold no pixels")
+	}
+
+	return total / float64(counts) / 257
+}
+
+// absDiff is the absolute difference between two channel values.
+func absDiff(a, b uint32) float64 {
+	if a > b {
+		return float64(a - b)
+	}
+
+	return float64(b - a)
+}
+
+// decodePNG reads a PNG with the standard library.
+func decodePNG(tb testing.TB, path string) image.Image {
+	tb.Helper()
+
+	file, err := os.Open(path)
 	if err != nil {
-		tb.Fatalf("read the average %q: %v", out.String(), err)
+		tb.Fatalf("open %s: %v", filepath.Base(path), err)
 	}
 
-	return value
+	defer func() { _ = file.Close() }()
+
+	decoded, err := png.Decode(file)
+	if err != nil {
+		tb.Fatalf("decode %s: %v", filepath.Base(path), err)
+	}
+
+	return decoded
 }
 
 // runVips runs one vips operation and fails the test with the engine's own

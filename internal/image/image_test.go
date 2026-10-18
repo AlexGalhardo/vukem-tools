@@ -430,3 +430,59 @@ func TestQualityChangesTheFileSize(t *testing.T) {
 
 	t.Logf("JPEG Q=20 is %d bytes, Q=95 is %d bytes", low, high)
 }
+
+// TestAProfiledImageKeepsItsAppearance is the roadmap's colour assert in the
+// form it is written: the image keeps its appearance after conversion, within
+// a pixel-difference threshold.
+//
+// "Keeps its appearance" needs a reference, so the reference is computed
+// independently: libvips is asked to transform the tagged image to sRGB on
+// its own, and this package's output is compared against that. The two should
+// agree to within rounding, which is what proves the conversion applied the
+// profile correctly rather than merely applying something.
+//
+// The complement matters as much and is a separate test:
+// TestAnEmbeddedProfileIsConvertedToSRGBBeforeTheStrip proves the pixels moved
+// at all, so a pipeline that dropped the profile and did nothing would fail
+// there even though it would pass a "close to the untransformed source"
+// threshold here.
+func TestAProfiledImageKeepsItsAppearance(t *testing.T) {
+	e, r := engines(t)
+	dir := t.TempDir()
+
+	profile := findProfile(t, e, r, dir)
+	if profile == "" {
+		t.Skip("this build ships no ICC profile to test against")
+	}
+
+	seed := seedPNG(t, dir, 128, 128)
+
+	tagged := filepath.Join(dir, "tagged.png")
+	runVips(t, e, r, dir, "copy", seed+"[access=sequential]", tagged+"[profile="+profile+",keep=icc]")
+
+	// The independent reference: libvips transforming to sRGB by itself,
+	// with no thumbnail, no resize and no save options of ours.
+	reference := filepath.Join(dir, "reference.png")
+	runVips(t, e, r, dir, "icc_transform", tagged, reference, "srgb", "--embedded")
+
+	converted, err := vipsimage.Convert(context.Background(), e, r, dir, tagged,
+		vipsimage.Options{To: vipsimage.PNG})
+	if err != nil {
+		t.Fatalf("convert: %v", err)
+	}
+
+	difference := meanAbsoluteDifference(t, e, r, dir, reference, converted.Path)
+
+	// One level out of 255. The two paths differ only in rounding — ours
+	// goes through thumbnail at the image's own size, the reference through
+	// icc_transform — so anything larger means a different transform, not a
+	// different rounding.
+	const threshold = 1.0
+
+	t.Logf("mean absolute difference from an independent sRGB transform: %.4f levels", difference)
+
+	if difference > threshold {
+		t.Errorf("the appearance changed: mean difference %.4f levels, threshold %.1f",
+			difference, threshold)
+	}
+}

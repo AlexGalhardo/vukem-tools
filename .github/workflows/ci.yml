@@ -75,7 +75,7 @@ jobs:
       - run: go run golang.org/x/vuln/cmd/govulncheck@v1.9.0 ./...
 
   assets:
-    name: Assets (tsc, vite build, bun audit)
+    name: Assets (tsc, bun test, vite build, bun audit)
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7.0.1
@@ -86,6 +86,10 @@ jobs:
           bun-version: 1.4.3
       - run: bun install --frozen-lockfile
       - run: bun run typecheck
+      # Bun's own runner, so the browser-side logic that has to agree with the
+      # server — the sprite grid arithmetic — is tested in both languages
+      # against one table. No test framework is installed for it.
+      - run: bun run test
       - run: bun run build
       # GHSA-vfj7-8cjw-p6xm (braces <=3.0.3, stack-exhaustion DoS on deeply nested
       # glob patterns) has no fixed release: 3.0.3 is the latest published version.

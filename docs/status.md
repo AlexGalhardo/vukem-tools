@@ -59,18 +59,40 @@ them. See [vukem-audit.md](vukem-audit.md).
 
 ## Next
 
-- **CI runs no engine, so every engine-backed test skips there.** Installing libvips in the App
-  job was tried and taken back out: with the engine present, `./tests` goes green — which is the
-  first real proof `image-compress` works end to end on a clean machine — but every test in
-  `internal/image` fails with `glib: Error creating thread: Resource temporarily unavailable`.
-  The cause is `internal/image/fixture_test.go`, which caps the engine at `Processes: 64`.
-  `RLIMIT_NPROC` counts every task the real UID owns anywhere on the machine, not the ones this
-  process started, so 64 is generous in a container where the test binary is nearly alone and
-  instantly fatal on a runner whose user already owns hundreds of threads. The fix is to size that
-  cap from what the UID already uses rather than from an absolute number — the same caveat
-  `app/services/engines.go` already states for production. It is not in this PR because it cannot
-  be verified from a root shell: root holds `CAP_SYS_RESOURCE` and ignores `RLIMIT_NPROC`
-  entirely, so the failure does not reproduce there and neither would the fix.
+- **A production deploy still dies at boot and nobody can say why.** Railway deployment
+  `77ffd96c` (`d0a4ec9`) failed its `/up` healthcheck in a restart loop on
+  `vukem: routes: tools: probe libvips: image: write the capability probe image: other`, and so
+  did `db018dd4` sixteen hours earlier on `4fbcf373` — a commit whose redeploy, one minute later,
+  succeeded. It is intermittent and it is not a regression: the only runtime file PR #21 changed
+  on that path is `routes/api_media.go`, and the failure predates it.
+
+  What is known: `vips -l` runs immediately before and succeeds, so the engine starts; the step
+  that fails is the first one that writes, which is also the first one that builds a thread pool.
+  What is not known is the cause, because the error carried none. `EngineError.Error()` dropped
+  the wrapped error whenever the engine had printed nothing — which is exactly the case where the
+  engine never got to speak — so the deploy log named the step and nothing else. That is fixed,
+  in `internal/image` and `internal/ffmpeg` both, and the next occurrence will name its cause.
+  Do not guess at this one before then.
+
+- **`RLIMIT_NPROC` was an absolute number and is now headroom.** `prlimit --nproc` was passed the
+  configured figure as-is, but the kernel measures that limit against every task the real UID owns
+  anywhere on the machine, so the engine's budget was spent by whatever else shared the UID. The
+  sandbox now adds the UID's current task count (`uidTasks` in `internal/engine/sandbox_linux.go`)
+  and `Limits.Processes` means headroom. Reproduced and verified against the image's own libvips:
+  `prlimit --nproc=4` gives `glib: Error creating thread: Resource temporarily unavailable` and a
+  truncated 64-byte output, headroom gives exit 0 and a whole file. `internal/image` also grew the
+  `resource_limit` kind `internal/ffmpeg` already had, so that failure names itself instead of
+  classifying as `other`.
+
+- **CI still runs no engine, so every engine-backed test skips there.** Installing libvips in the
+  App job was tried and taken back out, and the headroom fix above is not enough to put it back.
+  Verified by running `./internal/image` as a non-root user with libvips present: conversions
+  still fail with `glib: Error creating thread` and `libgomp: Thread creation failed`, because the
+  package's tests run in parallel and each engine computes its ceiling from the tasks that exist
+  when it starts rather than the ones its peers are about to create. Two threads to pull: size the
+  headroom from the engine concurrency the caller permits, and bound libgomp — `internal/image`
+  sets `VIPS_CONCURRENCY` from `cpu.Limit()` but nothing sets `OMP_NUM_THREADS`, so OpenMP sizes
+  its pool from the host's CPU count, which is the thing `AGENTS.md` forbids.
 
 - Cut the release the sprite phase was planned for.
 - The two migrations this repository owes itself, both recorded in

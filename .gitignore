@@ -45,6 +45,11 @@ TODO.md
 # Local app data (storage disk, SQLite dev database)
 storage/*
 !storage/.gitkeep
+# The same local app data, written by a test that builds the app without a
+# sandbox: the engine capability probe's scratch directory defaults to a
+# relative storage/work, which lands beside whichever package is running.
+# routes/api_media.go says why that default is relative.
+tests/storage/
 
 # Vite: dev server marker and build output
 /resources/public/hot

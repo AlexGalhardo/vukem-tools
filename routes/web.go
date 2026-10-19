@@ -41,7 +41,26 @@ func registerWeb(
 		return err
 	}
 
-	if err := vukem.DefaultMiddleware(app, r); err != nil {
+	if err := vukem.DefaultMiddlewareWith(app, r, vukem.MiddlewareOptions{
+		SecureHeaders: func(cfg *middleware.SecureHeadersConfig) {
+			// blob: in img-src, for the sprite pages.
+			//
+			// Previewing a file somebody just dropped means URL.createObjectURL,
+			// which produces a blob: URL — and the default policy's
+			// "img-src 'self' data:" refuses it, so the preview silently did
+			// not appear. A data: URL would work and is the wrong fix: it is
+			// base64, so a 64 MB sheet becomes an 85 MB string held in memory
+			// beside the decoded image.
+			//
+			// It is a narrow widening. A blob: URL is minted by this page's
+			// own JavaScript from a file the person chose, is unguessable, and
+			// dies with the document; it cannot name anything on another
+			// origin. The directive is images only — script-src and the rest
+			// are untouched, and vukem refuses a scheme source in a script
+			// directive anyway.
+			cfg.CSPSources = map[string][]string{"img-src": {"blob:"}}
+		},
+	}); err != nil {
 		return err
 	}
 

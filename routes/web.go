@@ -48,6 +48,9 @@ func registerWeb(
 	// Server level, so every response carries it: static files, 404s and the
 	// health probe included.
 	r.UseServer(httpx.DeployTarget(app.Source.Get("DEPLOY_TARGET")))
+	// Outside the static handler, so a missing asset still 404s as an asset
+	// while a missing page becomes a redirect to the home page.
+	r.UseServer(redirectNotFound)
 	r.UseServer(middleware.StaticFS(resources.Public(), middleware.StaticConfig{Prefix: "/"}))
 	acc, err := accounts.New(app)
 	if err != nil {

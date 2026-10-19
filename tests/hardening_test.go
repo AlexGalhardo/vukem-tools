@@ -205,3 +205,40 @@ func TestASameSiteFormPostReachesTheHandler(t *testing.T) {
 			"test proves nothing")
 	}
 }
+
+// A browser asking for a page that does not exist is sent to the home page
+// (owner's decision, 2026-10-18). The API, the operational endpoints and the
+// built assets keep their real 404, because a redirect is a worse answer
+// there: a client needs the status code, a probe that followed a redirect to
+// a page that always works would report every instance healthy for ever, and
+// a missing bundle must fail as a missing bundle.
+func TestAMissingPageRedirectsButAMissingAPIRouteDoesNot(t *testing.T) {
+	t.Parallel()
+
+	app := vukemtest.New(t, bootstrap.New)
+
+	res := app.Client(t).Get("/no-such-page")
+	if res.Status() != http.StatusFound {
+		t.Errorf("GET /no-such-page = %d, want a redirect", res.Status())
+	}
+
+	if to := res.Header("Location"); to != "/" {
+		t.Errorf("Location = %q, want \"/\"", to)
+	}
+
+	for _, path := range []string{
+		"/api/v1/no-such-route",
+		"/health/no-such-check",
+		"/build/no-such-bundle.js",
+	} {
+		if got := app.Client(t).Get(path).Status(); got != http.StatusNotFound {
+			t.Errorf("GET %s = %d, want 404 kept", path, got)
+		}
+	}
+
+	// A POST to a missing page is not a navigation, so it is not redirected:
+	// answering 302 would make a client retry the body against the home page.
+	if got := app.Client(t).PostForm("/no-such-page", url.Values{}).Status(); got == http.StatusFound {
+		t.Error("POST to a missing page was redirected, which would replay the body at /")
+	}
+}

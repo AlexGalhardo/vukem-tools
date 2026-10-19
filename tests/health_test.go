@@ -34,7 +34,12 @@ func TestDeployTargetOnEveryResponse(t *testing.T) {
 
 	app.Client(t).Get("/").AssertOK().AssertHeader(httpx.DeployTargetHeader, "test-deploy")
 	app.Client(t).Get("/up").AssertOK().AssertHeader(httpx.DeployTargetHeader, "test-deploy")
-	app.Client(t).Get("/no-such-page").AssertStatus(404).
+	// An error response carries it too. /api/ keeps its real 404; a missing
+	// page is redirected, and the header is on that as well because this
+	// middleware wraps the redirect.
+	app.Client(t).Get("/api/v1/no-such-route").AssertStatus(404).
+		AssertHeader(httpx.DeployTargetHeader, "test-deploy")
+	app.Client(t).Get("/no-such-page").AssertRedirect("/").
 		AssertHeader(httpx.DeployTargetHeader, "test-deploy")
 }
 

@@ -45,7 +45,11 @@ func Auth(r *router.Router, app *vukem.App) error {
 
 	r.Use(shareAuth(acc))
 
+	// Both pages stay registered whatever PASSWORD_AUTH says: they are where
+	// the social sign-in buttons live, and a bookmark on /register should not
+	// 404 just because passwords are off.
 	r.Get("/login", h.ShowLogin).Name("login").Use(guest)
+	r.Get("/register", h.ShowRegister).Name("register").Use(guest)
 	r.Post("/logout", h.Logout).Name("logout").Use(required)
 
 	// Password sign-in and sign-up are a unit with password reset and email
@@ -60,7 +64,6 @@ func Auth(r *router.Router, app *vukem.App) error {
 	// frontend protects nothing on its own.
 	if PasswordAuthEnabled(app) {
 		r.Post("/login", h.Login).Use(guest, throttle, perAccount)
-		r.Get("/register", h.ShowRegister).Name("register").Use(guest)
 		r.Post("/register", h.Register).Use(guest, signupIP, signupEmail)
 		r.Get("/register/check-email", h.CheckEmail).Name("register.check").Use(guest)
 

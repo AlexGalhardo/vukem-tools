@@ -38,7 +38,9 @@ func TestSocialSignUpAndLogin(t *testing.T) {
 	signIn(t, app.Client(t)).AssertRedirect("/dashboard")
 	vukemtest.AssertDatabaseCount(t, app, "users", 1)
 
-	app.Client(t).Get("/auth/myspace/redirect").AssertNotFound()
+	// A provider with no credentials has no route. A browser following a
+	// stale link goes home rather than seeing a 404.
+	app.Client(t).Get("/auth/myspace/redirect").AssertRedirect("/")
 }
 
 // Someone signs up first with the victim's address and keeps a session,

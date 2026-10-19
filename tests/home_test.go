@@ -24,13 +24,17 @@ func TestErrorPage(t *testing.T) {
 
 	app := vukemtest.New(t, bootstrap.New)
 
-	// Errors on Inertia visits render resources/js/pages/Error; full page
-	// loads keep the HTML status page.
-	app.Client(t).Inertia("").Get("/no-such-page").AssertStatus(404).
+	// A missing page is a redirect home now, so the error page is exercised
+	// through an error that is not a missing page. The API keeps its real
+	// status, which is what makes it usable here.
+	app.Client(t).Inertia("").Get("/api/v1/no-such-route").AssertStatus(404).
 		AssertInertia("Error").
 		PropEquals("status", 404).
 		PropEquals("message", "Not Found")
-	app.Client(t).Get("/no-such-page").AssertStatus(404).AssertHeader("X-Inertia", "")
+	app.Client(t).Get("/api/v1/no-such-route").AssertStatus(404).AssertHeader("X-Inertia", "")
+
+	// And the missing page itself goes home rather than rendering anything.
+	app.Client(t).Get("/no-such-page").AssertRedirect("/")
 }
 
 // A health probe must not create a session. The framework stopped persisting

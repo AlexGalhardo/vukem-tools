@@ -495,10 +495,12 @@ func (p *Pipeline) settle(ctx context.Context, id, userID string, out Outcome, r
 		// The second return of AttemptFrom is checked rather than ignored: a
 		// handler called straight from a test has no attempt in its context,
 		// and reading the zero value there would be reasoning about a value
-		// nobody set. It happens to be safe today — Last() is
-		// Number > MaxRetries, so the zero value is false — but that is
-		// incidental, and vukem's own doc comment claims the opposite, so it
-		// is not something to depend on. TestThereIsNoAttemptOutsideTheQueue
+		// nobody set. It is safe today — Last() is Number > MaxRetries, so
+		// the zero value reads as "not the last attempt" — and vukem's own
+		// doc comment says exactly that, which an earlier version of this
+		// comment claimed it contradicted. Checking the flag is still the
+		// right thing: it says what this code means rather than leaning on a
+		// property of the zero value. TestThereIsNoAttemptOutsideTheQueue
 		// pins both facts.
 		if attempt, ok := queue.AttemptFrom(ctx); ok && attempt.Last() {
 			if _, err := p.store.Failure(settleCtx, id, runErr); err != nil {

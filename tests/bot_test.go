@@ -1,7 +1,6 @@
 package tests
 
 import (
-	"encoding/json"
 	"net/http"
 	"reflect"
 	"slices"
@@ -240,11 +239,7 @@ func TestTheBotsAbilitiesAreAllRealAbilities(t *testing.T) {
 		Data []string `json:"data"`
 	}
 
-	// workaround(vukem): vukemtest.Response has no decode-into-struct helper,
-	// so every test that needs a typed body unmarshals Body() by hand.
-	if err := json.Unmarshal([]byte(res.Body()), &body); err != nil {
-		t.Fatalf("decode the abilities: %v", err)
-	}
+	res.JSON(&body)
 
 	for _, ability := range bot.Abilities() {
 		if !slices.Contains(body.Data, ability) {
@@ -272,10 +267,7 @@ func TestTheBotsErrorsComeFromThePublishedTaxonomy(t *testing.T) {
 		} `json:"data"`
 	}
 
-	// workaround(vukem): see above.
-	if err := json.Unmarshal([]byte(res.Body()), &body); err != nil {
-		t.Fatalf("decode the error catalogue: %v", err)
-	}
+	res.JSON(&body)
 
 	if len(body.Data) != len(jobs.Catalog()) {
 		t.Fatalf("the API publishes %d error codes and the taxonomy has %d", len(body.Data), len(jobs.Catalog()))

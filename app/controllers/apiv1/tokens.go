@@ -75,13 +75,8 @@ type AbilityList struct {
 }
 
 // RevokeInput is the path input of DELETE /api/v1/tokens/{token}.
-//
-// Token carries no `doc` tag because the generator reads it for query
-// parameters only and drops it for path parameters; the description lives in
-// routes/apidocs.go instead (workaround(vukem): path parameters ignore the
-// doc tag).
 type RevokeInput struct {
-	Token string `json:"token" validate:"required"`
+	Token string `json:"token" validate:"required" doc:"The id of the key to revoke, as returned in the id field when it was issued." example:"k_7f3c1b9e"`
 }
 
 // Issue exchanges email and password for a key: POST /api/v1/tokens.

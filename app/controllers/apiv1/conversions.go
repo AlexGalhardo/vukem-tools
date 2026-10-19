@@ -305,13 +305,8 @@ type ConversionList struct {
 }
 
 // ConversionIDInput is the path input of the per-conversion routes.
-//
-// ID carries no `doc` tag because the generator reads it for query parameters
-// only and drops it for path parameters; the description lives in
-// routes/apidocs.go instead (workaround(vukem): path parameters ignore the
-// doc tag).
 type ConversionIDInput struct {
-	ID string `json:"id" validate:"required"`
+	ID string `json:"id" validate:"required" doc:"The conversion's id, as returned when it was submitted." example:"01JQ8Z5X0K7M3N9P2R4T6V8W0Y"`
 }
 
 // ListInput is the query of GET /api/v1/conversions.

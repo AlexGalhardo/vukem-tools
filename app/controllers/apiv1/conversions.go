@@ -643,9 +643,28 @@ func finalEvent(ev sse.Event) bool {
 	return e.Final()
 }
 
+// caller returns the authenticated user, from whichever guard authenticated
+// this request.
+//
+// The routes accept both: a programmatic client carries an API key, and the
+// app's own pages call the same endpoints with the session they already have.
+// Asking only the "api" guard is what made every tool answer 401 to a
+// signed-in browser while the upload that produced the file_id succeeded --
+// app/controllers/uploads.go already resolved its owner across guards, which
+// is why the two halves of one flow disagreed.
+func caller(c *web.Ctx) (models.User, error) {
+	for _, guard := range []string{"web", "api"} {
+		if u, err := auth.User[models.User](c, guard); err == nil {
+			return u, nil
+		}
+	}
+
+	return models.User{}, auth.ErrUnauthenticated
+}
+
 // callerID returns the authenticated caller's user id.
 func callerID(c *web.Ctx) (string, error) {
-	u, err := auth.User[models.User](c, "api")
+	u, err := caller(c)
 	if err != nil {
 		return "", err
 	}

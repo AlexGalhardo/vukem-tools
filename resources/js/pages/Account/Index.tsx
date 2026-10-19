@@ -1,5 +1,5 @@
 import { Head, useForm, usePage } from "@inertiajs/react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 import PasswordField from "../../components/PasswordField";
 import PasswordStrength from "../../components/PasswordStrength";
@@ -52,11 +52,14 @@ export default function AccountIndex({
 	usage,
 }: Props): React.ReactElement {
 	const page = usePage<SharedProps>();
-	const status = page.props.status as string | undefined;
-	// The plaintext key, flashed by the server exactly once. It is not a prop
-	// of the page, because a prop survives in the history entry and the back
-	// button would put the secret back on screen.
-	const freshKey = page.props.key as string | undefined;
+	// Both are flashed, so they live on the page object next to it, not in
+	// props -- which is what AppLayout already reads. Reading page.props
+	// meant the new key was never rendered and the only copy of it was lost.
+	//
+	// Flashed rather than a prop on purpose: a prop survives in the history
+	// entry, so the back button would put the secret back on screen.
+	const status = page.flash?.status as string | undefined;
+	const freshKey = page.flash?.key as string | undefined;
 
 	return (
 		<>
@@ -93,14 +96,33 @@ export default function AccountIndex({
 /** The key, shown once, with a copy button. */
 function NewKey({ value }: { value: string }): React.ReactElement {
 	const [copied, setCopied] = useState(false);
+	const [failed, setFailed] = useState(false);
+
+	// The toast clears itself. Announced politely so a screen reader hears it
+	// without losing the caret, which matters here because the next thing a
+	// person does is paste the key somewhere.
+	useEffect(() => {
+		if (!copied && !failed) return;
+
+		const t = window.setTimeout(() => {
+			setCopied(false);
+			setFailed(false);
+		}, 2500);
+
+		return () => window.clearTimeout(t);
+	}, [copied, failed]);
 
 	const copy = async (): Promise<void> => {
 		try {
 			await navigator.clipboard.writeText(value);
 			setCopied(true);
+			setFailed(false);
 		} catch {
-			// Clipboard access can be denied; the value is selectable either way,
-			// which is why it sits in a readonly input rather than in a <code>.
+			// Clipboard access can be denied (an insecure origin, or the user
+			// said no). Say so rather than silently doing nothing; the value
+			// is selectable either way, which is why it sits in a readonly
+			// input rather than in a <code>.
+			setFailed(true);
 			setCopied(false);
 		}
 	};
@@ -125,9 +147,17 @@ function NewKey({ value }: { value: string }): React.ReactElement {
 					onClick={copy}
 					className="rounded-field border border-edge px-3 py-2 text-sm font-medium transition-colors duration-100 hover:bg-sunken"
 				>
-					{copied ? "Copied" : "Copy"}
+					Copy
 				</button>
 			</div>
+			<p aria-live="polite" className="mt-2 min-h-5 text-sm">
+				{copied && <span className="text-signal">Copied to the clipboard.</span>}
+				{failed && (
+					<span className="text-bad">
+						The browser would not let us copy. Select the field and copy it yourself.
+					</span>
+				)}
+			</p>
 		</div>
 	);
 }

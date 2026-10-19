@@ -127,13 +127,13 @@ func (h *Tokens) Issue(c *web.Ctx, in IssueInput) (TokenIssued, error) {
 
 // Me returns the authenticated user: GET /api/v1/me.
 func (*Tokens) Me(c *web.Ctx, _ struct{}) (models.User, error) {
-	return auth.User[models.User](c, "api")
+	return caller(c)
 }
 
 // Index lists the caller's keys, newest first, revoked ones included, never
 // the secrets: GET /api/v1/tokens.
 func (h *Tokens) Index(c *web.Ctx, _ struct{}) (TokenList, error) {
-	u, err := auth.User[models.User](c, "api")
+	u, err := caller(c)
 	if err != nil {
 		return TokenList{}, err
 	}
@@ -167,7 +167,7 @@ func (h *Tokens) Revoke(c *web.Ctx, _ struct{}) (struct{}, error) {
 func (h *Tokens) RevokeOne(c *web.Ctx, in RevokeInput) (struct{}, error) {
 	var out struct{}
 
-	u, err := auth.User[models.User](c, "api")
+	u, err := caller(c)
 	if err != nil {
 		return out, err
 	}

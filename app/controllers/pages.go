@@ -75,7 +75,13 @@ func (p *Pages) Tool(c *web.Ctx) error {
 		"tusPath":  p.tusPath,
 	}
 
-	maps.Copy(props, page.props())
+	// A page with no options of its own leaves props nil, which is the
+	// zero value and a legitimate shape: the PDF pages describe their form
+	// client-side from the tool's own schema. Calling it unconditionally
+	// panicked on every one of them.
+	if page.props != nil {
+		maps.Copy(props, page.props())
+	}
 
 	return inertia.Render(c, page.component, props)
 }
@@ -87,7 +93,9 @@ func (p *Pages) Tool(c *web.Ctx) error {
 // without building every tool's option list on every page render.
 type toolPage struct {
 	component string
-	props     func() inertia.Props
+	// props is optional: nil means the component needs nothing beyond the
+	// three every tool page gets.
+	props func() inertia.Props
 }
 
 // pages maps a tool name to its page.

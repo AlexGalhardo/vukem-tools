@@ -232,3 +232,35 @@ func verifiedUserWith(t *testing.T, app *vukemtest.App, email string) models.Use
 // satisfies the policy in app/requests/password.go, so a test failure is
 // never the fixture's fault.
 const accountPassword = "Str0ng-Fixture!Pass"
+
+// The plaintext key is flashed, and the page reads it from the flash. It was
+// read from props, where the server never puts it, so a newly created key was
+// never shown and its only copy was lost.
+func TestANewKeyIsFlashedWhereThePageReadsIt(t *testing.T) {
+	t.Parallel()
+
+	app := vukemtest.New(t, bootstrap.New)
+	user := verifiedUser(t, app)
+	client := app.Client(t).ActingAs("web", user)
+
+	client.PostForm("/account/keys", url.Values{
+		"device_name": {"my laptop"},
+		"abilities":   {"pixels:svg"},
+	})
+
+	page := client.Get("/account").AssertOK().AssertInertia("Account/Index").Page()
+
+	flash, _ := page["flash"].(map[string]any)
+
+	key, _ := flash["key"].(string)
+	if key == "" {
+		t.Fatalf("no key in the flash, so the page cannot show it: %v", page["flash"])
+	}
+
+	// And it must not be a prop: a prop survives in the history entry, so the
+	// back button would put the secret back on screen.
+	props, _ := page["props"].(map[string]any)
+	if _, ok := props["key"]; ok {
+		t.Error("the plaintext key is a page prop, so the back button can show it again")
+	}
+}

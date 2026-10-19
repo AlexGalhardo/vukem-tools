@@ -1,6 +1,7 @@
 package tests
 
 import (
+	"net/http"
 	"testing"
 
 	"github.com/AlexGalhardo/vukem/vukemtest"
@@ -51,4 +52,54 @@ func TestHealthProbeCreatesNoSession(t *testing.T) {
 
 	// A second probe must not start one either.
 	app.Client(t).Get("/up").AssertOK().AssertHeaderMissing("Set-Cookie")
+}
+
+// Every live tool must render its page. This is the test that was missing:
+// the PDF pages were added to the map with no props function, Tool called it
+// unconditionally, and all 18 answered 500 in production while the suite
+// stayed green because nothing asked for them.
+func TestEveryLiveToolRendersItsPage(t *testing.T) {
+	t.Parallel()
+
+	app := vukemtest.New(t, bootstrap.New)
+	user := verifiedUser(t, app)
+	client := app.Client(t).ActingAs("web", user)
+
+	// The home page is the tool index, so its props are exactly what a
+	// visitor can click. Reading them keeps this test honest without
+	// reaching into the pipeline's wiring.
+	groups, ok := client.Get("/").AssertOK().AssertInertia("Home").Prop("groups")
+	if !ok {
+		t.Fatal("the home page does not list the tool groups")
+	}
+
+	live := 0
+
+	for _, g := range groups.([]any) {
+		group, _ := g.(map[string]any)
+
+		tools, _ := group["tools"].([]any)
+		for _, item := range tools {
+			tool, _ := item.(map[string]any)
+			if tool["status"] != "live" {
+				continue
+			}
+
+			live++
+
+			name, _ := tool["name"].(string)
+
+			res := client.Get("/tools/" + name)
+			if res.Status() != http.StatusOK {
+				t.Errorf("GET /tools/%s = %d, want 200: a live tool must have a page that renders",
+					name, res.Status())
+			}
+		}
+	}
+
+	if live == 0 {
+		t.Fatal("no live tool in the catalogue, so this test proved nothing")
+	}
+
+	t.Logf("checked %d live tools", live)
 }

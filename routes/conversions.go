@@ -81,7 +81,17 @@ func Conversions(c *services.Conversions) func(r *router.Router, app *vukem.App)
 			}, h.Errors)
 
 			g.Group("", func(p *router.Group) {
-				p.Use(auth.Required(acc.API), perToken)
+				// Session first, key second, and the order is load-bearing: Required stops
+				// at the first guard whose failure is not "unauthenticated", so
+				// putting the token guard first made a cookie-only request 401
+				// before the session guard ever ran. routes/uploads.go already had
+				// the working order, which is why uploading a file worked from the
+				// browser while every tool submit that followed answered 401.
+				//
+				// requireAbility expects both: a session has no abilities and is
+				// allowed everything its owner is, a key only what it was minted
+				// with.
+				p.Use(auth.Required(acc.Web, acc.API), perToken)
 
 				// One route per tool, so the document describes each
 				// tool's options exactly rather than saying "an object".

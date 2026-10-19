@@ -77,7 +77,20 @@ func API(r *router.Router, app *vukem.App) error {
 		}, h.Abilities)
 
 		g.Group("", func(p *router.Group) {
-			p.Use(auth.Required(acc.API), perToken)
+			// Both guards, session first. The order is load-bearing: Required
+			// stops at the first guard whose failure is not "unauthenticated", so
+			// a token guard in front answers 401 to a cookie-only request before
+			// the session guard runs. The app's own pages call these endpoints
+			// with the session they already have.
+			//
+			// Accepting the session here is safe because an unsafe request still
+			// has to clear two checks it cannot forge cross-site: vukem's
+			// CrossOriginProtection reads Sec-Fetch-Site and Origin, and
+			// JSONOnly requires a Content-Type that a simple form POST cannot
+			// set without a preflight. requireAbility already expects this case:
+			// a session has no abilities and is allowed everything its owner is,
+			// while a key is held to the abilities it was minted with.
+			p.Use(auth.Required(acc.Web, acc.API), perToken)
 
 			api.Register(p, "GET /me", api.Op{
 				Name:        "me",

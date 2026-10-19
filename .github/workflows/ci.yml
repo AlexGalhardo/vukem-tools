@@ -121,8 +121,15 @@ jobs:
           push: false
           load: true
           tags: vukem-tools:ci
-      # The image runs with APP_ENV=production, where vukem requires a real mailer;
-      # the smoke test only proves the binary links, boots and resolves its routes.
+      # The smoke test only proves the binary links, boots and resolves its
+      # routes. It overrides two things the image sets for a real deploy, and
+      # both overrides are the test's fault rather than the app's:
+      # APP_ENV, because production on the default SQLite dialect is a genuine
+      # misconfiguration -- the progress broker needs PostgreSQL to cross the
+      # web and worker processes, and refusing it at boot is correct -- and
+      # MAIL_MAILER, because production requires a real mailer. Exercising the
+      # production path needs a Postgres service, which belongs in a
+      # deploy-shaped test rather than in an image smoke.
       - name: The binary starts and reports the app
         run: |
-          docker run --rm             -e APP_KEY="base64:$(head -c 32 /dev/urandom | base64 -w0)"             -e MAIL_MAILER=log             vukem-tools:ci about
+          docker run --rm             -e APP_KEY="base64:$(head -c 32 /dev/urandom | base64 -w0)"             -e MAIL_MAILER=log             -e APP_ENV=development             vukem-tools:ci about

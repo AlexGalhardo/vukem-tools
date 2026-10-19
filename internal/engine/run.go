@@ -33,8 +33,10 @@ type Limits struct {
 	// bytes. A conversion that would fill the disk fails as one job rather
 	// than taking the worker and every other job with it.
 	FileSize int64
-	// Processes caps how many processes the user may have (RLIMIT_NPROC), so
-	// an engine cannot fork its way out of its own limits.
+	// Processes is how many tasks the engine may add (RLIMIT_NPROC), so it
+	// cannot fork its way out of its own limits. It is headroom above what
+	// the real UID already owns rather than an absolute ceiling, because
+	// that is what the kernel counts: see uidTasks in sandbox_linux.go.
 	Processes int
 	// OpenFiles caps descriptors (RLIMIT_NOFILE).
 	OpenFiles int

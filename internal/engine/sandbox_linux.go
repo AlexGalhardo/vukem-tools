@@ -7,7 +7,9 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"strconv"
+	"strings"
 	"syscall"
 )
 
@@ -64,7 +66,15 @@ func (s linuxSandbox) wrap(path string, args []string, limits Limits) (string, [
 	}
 
 	if limits.Processes > 0 {
-		out = append(out, "--nproc="+strconv.Itoa(limits.Processes))
+		// Headroom above what the user already owns, not an absolute number.
+		// RLIMIT_NPROC is checked against every task the real UID holds on
+		// the machine rather than the ones this process started, so a fixed
+		// figure budgets for the UID's other tenants as much as for the
+		// engine: 64 is generous in a container where the binary is nearly
+		// alone, and instantly fatal on a CI runner whose user already owns
+		// hundreds of threads, where libvips dies with "glib: Error creating
+		// thread: Resource temporarily unavailable" before it reads a pixel.
+		out = append(out, "--nproc="+strconv.Itoa(uidTasks()+limits.Processes))
 	}
 
 	if limits.OpenFiles > 0 {
@@ -80,6 +90,72 @@ func (s linuxSandbox) wrap(path string, args []string, limits Limits) (string, [
 	out = append(out, "--", path)
 
 	return s.prlimit, append(out, args...)
+}
+
+// uidTasks counts the tasks the real UID already owns, which is the number
+// RLIMIT_NPROC is measured against.
+//
+// Zero when /proc cannot be read, which turns the headroom back into an
+// absolute cap — the behaviour this replaced, and the safe direction to fail
+// in. Inside a PID namespace it counts the container's own tasks, which is
+// also what the kernel counts when the container has its own user namespace.
+func uidTasks() int {
+	entries, err := os.ReadDir(procfs)
+	if err != nil {
+		return 0
+	}
+
+	uid := strconv.Itoa(os.Getuid())
+	total := 0
+
+	for _, entry := range entries {
+		if _, err := strconv.Atoi(entry.Name()); err != nil {
+			continue
+		}
+
+		// A pid is free to disappear between the listing and the read, which
+		// is ordinary rather than a failure.
+		status, err := os.ReadFile(filepath.Join(procfs, entry.Name(), "status"))
+		if err != nil {
+			continue
+		}
+
+		if owner, threads := statusTasks(string(status)); owner == uid {
+			total += threads
+		}
+	}
+
+	return total
+}
+
+// procfs is where the task counts live.
+const procfs = "/proc"
+
+// statusTasks reads the real UID and the thread count out of a
+// /proc/<pid>/status. A process whose status has no Threads: line counts as
+// one task.
+func statusTasks(status string) (uid string, threads int) {
+	threads = 1
+
+	for line := range strings.SplitSeq(status, "\n") {
+		fields := strings.Fields(line)
+		if len(fields) < 2 {
+			continue
+		}
+
+		switch fields[0] {
+		// "Uid: real effective saved fs" — the real one is what the kernel
+		// counts the tasks against.
+		case "Uid:":
+			uid = fields[1]
+		case "Threads:":
+			if n, err := strconv.Atoi(fields[1]); err == nil {
+				threads = n
+			}
+		}
+	}
+
+	return uid, threads
 }
 
 // isolate puts the program in its own process group, which is what makes

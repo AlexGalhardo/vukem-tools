@@ -87,10 +87,10 @@ export default function Navbar(): React.ReactElement {
 
 /** The site's own pages, in the order the header lists them.
  *
- *  Three, and each one already existed and was reachable only from the footer
- *  or from nowhere at all: the API reference had no link in the chrome. */
+ *  The home page is not one of them: the mark and the name to the left of this
+ *  row are already the link to it, so listing it again spends 44px of a phone
+ *  header on a destination the header already offers. */
 const pages = [
-  { href: "/", label: "Tools" },
   { href: "/docs", label: "API" },
   { href: "/licenses", label: "Licences" },
 ];
@@ -130,19 +130,14 @@ function AccountMenu({ name, email }: { name: string; email: string }): React.Re
 
       <MenuSeparator />
 
-      {/* Three rows, and each one is a destination: the account, the API
-          reference, and the way out. "Profile and API keys" was one row
-          naming two things, and the API reference — the page a developer
-          here actually wants — was reachable only from the header's wide
-          layout, which a phone never shows. */}
+      {/* Two rows, and both are about this account: the profile and the way
+          out. The API reference is a page of the site rather than a part of
+          the account, so it belongs in the navigation — inline on a wide
+          screen, and inside the menu button on a phone, which is where
+          MobileMenu puts it. */}
       <Link href="/account" role="menuitem" className={MenuItemClass}>
         <Icon name="user" className="size-4 shrink-0" />
         Profile
-      </Link>
-
-      <Link href="/docs" role="menuitem" className={MenuItemClass}>
-        <Icon name="document" className="size-4 shrink-0" />
-        API
       </Link>
 
       <Link href="/logout" method="post" as="button" role="menuitem" className={MenuItemClass}>

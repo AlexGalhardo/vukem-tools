@@ -201,6 +201,9 @@ func describeExamples(doc *openapi.Document) {
 	// Each domain keeps its own examples in its own route file, so adding a
 	// tool is one line here instead of a conflict in the two maps above.
 	applyDomainExamples(doc, downloadExamples())
+	applyDomainExamples(doc, DomainExamples{
+		Components: map[string]any{"SpriteCapabilities": spriteCapabilitiesExample()},
+	})
 }
 
 // paramNote documents one path or query parameter.
@@ -327,6 +330,7 @@ func requestExamples() map[string]any {
 
 	maps.Copy(out, pdfRequestExamples())
 	maps.Copy(out, archiveRequestExamples())
+	maps.Copy(out, spriteRequestExamples())
 
 	return out
 }

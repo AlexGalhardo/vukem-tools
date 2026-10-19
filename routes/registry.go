@@ -28,6 +28,7 @@ func All(
 		Media(conversions),
 		PDF(conversions),
 		Archives(conversions),
+		Sprites(conversions),
 		Downloads(conversions),
 		Uploads(conversions),
 	}

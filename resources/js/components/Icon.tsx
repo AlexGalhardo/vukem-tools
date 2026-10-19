@@ -20,6 +20,9 @@ const paths = {
   audio: "M4 14V10h3l4-3.5v11L7 14H4zM15 9.5a4 4 0 0 1 0 5M18 7a7.5 7.5 0 0 1 0 10",
   document: "M6 3h7l5 5v13H6zM13 3v5h5",
   archive: "M4 7h16v13H4zM4 7l2-3h12l2 3M10 11h4",
+  /** A sprite sheet: a frame grid. Three by two rather than a square, so it
+   *  reads as a sheet of frames rather than as a layout or a table. */
+  grid: "M3.5 5h17v14h-17zM9.17 5v14M14.83 5v14M3.5 12h17",
   download: "M12 4v11M7.5 10.5 12 15l4.5-4.5M5 19h14",
   upload: "M12 16V5M7.5 9.5 12 5l4.5 4.5M5 19h14",
   close: "M6 6l12 12M18 6 6 18",

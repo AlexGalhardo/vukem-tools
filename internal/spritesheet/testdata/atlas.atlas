@@ -1,0 +1,22 @@
+
+sheet.png
+size: 96, 32
+format: RGBA8888
+filter: Nearest, Nearest
+repeat: none
+pma: false
+walk_000
+  rotate: false
+  bounds: 0, 0, 32, 32
+  offsets: 0, 0, 32, 32
+  index: -1
+walk_001
+  rotate: false
+  bounds: 32, 2, 28, 27
+  offsets: 3, 2, 32, 32
+  index: -1
+idle_000
+  rotate: false
+  bounds: 64, 0, 32, 32
+  offsets: 0, 0, 32, 32
+  index: -1

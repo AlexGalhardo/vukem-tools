@@ -39,6 +39,21 @@ var resultOnly = map[string]Kind{
 	// refused at the door" into "anything at all is accepted", which is the
 	// single cheapest defence this service has.
 	"application/octet-stream": {"application/octet-stream", ".bin", "a file"},
+	// The sprite atlas metadata formats. Produced, never accepted: nothing
+	// here reads JSON, XML or CSS as an input, and adding them to `known`
+	// would open the upload gate to three text formats for no reason.
+	//
+	// The extension matters as much as the type, because files.Put names a
+	// result from its kind: a libGDX atlas arriving as `hero.txt` is a file
+	// somebody has to rename before their game loads it.
+	"application/json": {"application/json", ".json", "a JSON file"},
+	"application/xml":  {"application/xml", ".xml", "an XML file"},
+	"text/css":         {"text/css", ".css", "a CSS file"},
+	// libGDX's atlas is plain text and has no registered media type. The
+	// vendor type here is this project's own, chosen so the file keeps the
+	// `.atlas` extension libGDX's own documentation uses; it is never
+	// matched against any bytes, only attached to what this service writes.
+	"application/vnd.libgdx.atlas": {"application/vnd.libgdx.atlas", ".atlas", "a libGDX atlas"},
 }
 
 // OfResult identifies a file this service produced rather than received.

@@ -44,7 +44,6 @@ func registerAccount(conversions *services.Conversions, r *router.Router, app *v
 	settings := account.NewSettings(account.New(acc), conversions.Quota())
 
 	required := auth.Required(acc.Web)
-	verified := auth.Verified(acc.Web)
 
 	// Issuing a key is rate limited per account. It is cheap for the server
 	// and valuable to an attacker who has a session: without a limit, a
@@ -52,11 +51,11 @@ func registerAccount(conversions *services.Conversions, r *router.Router, app *v
 	// them, and a key outlives the session it was made from.
 	minting := ratelimit.Middleware(limiters("account.keys", 10, time.Hour), byUser)
 
-	r.Get("/account", settings.Show).Name("account").Use(required, verified)
-	r.Patch("/account/profile", settings.UpdateProfile).Name("account.profile").Use(required, verified)
-	r.Put("/account/password", settings.UpdatePassword).Name("account.password").Use(required, verified)
-	r.Post("/account/keys", settings.CreateKey).Name("account.keys.store").Use(required, verified, minting)
-	r.Delete("/account/keys/{id}", settings.RevokeKey).Name("account.keys.revoke").Use(required, verified)
+	r.Get("/account", settings.Show).Name("account").Use(required)
+	r.Patch("/account/profile", settings.UpdateProfile).Name("account.profile").Use(required)
+	r.Put("/account/password", settings.UpdatePassword).Name("account.password").Use(required)
+	r.Post("/account/keys", settings.CreateKey).Name("account.keys.store").Use(required, minting)
+	r.Delete("/account/keys/{id}", settings.RevokeKey).Name("account.keys.revoke").Use(required)
 
 	return nil
 }

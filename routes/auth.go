@@ -33,14 +33,12 @@ func Auth(r *router.Router, app *vukem.App) error {
 	h := account.New(acc)
 	guest := auth.Guest(acc.Web)
 	required := auth.Required(acc.Web)
-	// Signed-in pages also need a verified email; unverified users are sent
-	// to the verification notice.
-	verified := auth.Verified(acc.Web)
 	throttle := ratelimit.Middleware(limiters("login", 5, time.Minute), account.LoginThrottleKey)
 	perAccount := ratelimit.Middleware(limiters("login.account", 20, 10*time.Minute), account.LoginAccountThrottleKey)
 	mails := ratelimit.Middleware(limiters("mails", 3, time.Minute), ratelimit.ByIP)
-	// Sign-up queues a mail: limit it per IP and per address. The limits count
-	// requests, not accounts, so they answer alike for new and existing emails.
+	// Sign-up still notifies the owner of an existing address, so limit it per
+	// IP and per address. The limits count requests, not accounts, so they
+	// answer alike for a new and an existing email.
 	signupIP := ratelimit.Middleware(limiters("register", 10, 10*time.Minute), ratelimit.ByIP)
 	signupEmail := ratelimit.Middleware(limiters("register.email", 5, time.Hour), account.RegisterThrottleKey)
 
@@ -66,7 +64,7 @@ func Auth(r *router.Router, app *vukem.App) error {
 	r.Get("/email/verify/{id}", h.Verify).Name("verification.verify").Use(required)
 	r.Post("/email/verification-notification", h.Resend).Name("verification.send").Use(required, mails)
 
-	r.Get("/dashboard", h.Dashboard).Name("dashboard").Use(required, verified)
+	r.Get("/dashboard", h.Dashboard).Name("dashboard").Use(required)
 
 	return nil
 }

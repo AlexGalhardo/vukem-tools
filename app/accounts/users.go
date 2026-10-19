@@ -21,7 +21,7 @@ import (
 
 // Register signs in.Email up without revealing whether it already has an
 // account: the caller always answers "check your email" and never logs in.
-// A new address gets the account and a verification mail; an existing one
+// A new address gets the account; an existing one
 // gets a notice ("sign in or reset your password", at most one per hour
 // per address) and nothing is created or changed. Both paths hash the
 // password and queue one mail, so they take about the same time. It
@@ -53,7 +53,15 @@ func (a *Accounts) Register(ctx context.Context, in requests.Register) (bool, er
 		return false, err
 	}
 
-	return true, a.SendVerification(ctx, u)
+	// Owner's decision, 2026-10-18: an address is not confirmed before the
+	// account works, in production too. Verification is still available (the
+	// routes and SendVerification stay), it is simply not a gate, so nothing
+	// here waits on a mail that the Mailtrap sandbox never delivers.
+	//
+	// The consequence is deliberate and worth stating: an account can be
+	// created with an address its owner does not control, so EmailVerifiedAt
+	// stays null and means what it says rather than being set without proof.
+	return true, nil
 }
 
 // notifyExisting tells the owner of an existing account that someone tried

@@ -13,7 +13,6 @@ import (
 	"fmt"
 	"io"
 	"os"
-	"path/filepath"
 	"strconv"
 	"strings"
 	"sync"
@@ -273,10 +272,17 @@ func (c *Conversions) build(app *vukem.App) error {
 	probeCtx, cancelProbe := context.WithTimeout(context.Background(), mediaProbeTimeout)
 	defer cancelProbe()
 
-	probeDir := filepath.Join(root, "capability-probe")
-	if err := os.MkdirAll(probeDir, 0o700); err != nil {
+	// The probe writes a four-pixel image, so it needs somewhere writable and
+	// nowhere in particular. It deliberately does not use WORK_DIR: that
+	// directory belongs to the deploy and is not guaranteed to exist or be
+	// writable for a read-only command, which is how `about` came to fail in
+	// the production image with "unable to open for write".
+	probeDir, err := os.MkdirTemp("", "vukem-tools-probe-")
+	if err != nil {
 		return fmt.Errorf("services: capability probe directory: %w", err)
 	}
+
+	defer func() { _ = os.RemoveAll(probeDir) }()
 
 	c.media, err = tools.ResolveMedia(probeCtx, c.engines, c.runner, probeDir)
 	if err != nil {

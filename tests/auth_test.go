@@ -14,10 +14,12 @@ import (
 
 	vukem "github.com/AlexGalhardo/vukem"
 	"github.com/AlexGalhardo/vukem/cache"
+	"github.com/AlexGalhardo/vukem/orm"
 	"github.com/AlexGalhardo/vukem/queue"
 	"github.com/AlexGalhardo/vukem/vukemtest"
 
 	"github.com/AlexGalhardo/vukem-tools/app/accounts"
+	"github.com/AlexGalhardo/vukem-tools/app/models"
 	"github.com/AlexGalhardo/vukem-tools/bootstrap"
 )
 
@@ -71,6 +73,28 @@ func register(t *testing.T, app *vukemtest.App, c *vukemtest.Client, email strin
 		AssertRedirect("/dashboard")
 }
 
+// sendVerification queues the verification mail for email. Sign-up stopped
+// sending it when confirmation stopped being a gate, so a test that exercises
+// the link asks for it explicitly -- which is also what a real user does, via
+// POST /email/verification-notification.
+func sendVerification(t *testing.T, app *vukemtest.App, email string) {
+	t.Helper()
+
+	acc, err := accounts.New(app.App)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	u, err := orm.QueryOf[models.User](acc.DB).Where("email", email).First(t.Context())
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if err := acc.SendVerification(t.Context(), u); err != nil {
+		t.Fatal(err)
+	}
+}
+
 // verifyEmail marks email verified directly (the mail may be queued).
 func verifyEmail(t *testing.T, app *vukemtest.App, email string) {
 	t.Helper()
@@ -104,6 +128,8 @@ func TestRegisterAndVerifyEmail(t *testing.T) {
 	c.Get("/register/check-email").AssertInertia("Auth/CheckEmail").PropEquals("auth.user", nil)
 	c.Get("/dashboard").AssertRedirect("/login") // sign-up does not log in
 	vukemtest.AssertDatabaseHas(t, app, "users", map[string]any{"email": "ana@example.com", "email_verified_at": nil})
+
+	sendVerification(t, app, "ana@example.com")
 
 	verify := link(t, app, "ana@example.com")
 
@@ -157,7 +183,11 @@ func TestRegisterDoesNotRevealAccounts(t *testing.T) {
 		email string
 		jobs  int
 	}{
-		{"new@example.com", 1}, // verification mail
+		// A new address sends nothing: confirmation is no longer a gate, so
+		// there is no verification mail. The HTTP answer is identical either
+		// way, which is what keeps the endpoint from revealing accounts --
+		// the mail count is not something a caller can observe.
+		{"new@example.com", 0},
 		{"ANA@example.com", 1}, // "someone tried to sign up" notice
 		{"ana@example.com", 0}, // the notice is sent once per hour
 	} {
@@ -180,10 +210,11 @@ func TestRegisterDoesNotRevealAccounts(t *testing.T) {
 		AssertRedirect("/dashboard")
 }
 
-// An unverified account can log in but reaches only the verification
-// notice, so an account someone pre-registered with another person's
-// address is useless until its owner verifies it.
-func TestUnverifiedUsersSeeTheNotice(t *testing.T) {
+// Verification is no longer a gate (owner's decision, 2026-10-18): a new
+// account reaches the dashboard without confirming its address. The
+// verification flow still works, and this asserts both halves, so removing
+// the gate cannot quietly remove the flow.
+func TestAnUnverifiedAccountCanUseTheAppAndStillVerify(t *testing.T) {
 	t.Parallel()
 
 	app := vukemtest.New(t, bootstrap.New)
@@ -193,9 +224,11 @@ func TestUnverifiedUsersSeeTheNotice(t *testing.T) {
 		AssertRedirect("/register/check-email")
 	c.PostJSON("/login", map[string]any{"email": "uma@example.com", "password": testPassword}).
 		AssertRedirect("/dashboard")
-	c.Get("/dashboard").AssertRedirect("/email/verify")
-	c.Get("/email/verify").AssertInertia("Auth/VerifyEmail").PropEquals("auth.user.email", "uma@example.com")
+	// The gate is gone: an unconfirmed address reaches the app.
+	c.Get("/dashboard").AssertInertia("Dashboard").PropEquals("auth.user.email", "uma@example.com")
 
+	// And the flow is still there for somebody who wants to confirm.
+	c.PostJSON("/email/verification-notification", map[string]any{})
 	c.Get(link(t, app, "uma@example.com")).AssertRedirect("/dashboard")
 	c.Get("/dashboard").AssertInertia("Dashboard").PropEquals("auth.user.name", "Uma")
 }
@@ -271,8 +304,8 @@ func TestRegisterSurvivesCacheOutage(t *testing.T) {
 		email string
 		jobs  int
 	}{
-		{"ana@example.com", 0}, // notice skipped
-		{"new@example.com", 1}, // verification mail
+		{"ana@example.com", 0}, // notice skipped: rate limited per address
+		{"new@example.com", 0}, // no verification mail: it is not a gate
 	} {
 		before := len(fake.Messages())
 
@@ -307,6 +340,8 @@ func TestVerificationEndsOtherSessions(t *testing.T) {
 
 	userID := apiTokenFor(t, app, "vic@example.com")
 	vukemtest.AssertDatabaseHas(t, app, "remember_tokens", map[string]any{"user_id": userID})
+
+	sendVerification(t, app, "vic@example.com")
 
 	verify := link(t, app, "vic@example.com")
 
@@ -398,6 +433,8 @@ func TestVerifiedLinkKeepsOtherSessions(t *testing.T) {
 	other.PostJSON("/login", map[string]any{"email": "done@example.com", "password": testPassword}).
 		AssertRedirect("/dashboard")
 
+	sendVerification(t, app, "done@example.com")
+
 	c.Get(link(t, app, "done@example.com")).AssertRedirect("/dashboard")
 	if flash := fmt.Sprint(
 		c.Get("/dashboard").AssertInertia("Dashboard").Page()["flash"],
@@ -420,6 +457,8 @@ func TestVerificationLinkBoundToEmail(t *testing.T) {
 
 	c.PostJSON("/register", signUpForm("Ana Silva", "old@example.com", testPassword)).
 		AssertRedirect("/register/check-email")
+
+	sendVerification(t, app, "old@example.com")
 
 	verify := link(t, app, "old@example.com")
 

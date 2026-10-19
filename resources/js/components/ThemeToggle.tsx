@@ -17,8 +17,14 @@ const options: { value: Choice; icon: IconName; label: string }[] = [
  * never tells you which of the three you are in and takes up to two presses to
  * reach the one you want. Each option is a labelled radio, so a screen reader
  * announces the group, the current choice and the alternatives.
+ *
+ * `roomy` is for the navigation panel on a phone. The compact form's 28px
+ * squares are fine beside a mouse and under the 44px a thumb needs, and three
+ * icons in a row with no words is also the hardest version to read on a small
+ * screen — so the roomy form names each option instead of relying on a title
+ * attribute that a touch device never shows.
  */
-export default function ThemeToggle(): React.ReactElement {
+export default function ThemeToggle({ roomy = false }: { roomy?: boolean } = {}): React.ReactElement {
   // Starts as "system" on the server and on the first client render, which is
   // what the markup must say for hydration to match; the effect below reads
   // the real choice immediately afterwards. The document class is already
@@ -39,6 +45,40 @@ export default function ThemeToggle(): React.ReactElement {
       document.documentElement.classList.toggle("dark", resolve("system"));
     });
   }, [choice]);
+
+  if (roomy) {
+    return (
+      <fieldset>
+        <legend className="px-3 pb-1 text-xs text-ink-faint">Theme</legend>
+        <div className="flex flex-col">
+          {options.map((option) => {
+            const active = choice === option.value;
+
+            return (
+              <label
+                key={option.value}
+                className={`flex min-h-11 cursor-pointer items-center gap-3 rounded-field px-3 text-sm
+                  transition-colors duration-100 ${
+                    active ? "bg-signal-soft text-signal" : "text-ink-soft active:bg-sunken"
+                  }`}
+              >
+                <input
+                  type="radio"
+                  name="theme"
+                  value={option.value}
+                  checked={active}
+                  onChange={() => setChoice(apply(option.value))}
+                  className="sr-only"
+                />
+                <Icon name={option.icon} className="size-5 shrink-0" />
+                {option.label}
+              </label>
+            );
+          })}
+        </div>
+      </fieldset>
+    );
+  }
 
   return (
     <fieldset className="flex items-center rounded-field border border-edge p-0.5">

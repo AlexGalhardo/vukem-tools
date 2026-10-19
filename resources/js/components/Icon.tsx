@@ -32,6 +32,20 @@ const paths = {
   key: "M15.5 3a5.5 5.5 0 0 1 2.9 10.2L17 14.6l-1.5-1.5-2 2-2-2-7 7v-3l7-7A5.5 5.5 0 0 1 15.5 3Z",
   scale: "M4 7h16M8 7V4h8v3M6 7l1 13h10l1-13",
   external: "M14 4h6v6M20 4l-8 8M18 14v6H4V6h6",
+  /** The navigation menu, at the one weight the rest of the set uses: three
+   *  rules on the 24px grid rather than the heavier three-bar glyph an icon
+   *  font would supply. */
+  menu: "M4 7h16M4 12h16M4 17h16",
+  /** A person, for the signed-in account. Head and shoulders, which is the
+   *  plain reading of "the account" and needs no avatar image to stand in
+   *  for a name. */
+  user: "M12 11.5a3.75 3.75 0 1 0 0-7.5 3.75 3.75 0 0 0 0 7.5ZM4.75 20a7.25 7.25 0 0 1 14.5 0",
+  /** A disclosure chevron, pointing down: the menu opens below its trigger. */
+  chevron: "M7.5 10.5 12 15l4.5-4.5",
+  /** Leaving: a door with the way out drawn through it. Its own glyph rather
+   *  than `external`, which is an arrow leaving the page and reads as "opens
+   *  in a new tab" — the wrong promise on the control that ends a session. */
+  signout: "M14 4h4a1 1 0 0 1 1 1v14a1 1 0 0 1-1 1h-4M10.5 15.5 14 12l-3.5-3.5M14 12H4",
 } as const;
 
 /** Name is an icon in the set. */

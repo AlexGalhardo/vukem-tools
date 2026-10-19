@@ -328,12 +328,17 @@ func (s *Store) Failure(ctx context.Context, id string, cause error) (bool, erro
 		Where("id", id).
 		WhereIn("status", string(Pending), string(Running)).
 		Update(ctx, orm.Set{
-			"status":       string(Errored),
-			"phase":        "",
-			"error_type":   string(kind),
-			"error_detail": truncate(detail, maxErrorDetail),
-			"finished_at":  at,
-			"updated_at":   at,
+			"status":     string(Errored),
+			"phase":      "",
+			"error_type": string(kind),
+			// The specific sentence, stored rather than only appended to the
+			// trail: a client that reloads the page reads the row, and
+			// deriving the message from the type alone there threw away
+			// whatever jobs.Refuse had been given to say.
+			"error_message": truncate(message, maxErrorMessage),
+			"error_detail":  truncate(detail, maxErrorDetail),
+			"finished_at":   at,
+			"updated_at":    at,
 		})
 	if err != nil {
 		return false, fmt.Errorf("jobs: fail %s: %w", id, err)
@@ -350,6 +355,11 @@ func (s *Store) Failure(ctx context.Context, id string, cause error) (bool, erro
 // megabyte of diagnostics must not be able to grow the table without limit,
 // and the first lines are the useful ones.
 const maxErrorDetail = 4000
+
+// maxErrorMessage bounds the client-safe sentence. The messages this app
+// writes are one sentence; the bound is here so a future one that interpolates
+// an engine's own words cannot grow the row without limit.
+const maxErrorMessage = 500
 
 // Cancel stops a conversion the owner still owns, and reports whether it was
 // cancelled. A conversion that already finished is not cancellable, which is

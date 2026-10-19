@@ -40,8 +40,14 @@ type Conversion struct {
 	// ErrorType is a code from the jobs taxonomy. ErrorDetail is for the
 	// owner only: it may hold a path or an engine command line, so it is
 	// never serialised to a client, which is what the "-" tag enforces.
-	ErrorType   *string `db:"error_type"   json:"error_type"`
-	ErrorDetail *string `db:"error_detail" json:"-"`
+	ErrorType *string `db:"error_type" json:"error_type"`
+	// ErrorMessage is the client-safe sentence, which is often far more
+	// useful than the taxonomy's generic one for the same type: it names the
+	// cap that was reached, or what the file actually turned out to be. It is
+	// null for a conversion that failed before the column existed, and the
+	// view falls back to the taxonomy then.
+	ErrorMessage *string `db:"error_message" json:"error_message"`
+	ErrorDetail  *string `db:"error_detail"  json:"-"`
 
 	// IdempotencyKey is set when the caller supplied one. Unique per user, so
 	// a repeated submission returns this row instead of starting a second

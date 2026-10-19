@@ -88,7 +88,14 @@ func viewOf(c models.Conversion) ConversionView {
 
 	if c.ErrorType != nil {
 		v.ErrorType = *c.ErrorType
-		v.ErrorMessage = jobs.Describe(jobs.ErrorType(*c.ErrorType)).Message
+		// The stored sentence when there is one, the taxonomy's otherwise.
+		// The fallback covers a conversion that failed before the column
+		// existed, and a failure whose cause carried no public message.
+		if c.ErrorMessage != nil && *c.ErrorMessage != "" {
+			v.ErrorMessage = *c.ErrorMessage
+		} else {
+			v.ErrorMessage = jobs.Describe(jobs.ErrorType(*c.ErrorType)).Message
+		}
 	}
 
 	if c.StartedAt.Valid {

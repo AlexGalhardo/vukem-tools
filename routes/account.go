@@ -53,7 +53,12 @@ func registerAccount(conversions *services.Conversions, r *router.Router, app *v
 
 	r.Get("/account", settings.Show).Name("account").Use(required)
 	r.Patch("/account/profile", settings.UpdateProfile).Name("account.profile").Use(required)
-	r.Put("/account/password", settings.UpdatePassword).Name("account.password").Use(required)
+	// Same unit as the sign-in routes: a Google-only account never set a
+	// password, so there is no current password to ask for.
+	if PasswordAuthEnabled(app) {
+		r.Put("/account/password", settings.UpdatePassword).Name("account.password").Use(required)
+	}
+
 	r.Post("/account/keys", settings.CreateKey).Name("account.keys.store").Use(required, minting)
 	r.Delete("/account/keys/{id}", settings.RevokeKey).Name("account.keys.revoke").Use(required)
 

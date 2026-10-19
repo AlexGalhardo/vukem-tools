@@ -38,18 +38,22 @@ const marks: Record<string, { label: string; icon: ReactNode }> = {
 // credentials, so a deploy without SOCIAL_GOOGLE_CLIENT_ID shows no button
 // rather than one that fails on click.
 export default function SocialSignIn({ action }: { action: string }) {
-  const { socialProviders } = usePage<SharedProps>().props;
+  const { socialProviders, passwordAuth } = usePage<SharedProps>().props;
   const providers = (socialProviders ?? []).filter((name) => name in marks);
 
   if (providers.length === 0) return null;
 
   return (
     <>
-      <div className="my-6 flex items-center gap-3 text-sm text-zinc-500">
-        <span className="h-px flex-1 bg-zinc-200 dark:bg-zinc-800" />
-        <span>or</span>
-        <span className="h-px flex-1 bg-zinc-200 dark:bg-zinc-800" />
-      </div>
+      {/* The divider separates this from the password form. With password
+          sign-in off there is nothing to separate it from. */}
+      {passwordAuth !== false && (
+        <div className="my-6 flex items-center gap-3 text-sm text-zinc-500">
+          <span className="h-px flex-1 bg-zinc-200 dark:bg-zinc-800" />
+          <span>or</span>
+          <span className="h-px flex-1 bg-zinc-200 dark:bg-zinc-800" />
+        </div>
+      )}
       <div className="space-y-2">
         {providers.map((name) => (
           <a

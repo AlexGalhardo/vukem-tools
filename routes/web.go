@@ -133,10 +133,15 @@ func shareProps(app *vukem.App) (func(http.Handler) http.Handler, error) {
 		configured = []string{}
 	}
 
+	// The pages need to know, because with password sign-in off the email and
+	// password fields would post to a route that does not exist.
+	passwordAuth := PasswordAuthEnabled(app)
+
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			inertia.Share(r.Context(), "appName", app.Config.Name)
 			inertia.Share(r.Context(), "socialProviders", configured)
+			inertia.Share(r.Context(), "passwordAuth", passwordAuth)
 			next.ServeHTTP(w, r)
 		})
 	}, nil

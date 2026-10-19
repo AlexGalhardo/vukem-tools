@@ -3,6 +3,7 @@ import { Link, usePage } from "@inertiajs/react";
 import Icon from "./Icon";
 import Menu, { MenuItemClass, MenuSeparator } from "./Menu";
 import ThemeToggle from "./ThemeToggle";
+import { headerPages as pages, type Page } from "../lib/nav";
 import type { SharedProps } from "../types";
 
 /**
@@ -50,9 +51,7 @@ export default function Navbar(): React.ReactElement {
             carries the same things. */}
         <nav aria-label="Main" className="hidden items-center gap-1 text-sm sm:flex">
           {pages.map((item) => (
-            <Link key={item.href} href={item.href} className={deskLink}>
-              {item.label}
-            </Link>
+            <PageLink key={item.href} item={item} className={deskLink} />
           ))}
         </nav>
 
@@ -85,15 +84,31 @@ export default function Navbar(): React.ReactElement {
   );
 }
 
-/** The site's own pages, in the order the header lists them.
- *
- *  The home page is not one of them: the mark and the name to the left of this
- *  row are already the link to it, so listing it again spends 44px of a phone
- *  header on a destination the header already offers. */
-const pages = [
-  { href: "/docs", label: "API" },
-  { href: "/licenses", label: "Licences" },
-];
+/** PageLink renders one navigation entry, leaving the Inertia app when the
+ *  destination is not one of its pages. */
+function PageLink({
+  item,
+  className,
+  role,
+}: {
+  item: Page;
+  className: string;
+  role?: string;
+}): React.ReactElement {
+  if (item.document) {
+    return (
+      <a href={item.href} className={className} role={role}>
+        {item.label}
+      </a>
+    );
+  }
+
+  return (
+    <Link href={item.href} className={className} role={role}>
+      {item.label}
+    </Link>
+  );
+}
 
 const deskLink =
   "flex min-h-11 items-center rounded-field px-3 text-ink-soft transition-colors duration-100 " +
@@ -164,9 +179,7 @@ function MobileMenu({
   return (
     <Menu label="Menu" className={iconButton} trigger={<Icon name="menu" className="size-5" />}>
       {pages.map((item) => (
-        <Link key={item.href} href={item.href} role="menuitem" className={MenuItemClass}>
-          {item.label}
-        </Link>
+        <PageLink key={item.href} item={item} role="menuitem" className={MenuItemClass} />
       ))}
 
       {!signedIn && canSignIn ? (

@@ -1,5 +1,5 @@
-github.com/AlexGalhardo/vukem v0.29.0 h1:nQoaugk0GSu+PL/k7FGCdXGBF6yDgO6U4ZO60nuwiYQ=
-github.com/AlexGalhardo/vukem v0.29.0/go.mod h1:I1SNhde10HmdHxvnDHCRf7GOQ4POIM36pFYUGPkLlFI=
+github.com/AlexGalhardo/vukem v0.30.0 h1:5i9CxLw9RUEbb1dhBrbvUwC5EOPud2E5Bl3DwIyAKd4=
+github.com/AlexGalhardo/vukem v0.30.0/go.mod h1:I1SNhde10HmdHxvnDHCRf7GOQ4POIM36pFYUGPkLlFI=
 github.com/AlexGalhardo/vukem/drivers/otel v0.4.0 h1:w5UqRn7f1JaoKbQuxqSvksxRrI/19yYmyhj6dFLzXwM=
 github.com/AlexGalhardo/vukem/drivers/otel v0.4.0/go.mod h1:7me2IcXyFwws9jgZt+GQl4Pt+3aQfqSYqF0V1eHk4XA=
 github.com/AlexGalhardo/vukem/drivers/postgres v0.5.0 h1:BJXr2Cvqz2guRE9zgPimtbmuakgvOclAfaL9eI+BuBM=

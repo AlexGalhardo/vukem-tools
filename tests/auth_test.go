@@ -576,3 +576,28 @@ func apiTokenFor(t *testing.T, app *vukemtest.App, email string) string {
 
 	return u.AuthID()
 }
+
+// Registration must leave email_verified_at NULL. Confirmation is no longer a
+// gate, so it would be tempting to set it at sign-up and be done with it --
+// and that would silently break the defence that replaced the gate.
+//
+// An account nobody has proved ownership of can be pre-registered with
+// somebody else's address, and the attacker can mint API keys on it. What
+// stops that becoming a hijack is that both recovery paths treat an
+// *unverified* account as squatted: ResetPassword revokes every token and
+// session, and FindOrCreateFromSocial randomises the password and revokes
+// everything when the provider proves the address (TestSocialLinkEndsSquatterAccess).
+// Both branches are guarded by u.EmailVerified(). Set the column at sign-up
+// and both become no-ops while the attacker's API key stays live.
+func TestSignUpLeavesTheAddressUnverified(t *testing.T) {
+	t.Parallel()
+
+	app := vukemtest.New(t, bootstrap.New)
+
+	app.Client(t).Inertia("").PostJSON("/register", signUpForm("Pat", "pat@example.com", testPassword)).
+		AssertRedirect("/register/check-email")
+
+	// NULL, not merely absent: the squatter defence branches on it.
+	vukemtest.AssertDatabaseHas(t, app, "users",
+		map[string]any{"email": "pat@example.com", "email_verified_at": nil})
+}

@@ -81,8 +81,9 @@ func compressMIME(format string) string {
 // loud on purpose: asserting the 503 instead would make these tests pass for
 // the wrong reason on the one machine that cannot run them.
 //
-// CI installs libvips (.github/workflows/ci.yml), so this fires only on a
-// contributor's machine without it.
+// CI installs no engines, so this fires there and on any machine without
+// libvips. docs/status.md records what it would take to make CI run these
+// for real.
 func requireRegisteredTool(t *testing.T, app *vukemtest.App, name string) {
 	t.Helper()
 

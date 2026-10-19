@@ -59,6 +59,19 @@ them. See [vukem-audit.md](vukem-audit.md).
 
 ## Next
 
+- **CI runs no engine, so every engine-backed test skips there.** Installing libvips in the App
+  job was tried and taken back out: with the engine present, `./tests` goes green — which is the
+  first real proof `image-compress` works end to end on a clean machine — but every test in
+  `internal/image` fails with `glib: Error creating thread: Resource temporarily unavailable`.
+  The cause is `internal/image/fixture_test.go`, which caps the engine at `Processes: 64`.
+  `RLIMIT_NPROC` counts every task the real UID owns anywhere on the machine, not the ones this
+  process started, so 64 is generous in a container where the test binary is nearly alone and
+  instantly fatal on a runner whose user already owns hundreds of threads. The fix is to size that
+  cap from what the UID already uses rather than from an absolute number — the same caveat
+  `app/services/engines.go` already states for production. It is not in this PR because it cannot
+  be verified from a root shell: root holds `CAP_SYS_RESOURCE` and ignores `RLIMIT_NPROC`
+  entirely, so the failure does not reproduce there and neither would the fix.
+
 - Cut the release the sprite phase was planned for.
 - The two migrations this repository owes itself, both recorded in
   [vukem-audit.md](vukem-audit.md): body examples onto `MediaType.Example`, and both security

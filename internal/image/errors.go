@@ -42,6 +42,12 @@ const (
 	// KindDiskFull means a write failed for want of space, including
 	// RLIMIT_FSIZE stopping a runaway output.
 	KindDiskFull EngineErrorKind = "disk_full"
+	// KindResourceLimit means a limit this server set withheld a resource the
+	// engine needed — almost always a thread refused under RLIMIT_NPROC. It
+	// is a configuration failure rather than anything about the file, which
+	// is why it is not KindOutOfMemory: glib says "Resource temporarily
+	// unavailable" and sends an operator looking at memory.
+	KindResourceLimit EngineErrorKind = "resource_limit"
 	// KindTimeout means the engine was killed at its deadline.
 	KindTimeout EngineErrorKind = "timeout"
 	// KindOther is a failure the output does not explain.
@@ -49,8 +55,19 @@ const (
 )
 
 // Error implements error.
+//
+// The wrapped error is in the message when libvips printed nothing, and only
+// then. A failure with no output is one the engine never got to report — the
+// program could not be started, a pipe could not be opened, the kernel killed
+// it — and the runner's error is the only account of it there is. Dropping it
+// left a production boot failure reading "write the capability probe image:
+// other", which names the step and says nothing about the cause.
 func (e *EngineError) Error() string {
 	if e.Stderr == "" {
+		if e.Err != nil {
+			return fmt.Sprintf("image: %s: %s: %s", e.Doing, e.Kind, e.Err)
+		}
+
 		return fmt.Sprintf("image: %s: %s", e.Doing, e.Kind)
 	}
 
@@ -95,6 +112,13 @@ func kindOf(stderr string) EngineErrorKind {
 	lower := strings.ToLower(stderr)
 
 	switch {
+	// Checked before the memory patterns: glib reports a thread it could not
+	// create as "Resource temporarily unavailable", and libvips often prints
+	// an allocation failure alongside it, so matching memory first would
+	// blame the file for a limit this server set.
+	case containsAny(lower, "error creating thread", "failed to create thread",
+		"resource temporarily unavailable", "unable to create thread"):
+		return KindResourceLimit
 	case containsAny(lower, "out of memory", "cannot allocate", "insufficient memory", "vips_malloc"):
 		return KindOutOfMemory
 	case containsAny(lower, "no space left", "file too large", "disk full", "write error"):

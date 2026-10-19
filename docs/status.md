@@ -23,7 +23,13 @@ sheets — now built, so the tag is a release task rather than a development one
   independent readers, both tools with their API, and two pages — a grid overlay that redraws in
   the browser, and the packed sheet shown as the result.
 - **The header.** Two layouts instead of one that shrinks, a 44px floor on every control, an
-  account menu behind a face icon, and the three touch defaults the stylesheet was missing.
+  account menu behind a face icon, and the three touch defaults the stylesheet was missing. Then
+  trimmed: one sign-in button rather than two, the theme control down to the two themes, and the
+  account menu down to three destinations — the account, the API reference and the way out.
+- **`/sitemap.xml`.** Absolute URLs from `APP_URL`, and only pages an anonymous visitor can
+  actually read, which leaves the tool pages out because every one of them needs an account. A
+  gate in `./tests` fails when a public page is neither advertised nor given a written reason for
+  being left out, so the list cannot go stale beside a router that changes.
 
 ### Bugs found and fixed on the way
 

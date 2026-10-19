@@ -401,6 +401,16 @@ and a `/up` route. What is left is below.
       accessibility defect was caught: wrapping the input and the button in one `<label>` made the
       field announce as "Password Show password"
 - [x] A favicon, served as SVG with an ICO fallback
+- [x] Header built for a phone first: the pages, the theme and the account behind one menu button,
+      every hit target 44px, and the brand reduced to "Tools" at phone width. The account is a
+      face icon rather than the person's name, because a name is a link whose width changes with
+      the person using the site
+- [x] `/sitemap.xml`, listing only what an anonymous visitor can actually read. Absolute URLs
+      built from `APP_URL`, never from the request's `Host`: a sitemap built from the Host lets
+      anyone mint one that advertises their own domain carrying this site's paths. The tool pages
+      are deliberately absent — they are behind `auth.Required`, so a crawler following one is
+      redirected, and a sitemap whose entries redirect is a list of promises the site does not
+      keep
 
 The shell is built and its structure verified from the served HTML (the pre-paint theme script
 with its nonce, the nonce-only CSP, the favicon, and the real catalogue props). **Three asserts
@@ -415,6 +425,12 @@ happened. They stay unticked, and `questions-to-dev.md` § 0 says so.
 - The queue survives a page reload mid-job, reattaching to the SSE stream
 - No layout shift above 0.1 CLS on the tool pages
 - `bun run build` output contains no source map in production and no unused Tailwind layer
+- [x] Every page the sitemap advertises answers 200 to a visitor with no account, and every public
+      page is either advertised or carries a written reason for being left out
+      (`TestTheSitemapCoversEveryPublicPage`, `TestEverySitemapURLIsReachableWithoutAnAccount`,
+      `TestTheSitemapIsValidAndAbsolute`)
+- [x] The header fits 320px with no horizontal overflow, signed in and signed out, and every
+      control in it is at least 44px — measured in Chromium, not asserted from the class names
 
 ### S1.11 Container and engines
 

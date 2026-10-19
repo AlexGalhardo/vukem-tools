@@ -134,6 +134,12 @@ export default function ToolForm({ tool, maxBytes, tusPath }: Props): React.Reac
               progress: event.progress,
               phase: event.phase,
             },
+            // The server's own account of what it did, where it had one: a
+            // compression that could not beat the file says so here, and that
+            // sentence is the whole answer for that case. Only a progress
+            // event's message is kept — the final event says "Done.", which
+            // would otherwise overwrite it.
+            ...(event.status === "running" && event.message ? { note: event.message } : {}),
             error: event.status === "error" ? event.message : undefined,
           });
 
@@ -145,6 +151,7 @@ export default function ToolForm({ tool, maxBytes, tusPath }: Props): React.Reac
                 patch(key, {
                   conversion: fresh,
                   stage: fresh.status,
+                  note: fresh.note || undefined,
                   error: fresh.error_message || undefined,
                 });
 

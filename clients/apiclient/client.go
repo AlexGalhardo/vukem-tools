@@ -272,6 +272,8 @@ type ConversionView struct {
 	FinishedAt *time.Time `json:"finished_at,omitempty"`
 	// The conversion id, used to poll it, stream it or cancel it.
 	ID *string `json:"id,omitempty"`
+	// What the conversion did, in its own words. Empty when the file says it all.
+	Note *string `json:"note,omitempty"`
 	// What it is doing now, empty once it has ended.
 	Phase *string `json:"phase,omitempty"`
 	// Percentage from 0 to 100.
@@ -621,6 +623,88 @@ type ResultFile struct {
 type ResultList struct {
 	// The files this conversion produced.
 	Data []ResultFile `json:"data,omitempty"`
+}
+
+type SpriteBuildOptions struct {
+	// Add Aseprite's per-frame duration and frameTags to the JSON formats.
+	Aseprite *bool `json:"aseprite,omitempty"`
+	// Repeat each frame's edge pixels into the padding, which is the fix for the dark halo transparent padding leaves.
+	Extrude *int64 `json:"extrude,omitempty"`
+	// Per-frame duration in milliseconds for the Aseprite extensions. 0 means 100.
+	FrameMs *int64 `json:"frame_ms,omitempty"`
+	// grid or compact. Default grid, which Godot 4 and Unity import with no metadata file.
+	Layout *string `json:"layout,omitempty"`
+	// Transparent gutter at the sheet's edges.
+	Margin *int64 `json:"margin,omitempty"`
+	// Cap the sheet's width and height. 0 means 4096, which every GPU handles as one texture.
+	MaxSize *int64 `json:"max_size,omitempty"`
+	// Metadata formats to write, at most four.
+	Metadata []string `json:"metadata,omitempty"`
+	// Transparent gutter between two frames, which stops a neighbour's colour bleeding in.
+	Padding *int64 `json:"padding,omitempty"`
+	// Round the sheet up to a power of two on both axes.
+	Pot *bool `json:"pot,omitempty"`
+}
+
+type SpriteFormat struct {
+	// The file's extension, with the dot.
+	Extension *string `json:"extension,omitempty"`
+	// One sentence saying what reads this format.
+	Imports *string `json:"imports,omitempty"`
+	// The media type the result is served as.
+	Mime *string `json:"mime,omitempty"`
+	// The value to send in options.metadata.
+	Name *string `json:"name,omitempty"`
+	// Whether the format can describe a trimmed frame. CSS cannot.
+	Trim *bool `json:"trim,omitempty"`
+}
+
+type SpriteCapabilities struct {
+	// Every metadata format, in the order the interface offers them.
+	Formats []SpriteFormat `json:"formats,omitempty"`
+	// How sprite-build arranges them.
+	Layouts []string `json:"layouts,omitempty"`
+	// How many metadata formats one conversion may ask for.
+	MaxFormats *int64 `json:"max_formats,omitempty"`
+	// The most frames one conversion produces.
+	MaxFrames *int64 `json:"max_frames,omitempty"`
+	// The largest sheet dimension, in pixels.
+	MaxSize *int64 `json:"max_size,omitempty"`
+	// How sprite-split finds frames.
+	Modes []string `json:"modes,omitempty"`
+}
+
+type SpriteSplitOptions struct {
+	// Add Aseprite's per-frame duration and frameTags to the JSON formats.
+	Aseprite *bool `json:"aseprite,omitempty"`
+	// Hex colour auto mode treats as empty, e.g. #ff00ff. Empty means transparency.
+	Background *string `json:"background,omitempty"`
+	// How far a pixel may be from the background colour and still count as background.
+	BackgroundTolerance *int64 `json:"background_tolerance,omitempty"`
+	// Cell height in pixels.
+	CellH *int64 `json:"cell_h,omitempty"`
+	// Cell width in pixels. Give this and cell_h, or cols and rows.
+	CellW *int64 `json:"cell_w,omitempty"`
+	// Column count, as an alternative to the cell size.
+	Cols *int64 `json:"cols,omitempty"`
+	// Per-frame duration in milliseconds for the Aseprite extensions. 0 means 100.
+	FrameMs *int64 `json:"frame_ms,omitempty"`
+	// Gutter between the sheet's edge and the first cell.
+	Margin *int64 `json:"margin,omitempty"`
+	// Metadata formats to write, at most four. GET /api/v1/tools/sprite-split/formats lists them.
+	Metadata []string `json:"metadata,omitempty"`
+	// Drop a detected frame smaller than this many pixels, as noise. Auto mode only.
+	MinFrame *int64 `json:"min_frame,omitempty"`
+	// grid or auto. Default grid.
+	Mode *string `json:"mode,omitempty"`
+	// Frame name prefix; the nth frame is prefix plus a zero-padded index. Default frame.
+	Prefix *string `json:"prefix,omitempty"`
+	// Row count.
+	Rows *int64 `json:"rows,omitempty"`
+	// Gutter between two neighbouring cells.
+	Spacing *int64 `json:"spacing,omitempty"`
+	// Shrink each frame to its opaque box, recording the offset so an importer can re-inflate it. Refused with the css metadata format, which has nowhere to put the offset.
+	Trim *bool `json:"trim,omitempty"`
 }
 
 type Token struct {
@@ -991,6 +1075,24 @@ type ToolsPixelsToSvgBody struct {
 	Options *PixelSVGOptions `json:"options,omitempty"`
 }
 
+type ToolsSpriteBuildBody struct {
+	// The id of an upload of yours: a ZIP of frames.
+	FileID string `json:"file_id"`
+	// Repeat a submission safely.
+	IdempotencyKey *string `json:"idempotency_key,omitempty"`
+	// How to pack the frames, and which metadata to write.
+	Options *SpriteBuildOptions `json:"options,omitempty"`
+}
+
+type ToolsSpriteSplitBody struct {
+	// The id of an upload of yours: the sheet to cut.
+	FileID string `json:"file_id"`
+	// Repeat a submission safely: the same key returns the same conversion.
+	IdempotencyKey *string `json:"idempotency_key,omitempty"`
+	// How to find the frames, and which metadata to write.
+	Options *SpriteSplitOptions `json:"options,omitempty"`
+}
+
 type ToolsVideoClipBody struct {
 	// The id of an upload of yours, from the resumable upload endpoint.
 	FileID string `json:"file_id"`
@@ -1355,6 +1457,30 @@ func (c *Client) ToolsPdfWatermark(ctx context.Context, body ToolsPdfWatermarkBo
 func (c *Client) ToolsPixelsToSvg(ctx context.Context, body ToolsPixelsToSvgBody) (ConversionView, error) {
 	var out ConversionView
 	err := c.do(ctx, "POST", "/api/v1/tools/pixels-to-svg", nil, body, &out)
+
+	return out, err
+}
+
+// ToolsSpriteBuild calls POST /api/v1/tools/sprite-build: Pack frames into a sprite sheet.
+func (c *Client) ToolsSpriteBuild(ctx context.Context, body ToolsSpriteBuildBody) (ConversionView, error) {
+	var out ConversionView
+	err := c.do(ctx, "POST", "/api/v1/tools/sprite-build", nil, body, &out)
+
+	return out, err
+}
+
+// ToolsSpriteSplit calls POST /api/v1/tools/sprite-split: Cut a sprite sheet into frames.
+func (c *Client) ToolsSpriteSplit(ctx context.Context, body ToolsSpriteSplitBody) (ConversionView, error) {
+	var out ConversionView
+	err := c.do(ctx, "POST", "/api/v1/tools/sprite-split", nil, body, &out)
+
+	return out, err
+}
+
+// ToolsSpriteSplitFormats calls GET /api/v1/tools/sprite-split/formats: The metadata formats, the modes and the limits.
+func (c *Client) ToolsSpriteSplitFormats(ctx context.Context) (SpriteCapabilities, error) {
+	var out SpriteCapabilities
+	err := c.do(ctx, "GET", "/api/v1/tools/sprite-split/formats", nil, nil, &out)
 
 	return out, err
 }

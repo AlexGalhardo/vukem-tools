@@ -13,5 +13,6 @@ func All() []schema.Migration {
 		m20261018150002CreateUsageCountersTable(),
 		m20261018160530CreateSocialAccountsTable(),
 		m20261019120000AddErrorMessageToConversions(),
+		m20261019150000AddNoteToConversions(),
 	}
 }

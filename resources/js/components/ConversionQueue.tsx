@@ -27,6 +27,12 @@ export interface Job {
   /** error is a sentence to show. It comes from the server wherever the
    *  server had one. */
   error?: string;
+  /** note is the server's own account of what it did — what a compression
+   *  saved, how many frames a split cut, how much of a packed sheet is used.
+   *  It is the whole answer for a conversion whose result looks like its
+   *  input, and it always comes from the server rather than being composed
+   *  here. */
+  note?: string;
   /** download is the signed link, once the result exists. */
   download?: string;
   /** cancel stops the upload; a conversion is cancelled through the API. */
@@ -124,6 +130,13 @@ function Row({ job, onChange, onRemove }: { job: Job } & Omit<Props, "jobs">): R
             <p className="mt-2 flex items-start gap-1.5 text-sm text-bad">
               <Icon name="alert" className="mt-0.5 size-3.5 shrink-0" />
               <span>{job.error}</span>
+            </p>
+          )}
+
+          {!job.error && job.note && (
+            <p className="mt-2 flex items-start gap-1.5 text-sm text-ink-soft">
+              <Icon name="check" className="mt-0.5 size-3.5 shrink-0 text-ok" />
+              <span>{job.note}</span>
             </p>
           )}
 

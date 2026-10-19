@@ -48,6 +48,11 @@ type Conversion struct {
 	// view falls back to the taxonomy then.
 	ErrorMessage *string `db:"error_message" json:"error_message"`
 	ErrorDetail  *string `db:"error_detail"  json:"-"`
+	// Note is the conversion's own account of what it did, for a result whose
+	// value is not obvious from the file: what a compression saved, how many
+	// frames a split cut, how much of a packed sheet is used. Null when there
+	// is nothing to add.
+	Note *string `db:"note" json:"note"`
 
 	// IdempotencyKey is set when the caller supplied one. Unique per user, so
 	// a repeated submission returns this row instead of starting a second

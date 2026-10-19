@@ -65,6 +65,9 @@ type ConversionView struct {
 	// lists every code.
 	ErrorType    string `json:"error_type"    doc:"A code from the error taxonomy, empty unless it failed."`
 	ErrorMessage string `json:"error_message" doc:"What to tell the user, empty unless it failed."`
+	// Note is the conversion's own account of what it did, empty when there
+	// is nothing to add beyond the file it produced.
+	Note string `json:"note" doc:"What the conversion did, in its own words. Empty when the file says it all."`
 
 	StartedAt  *time.Time `json:"started_at"  doc:"When a worker picked it up, or null."`
 	FinishedAt *time.Time `json:"finished_at" doc:"When it ended, or null."`
@@ -84,6 +87,10 @@ func viewOf(c models.Conversion) ConversionView {
 		BytesOut:  c.BytesOut,
 		ExpiresAt: c.ExpiresAt,
 		CreatedAt: c.CreatedAt,
+	}
+
+	if c.Note != nil {
+		v.Note = *c.Note
 	}
 
 	if c.ErrorType != nil {

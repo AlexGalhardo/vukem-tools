@@ -67,6 +67,7 @@ export type ConversionView = {
   expires_at?: string;
   finished_at?: string | null;
   id?: string;
+  note?: string;
   phase?: string;
   progress?: number;
   started_at?: string | null;
@@ -314,6 +315,53 @@ export type ResultFile = {
 
 export type ResultList = {
   data?: ResultFile[];
+};
+
+export type SpriteBuildOptions = {
+  aseprite?: boolean;
+  extrude?: number;
+  frame_ms?: number;
+  layout?: string;
+  margin?: number;
+  max_size?: number;
+  metadata?: string[];
+  padding?: number;
+  pot?: boolean;
+};
+
+export type SpriteCapabilities = {
+  formats?: SpriteFormat[];
+  layouts?: string[];
+  max_formats?: number;
+  max_frames?: number;
+  max_size?: number;
+  modes?: string[];
+};
+
+export type SpriteFormat = {
+  extension?: string;
+  imports?: string;
+  mime?: string;
+  name?: string;
+  trim?: boolean;
+};
+
+export type SpriteSplitOptions = {
+  aseprite?: boolean;
+  background?: string;
+  background_tolerance?: number;
+  cell_h?: number;
+  cell_w?: number;
+  cols?: number;
+  frame_ms?: number;
+  margin?: number;
+  metadata?: string[];
+  min_frame?: number;
+  mode?: string;
+  prefix?: string;
+  rows?: number;
+  spacing?: number;
+  trim?: boolean;
 };
 
 export type Token = {
@@ -641,6 +689,24 @@ export type ToolsPixelsToSvgBody = {
 };
 
 export type ToolsPixelsToSvgResponse = ConversionView;
+
+export type ToolsSpriteBuildBody = {
+  file_id: string;
+  idempotency_key?: string;
+  options?: SpriteBuildOptions;
+};
+
+export type ToolsSpriteBuildResponse = ConversionView;
+
+export type ToolsSpriteSplitBody = {
+  file_id: string;
+  idempotency_key?: string;
+  options?: SpriteSplitOptions;
+};
+
+export type ToolsSpriteSplitResponse = ConversionView;
+
+export type ToolsSpriteSplitFormatsResponse = SpriteCapabilities;
 
 export type ToolsVideoClipBody = {
   file_id: string;
@@ -1031,6 +1097,21 @@ export interface Client {
   toolsPixelsToSvg(args: { body: ToolsPixelsToSvgBody }): Promise<ToolsPixelsToSvgResponse>;
 
   /**
+   * POST /api/v1/tools/sprite-build: Pack frames into a sprite sheet
+   */
+  toolsSpriteBuild(args: { body: ToolsSpriteBuildBody }): Promise<ToolsSpriteBuildResponse>;
+
+  /**
+   * POST /api/v1/tools/sprite-split: Cut a sprite sheet into frames
+   */
+  toolsSpriteSplit(args: { body: ToolsSpriteSplitBody }): Promise<ToolsSpriteSplitResponse>;
+
+  /**
+   * GET /api/v1/tools/sprite-split/formats: The metadata formats, the modes and the limits
+   */
+  toolsSpriteSplitFormats(): Promise<ToolsSpriteSplitFormatsResponse>;
+
+  /**
    * POST /api/v1/tools/video-clip: Cut, crop or split a video
    */
   toolsVideoClip(args: { body: ToolsVideoClipBody }): Promise<ToolsVideoClipResponse>;
@@ -1122,6 +1203,9 @@ export function createClient(options: ClientOptions = {}): Client {
     toolsPdfUnlock: (args) => request<ToolsPdfUnlockResponse>("POST", "/api/v1/tools/pdf-unlock", args),
     toolsPdfWatermark: (args) => request<ToolsPdfWatermarkResponse>("POST", "/api/v1/tools/pdf-watermark", args),
     toolsPixelsToSvg: (args) => request<ToolsPixelsToSvgResponse>("POST", "/api/v1/tools/pixels-to-svg", args),
+    toolsSpriteBuild: (args) => request<ToolsSpriteBuildResponse>("POST", "/api/v1/tools/sprite-build", args),
+    toolsSpriteSplit: (args) => request<ToolsSpriteSplitResponse>("POST", "/api/v1/tools/sprite-split", args),
+    toolsSpriteSplitFormats: () => request<ToolsSpriteSplitFormatsResponse>("GET", "/api/v1/tools/sprite-split/formats"),
     toolsVideoClip: (args) => request<ToolsVideoClipResponse>("POST", "/api/v1/tools/video-clip", args),
     toolsVideoCompress: (args) => request<ToolsVideoCompressResponse>("POST", "/api/v1/tools/video-compress", args),
     toolsVideoConvert: (args) => request<ToolsVideoConvertResponse>("POST", "/api/v1/tools/video-convert", args),

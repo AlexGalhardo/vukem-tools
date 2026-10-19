@@ -207,10 +207,6 @@ func (t *ImageCompress) Run(ctx context.Context, w jobs.Work) (jobs.Outcome, err
 		return jobs.Outcome{}, classifyCompress(err)
 	}
 
-	// The sentence goes on the progress trail, which is where a person reads
-	// what happened. It is the whole answer for an unchanged file: "nothing
-	// was stored" would be true and useless, and a silent no-op reads as a
-	// broken tool.
 	if err := w.Report(jobs.Step{Percent: 85, Phase: "storing", Message: result.Did}); err != nil {
 		return jobs.Outcome{}, err
 	}
@@ -221,6 +217,12 @@ func (t *ImageCompress) Run(ctx context.Context, w jobs.Work) (jobs.Outcome, err
 	}
 
 	out.CPUMs = result.CPUTime
+	// On the outcome as well as the trail. It is the whole answer for an
+	// unchanged file — "nothing was stored" would be true and useless, and a
+	// silent no-op reads as a broken tool — and a conversion this fast
+	// finishes before a browser's event stream connects, so the trail alone
+	// would be a race the fast path always loses.
+	out.Note = result.Did
 
 	return out, nil
 }

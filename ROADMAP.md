@@ -944,9 +944,11 @@ phase with its own asserts when it is picked up; the engines are already researc
 - [ ] **Sprite sheet and frame atlas** — split a sheet into frames, build a sheet from frames,
       export the metadata game engines import. Promoted out of this backlog: it is now its own
       phase, planned in [§ Phase S7](#phase-s7--sprite-sheets-and-frame-atlases).
-- [ ] **Archives** — ZIP, TAR, GZ, XZ, ZSTD, BR create and extract (`mholt/archives`,
-      `klauspost/compress`); 7z write through `7zz`; RAR **read only**, because the unRAR licence
-      forbids recreating RAR compression.
+- [x] **Archives** — promoted out of this backlog and shipped as its own phase, planned in
+      [§ Phase S8](#phase-s8--archives). The scope narrowed on the way: ZIP, TAR, TAR.GZ and GZ
+      ship, in both directions, pure Go and with **no new dependency**. XZ, ZSTD and BR are
+      **dropped** (neither `mholt/archives` nor `klauspost/compress` was taken), 7z and RAR are
+      not built. [docs/brainstorming.md § 6.1](docs/brainstorming.md) records why.
 - [ ] **PDF** — its own phase, planned in [§ Phase S6](#phase-s6--pdf).
 - [ ] **Data formats** — CSV ↔ JSON ↔ XML ↔ XLSX (`excelize`), Parquet later.
 - [ ] **Fonts** — TTF ↔ OTF ↔ WOFF ↔ WOFF2 with `fonttools`, plus subsetting.
@@ -1562,6 +1564,111 @@ checked against each consumer's own parser or documentation, cited in the packag
 - Both pages work at phone width with no horizontal scroll
 - Lighthouse accessibility ≥ 95 on both pages
 - `bun run typecheck` and `bun run build` clean
+
+---
+
+## Phase S8 — Archives
+
+Promoted out of [§ Phase S5](#phase-s5--deferred-tools). Two tools, named for what a person
+wants: `archive-create` packs several uploads into one archive, `archive-extract` unpacks one
+archive into its files. One ability, `archive:files`, because they are one family.
+
+### S8.0 Decisions this phase is built on
+
+Recorded in full in [docs/brainstorming.md § 6](docs/brainstorming.md); the short form:
+
+- **Pure Go, no engine, no dependency.** `archive/zip`, `archive/tar` and `compress/gzip`.
+  XZ and ZSTD are **dropped**: neither is in the standard library, each would have cost a module
+  and a `/licenses` entry, and the four formats that ship cover what a web service is sent.
+  `git diff go.mod go.sum` over the phase is empty, which is an assert below rather than a hope.
+- **Two tools, not one with a direction option.** `jobs.Accepter` is what refuses a file at
+  submission, and the directions accept opposite things — any number of files of any type against
+  exactly one archive. One tool would have had to accept every type the service knows and the
+  gate would have been gone.
+- **One result row per extracted member.** The mechanism `pdf-split` already uses; there is no
+  re-archiving step and no second delivery mechanism. The entry cap is what keeps it sane.
+- **`application/octet-stream` is a result type, not a known type.** An archive holds anything, so
+  an extracted member needs a fallback kind — in `detect.resultOnly`, which the upload gate does
+  not read. Putting it in `known` would have turned "unrecognised files are refused at the door"
+  into "anything is accepted". `application/x-tar` **is** added to `known`, because extraction
+  reads TAR and a TAR upload has to be accepted.
+
+### S8.1 Core library
+
+- [x] Package `internal/archive`, pure Go, no cgo, no external binary, no new dependency
+  - [x] Create: ZIP (per-member deflate), TAR, TAR.GZ, GZ, with the compression level selectable
+  - [x] Extract: the format read from the archive's own bytes, never its name. A gzip stream is
+        sniffed from the inside, because a bare gzip and a gzipped tar have identical headers
+  - [x] Everything streams: `io.Copy` between the archive and disk, never a member held whole
+- [x] Extraction hardened, because an archive is attacker-controlled
+  - [x] An entry's name is never used as a path: only its basename survives, so the zip slip has
+        nowhere to go rather than being checked for
+  - [x] Two names that collide after sanitising are both kept, numbered — the common case, since
+        folders are flattened
+  - [x] A symlink, hard link, device or FIFO entry is refused, naming the entry
+  - [x] At most 64 members and 512 MiB unpacked, each refused with the number named. A ZIP's
+        declared sizes are refused from its directory, before a byte is inflated
+  - [x] One compressed stream may expand at most 500× past a one-mebibyte floor, which is the
+        only defence against a **bare gzip** bomb: it declares no size at all
+
+#### Quality asserts
+
+- [x] A ZIP round-trips: creating from two files and extracting gives back both, byte for byte,
+      under the names they went in with (`go test ./internal/archive/`:
+      `TestCreateAZipHoldsEveryMemberWithItsBytes`, `TestCreateATarGzRoundTripsThroughExtract`)
+- [x] A ZIP holding `../../etc/passwd`, `/absolute` and `..\..\windows\system32` writes nothing
+      outside the destination and leaves no sibling of it
+      (`TestExtractNeverWritesOutsideTheDestination`)
+- [x] Each cap is refused with its number in the message the person sees, not merely with a
+      non-nil error (`TestExtractRefusesMoreEntriesThanTheCap`,
+      `TestExtractRefusesADeclaredBombFromTheDirectoryAlone`,
+      `TestExtractRefusesATarThatGrowsPastTheTotalCap`,
+      `TestExtractRefusesABareGzipThatExpandsTooFar`)
+- [x] A gzip bomb is refused **early**: the test asserts how many bytes reached the disk before
+      the refusal, not only that it was refused
+- [x] `gz` with more than one member is refused at submission, on the `format` field, rather than
+      by a worker a moment later (`tests/`: `TestGzipWithSeveralFilesIsRefusedAtSubmission`)
+- [x] Peak live heap does not follow the member size: flat at 1.4 MiB across a 128× range, in
+      [docs/benchmarks.md](docs/benchmarks.md). Sampled **during** the extraction, because a
+      reading taken only at either end misses the peak this is looking for
+- [x] Peak live heap never reaches half the archive's size however finely it is split, with the
+      per-member decompressor churn measured and recorded rather than smoothed over
+- [x] A fuzz target over malformed archive bytes finds no panic and no write outside the
+      destination in 90 seconds (`FuzzExtract`). It is what found the missing ratio cap
+- [x] `go test -race -count=1 ./internal/archive/...` green; `go test -bench . -benchmem` recorded
+
+### S8.2 Tools, API and interface
+
+- [x] `app/tools/archive.go`: `archive-create` and `archive-extract`, registered through
+      `archiveTools`
+- [x] Input types checked against the detected MIME, never the extension
+- [x] Library errors mapped onto the taxonomy in `internal/jobs/status.go`: every cap and every
+      refused member is the input's problem, never transient
+- [x] Progress reported per phase: `reading`, `packing` or `extracting`, `storing`
+- [x] `app/catalog/archive.go`: both tools, saying what actually ships rather than what was
+      promised
+- [x] `app/controllers/apiv1/archive.go` and `routes/api_archive.go`, under their own OpenAPI tag
+- [x] Ability `archive:files`
+- [x] Both tools on the generic tool page, with their fields in
+      `resources/js/lib/forms/archive.ts`
+
+#### Quality asserts
+
+- [x] Both routes appear in `/openapi.json` with every option documented and one example each,
+      and both have a method in both generated clients (`tests/openapi_test.go`)
+- [x] A file that is not an archive is refused at submission with the detected type named, before
+      any worker runs (`TestANonArchiveIsRefusedAtSubmission`)
+- [x] A key without `archive:files` is refused `403` on both tools
+      (`TestTheArchiveToolsNeedTheirAbility`)
+- [x] Creating runs from two uploads to one download, and the download really is a ZIP holding
+      both under their upload names (`TestCreatingAnArchiveRunsFromUploadsToOneDownload`)
+- [x] Extracting produces one result row per member, each fetchable through its own signed link
+      (`TestExtractingAnArchiveProducesOneResultPerMember`)
+- [x] The formats the interface offers are exactly the formats the library writes, asserted
+      across the Go/TypeScript boundary (`TestTheInterfaceOffersEveryArchiveFormatAndNoOther`)
+- [x] `git diff --exit-code go.mod go.sum` is clean across the phase: no dependency was added, so
+      `/licenses` needs no entry. This is the assert that replaces the usual licence gate
+- [x] `bun run typecheck` and `bun run build` clean
 
 ---
 

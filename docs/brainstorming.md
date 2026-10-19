@@ -205,3 +205,79 @@ Carried into the ROADMAP as explicit tasks rather than assumptions:
   `nsjail` and `bubblewrap` are already ruled out there (no user namespaces).
 - LibreOffice's licence is reported differently by the GitHub API (GPL-3.0) and by the project
   (MPL-2.0). Resolve before Office → PDF ships, which is a later phase anyway.
+
+## 6. Decisions taken while finishing the archive tools (2026-10-19)
+
+Recorded here because §3's decisions are final unless this file is updated first, and these
+change what the ROADMAP promised.
+
+### 6.1 Archives: ZIP, TAR, TAR.GZ and GZ — no XZ, no ZSTD
+
+The ROADMAP's `archive` entry promised "ZIP, TAR, GZ, XZ and ZSTD, in both directions". XZ and
+ZSTD are **dropped**, and the catalogue entries now say what ships.
+
+Neither format is in the Go standard library. XZ would mean `ulikunitz/xz` and ZSTD
+`klauspost/compress`: two modules, two `/licenses` entries and two more things to keep current, to
+add formats that overlap entirely with the four that ship for anything sent to a web service.
+`internal/spritesheet` set the precedent — pure Go, no dependency, `git diff go.mod go.sum` empty
+across the feature — and this follows it. TAR.GZ replaces the promised bare GZ as the useful
+multi-file compressed format; bare GZ ships too, for the single-file case.
+
+**Rejected:** shelling out to `xz` and `zstd`. Both would be new pinned engines in the Dockerfile
+for a pure-Go problem, which is the trade `.claude/rules/engines.md` exists to avoid making
+casually.
+
+### 6.2 Two tools, not one with a direction
+
+The ROADMAP had one entry, "Create or extract an archive". What ships is `archive-create` and
+`archive-extract`, which is the same call §S7.0 made for `sprite-split` and `sprite-build`.
+
+The reason is the type gate rather than taste. `jobs.Accepter` is what refuses a file at
+submission, before a worker is spent on it, and the two directions accept opposite things:
+creating takes any number of files of any type, extracting takes exactly one archive. One tool
+would have had to accept the union — every type the service knows — and the gate would have been
+gone. They share one ability, `archive:files`, because they are one family.
+
+### 6.3 `application/octet-stream` is a result type, not a known type
+
+An archive may hold anything, so an extracted member can be a type the service does not otherwise
+name. Refusing the whole archive over one such member would make extraction useless on real
+archives, so there is a fallback kind — and it lives in `internal/detect`'s `resultOnly` table,
+not in `known`.
+
+The distinction is load-bearing. The upload gate reads `Types()`, which reads `known`; putting a
+catch-all there would turn "unrecognised files are refused at the door" into "anything at all is
+accepted", which is the cheapest defence this service has. `detect.OfResult` is the identifier for
+a file the service **produced** and is the only thing that consults the fallback. `detect.Of`, the
+input identifier, is unchanged.
+
+`application/x-tar` **is** added to `known`, deliberately: extraction reads TAR, so a TAR upload
+has to be accepted. It is parsed by `archive/tar` from the standard library rather than by a C
+library, so the one-format widening adds no attack surface of the kind
+`docs/deployment.md § Known vulnerabilities` tracks.
+
+### 6.4 Extraction caps, and why a ratio cap is needed on top of a size cap
+
+64 members, 512 MiB unpacked, 128 bytes per member name — each refused with the number named.
+
+A ZIP declares every member's uncompressed size in its own directory and a TAR declares it in each
+member's header, so a declared bomb is refused from the declaration, before a byte is inflated. A
+**bare gzip declares nothing**, and there the size cap alone is not a defence: a kilobyte of gzip
+reaching 512 MiB means writing half a gigabyte and spending a minute of CPU to learn what the
+ratio made obvious in the first megabyte. So one compressed stream may expand at most 500× past a
+one-mebibyte floor.
+
+This was found by fuzzing rather than by review: with only the size cap, `FuzzExtract` stalled at
+zero executions per second for twenty-eight seconds on a single mutated input. With the ratio cap
+it sustains hundreds to thousands per second.
+
+### 6.5 The generic tool page is not the PDF domain's
+
+`resources/js/lib/pdf.ts` and `pages/Tools/Pdf.tsx` were the machinery for "a file picker, a field
+list and a download", which is what the archive tools need too. Rather than a second copy, the
+machinery is now `lib/toolForm.ts` and `pages/Tools/ToolForm.tsx`, with one form table per domain
+under `lib/forms/` — the structure `routes/apidocs.go` already uses on the server, and for the
+same reason.
+
+A tool whose **interaction** differs, rather than only its fields, still gets its own page. The
+sprite tools draw a grid over the sheet, which no field list can express.

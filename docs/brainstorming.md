@@ -334,3 +334,61 @@ The two answer different questions and a person arrives with one of them. "Make 
 no output format, no geometry and no crop; burying it as a flag on a tool with fourteen options is
 how somebody accidentally resizes a photograph they only wanted to shrink the file of. The format
 therefore never changes, which also means every link to the file still resolves.
+
+## 8. Finishing the sprite sheets (2026-10-19)
+
+The library was already there; S7.3 to S7.5 were not. What shipping them settled:
+
+### 8.1 The grid arithmetic exists twice, on purpose
+
+The split page draws the grid over the sheet and shows the frame count as a control moves, with no
+round trip — which is what makes choosing a cell size feel like adjusting something rather than
+submitting a form. That needs the arithmetic in the browser, so
+`resources/js/lib/spriteGrid.ts` mirrors `internal/spritesheet/grid.go`.
+
+Two copies of a calculation is a liability, and the usual answer — have the client ask the server
+— is the one thing that would defeat the point. So the two are pinned against **one written-down
+table** of fifteen cases, run by `spriteGrid.test.ts` and by `tests/sprite_grid_table_test.go`.
+Neither is tested against the other, which would let both drift together; both are tested against
+the answers.
+
+The one real trap is in that table: Go divides integers and JavaScript does not, so four columns
+across a 124-pixel span is 31 in Go and 31 in a mirror that remembers to floor.
+
+**Rejected:** generating the TypeScript from the Go. The arithmetic is thirty lines and reads
+better written than generated, and a generator would be a build step nobody runs locally.
+
+### 8.2 `bun test`, and the one dev dependency
+
+Pinning the two implementations needs a JavaScript test runner. Bun has one built in, so
+`bun test` costs nothing to add, and `@types/bun` is the only new entry in `package.json` — types
+only, in devDependencies, in no shipped artifact. CI's assets job runs it.
+
+### 8.3 `blob:` in `img-src`
+
+Previewing a sheet somebody just dropped means `URL.createObjectURL`, and the default CSP's
+`img-src 'self' data:` refuses the resulting `blob:` URL — so the preview silently did not appear.
+
+The alternative, a `data:` URL, is base64: a 64 MB sheet becomes an 85 MB string held beside the
+decoded image. The directive is widened instead, for images only. A `blob:` URL is minted by the
+page's own JavaScript from a file the person chose, is unguessable, and dies with the document.
+
+### 8.4 The result's own sentence lives on the conversion, not the trail
+
+Several tools produce a result whose value is not obvious from the file: a compression that could
+not beat the original, a split that dropped three components as noise, a build that used 42 % of
+its sheet. That sentence was first written to the progress trail only — and a conversion that
+finishes before the browser's event stream connects is answered with a snapshot of the final
+state, which carries no trail. The fast conversions, which is most of them, lost the one thing
+that explained the result.
+
+So `jobs.Outcome` carries a `Note`, stored on the conversion beside the failure message that
+`§ 6` of this file's predecessor migration added. Both surfaces now read the same sentence.
+
+### 8.5 Godot and Unity get a catalogue entry, not a writer
+
+The phase decided this and it is worth restating as shipped: neither engine needs a file this
+service could write, and both would need an undocumented, version-fragile one. So there is a
+third catalogue entry, `sprite-godot-unity`, marked skipped with that reason — a visitor
+comparing this with TexturePacker finds the answer rather than concluding it is missing — and the
+build page shows the one-line import instruction whenever the layout is `grid`.

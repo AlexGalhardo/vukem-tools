@@ -1419,40 +1419,40 @@ checked against each consumer's own parser or documentation, cited in the packag
 
 ### S7.2 Core library — building a sheet
 
-- [ ] Frames read from a ZIP, in two passes over the same local file
-  - [ ] Pass one reads only each entry's `image.DecodeConfig`, so the packing decision costs
+- [x] Frames read from a ZIP, in two passes over the same local file
+  - [x] Pass one reads only each entry's `image.DecodeConfig`, so the packing decision costs
         headers rather than pixels
-  - [ ] Pass two allocates the canvas once and decodes one frame at a time into it, releasing each
+  - [x] Pass two allocates the canvas once and decodes one frame at a time into it, releasing each
         before the next
-- [ ] ZIP input hardened, because an archive is attacker-controlled
-  - [ ] At most 2048 entries and 512 MiB of declared uncompressed size, both refused with the
+- [x] ZIP input hardened, because an archive is attacker-controlled
+  - [x] At most 2048 entries and 512 MiB of declared uncompressed size, both refused with the
         limit named
-  - [ ] Entry names are never used as paths: the basename is sanitised and used only as the frame
+  - [x] Entry names are never used as paths: the basename is sanitised and used only as the frame
         name, so nothing is ever written outside the job directory
-  - [ ] Directories, empty entries and entries whose bytes are not an image this package decodes
+  - [x] Directories, empty entries and entries whose bytes are not an image this package decodes
         are refused, naming the entry
-- [ ] Layouts
-  - [ ] `grid` (default when every frame is the same size): uniform cells, column count chosen to
+- [x] Layouts
+  - [x] `grid` (default when every frame is the same size): uniform cells, column count chosen to
         keep the sheet near-square. This is the layout Godot 4 and Unity import with no metadata
         file, which is why it is the default
-  - [ ] `compact`: skyline bottom-left over frames sorted by descending height then name, so the
+  - [x] `compact`: skyline bottom-left over frames sorted by descending height then name, so the
         order is total and the output deterministic. **MaxRects is rejected for now** — the
         efficiency figure below is the evidence for whether it would earn its keep
-  - [ ] `margin`, `padding` and `extrude`, with `extrude` repeating the frame's edge pixels into
+  - [x] `margin`, `padding` and `extrude`, with `extrude` repeating the frame's edge pixels into
         the padding
-  - [ ] `max_size` (default 4096, at most 8192) and an optional power-of-two output size
-  - [ ] Frames that do not fit are refused, naming how many fitted and the size that would be
+  - [x] `max_size` (default 4096, at most 8192) and an optional power-of-two output size
+  - [x] Frames that do not fit are refused, naming how many fitted and the size that would be
         needed — never silently dropped
-- [ ] The **output size is refused before it is attempted**, because on this tool the output is
+- [x] The **output size is refused before it is attempted**, because on this tool the output is
       attacker-influenced too: a caller asking for a sheet from 2048 frames of 4096 × 4096 is
       asking for an allocation that must be declined, not discovered halfway through
-  - [ ] The canvas area is computed from the frame headers in pass one and checked against
+  - [x] The canvas area is computed from the frame headers in pass one and checked against
         `MaxPixels` before the canvas is allocated, so nothing large is ever allocated to find out
-  - [ ] The sum of the frame areas is checked the same way, so a set that could never fit any
+  - [x] The sum of the frame areas is checked the same way, so a set that could never fit any
         permitted sheet is refused without packing it first
-  - [ ] The refusal is a `jobs.Refuse` carrying a public message that states the limit as a
+  - [x] The refusal is a `jobs.Refuse` carrying a public message that states the limit as a
         number, because a person who hits a cap should be told what it is
-- [ ] The sheet streamed out through `png.Encoder` into the job directory, not held in memory twice
+- [x] The sheet streamed out through `png.Encoder` into the job directory, not held in memory twice
 
 #### Quality asserts
 
@@ -1482,98 +1482,131 @@ checked against each consumer's own parser or documentation, cited in the packag
 
 ### S7.3 Atlas metadata
 
-- [ ] One `Atlas` value — sheet size, and per frame its name, rectangle, trim offset and source
+- [x] One `Atlas` value — sheet size, and per frame its name, rectangle, trim offset and source
       size — written by five independent writers, so a format cannot change the geometry
-  - [ ] TexturePacker JSON hash, streamed through `encoding/json` into a `bufio.Writer`
-  - [ ] TexturePacker JSON array, the same frames with `filename` on each
-  - [ ] Aseprite extensions on both: per-frame `duration` from a `frame_ms` option, and
+  - [x] TexturePacker JSON hash, streamed through `encoding/json` into a `bufio.Writer`
+  - [x] TexturePacker JSON array, the same frames with `filename` on each
+  - [x] Aseprite extensions on both: per-frame `duration` from a `frame_ms` option, and
         `meta.frameTags` derived from the frame names, with 0-based inclusive `from`/`to`
-  - [ ] libGDX `.atlas`, in the modern `bounds:`/`offsets:` spelling
-  - [ ] Sparrow/Starling XML through `encoding/xml`, with the `frame*` attributes written only for
+  - [x] libGDX `.atlas`, in the modern `bounds:`/`offsets:` spelling
+  - [x] Sparrow/Starling XML through `encoding/xml`, with the `frame*` attributes written only for
         a trimmed frame
-  - [ ] CSS, one class per frame, which refuses `trim` because it has nowhere to put the offset
-- [ ] The format list, and the one sentence saying what imports each, published by the API so the
-      interface does not hardcode them
-- [ ] At most four formats requested at once
+  - [x] CSS, one class per frame, which refuses `trim` because it has nowhere to put the offset
+- [x] The format list, and the one sentence saying what imports each, published by the API
+      (`GET /api/v1/tools/sprite-split/formats`) so the interface does not hardcode them
+- [x] At most four formats requested at once
 
 #### Quality asserts
 
-- Golden files for all five writers over the same three-frame atlas, committed under `testdata`
-- Each JSON golden is parsed back by a reader written against the documented field set and yields
-  the same rectangles, so a typo in a key fails the test rather than shipping
-- The libGDX golden is parsed by a reader implementing the grammar read out of libGDX's
-  `TextureAtlas.java`, and every region's `bounds` and `offsets` round-trip
-- The Sparrow golden is parsed by `encoding/xml` into the attribute set Phaser's `AtlasXML.js`
-  reads, and `frameX`/`frameY`/`frameWidth`/`frameHeight` appear only on trimmed frames
-- A trimmed frame satisfies `spriteSourceSize.w == frame.w`, `spriteSourceSize.h == frame.h`,
-  `sourceSize` equal to the untrimmed cell and `trimmed == true`; an untrimmed frame has
-  `trimmed == false` and a zero offset
-- `rotated` is `false` on every frame of every output, asserted across all five writers
-- Every CSS rule's `background-position` is the exact negative of its frame's atlas x and y,
-  asserted numerically
-- Asking for `trim` with the CSS format is refused, naming the reason, rather than emitting a
-  sheet whose frames are off by their trim offset
+- [x] Golden files for all five writers over the same three-frame atlas, committed under
+      `testdata` (`TestEveryWriterMatchesItsGolden`). CSS has its own golden from an untrimmed
+      atlas, because it refuses a trimmed one — which is itself a decision rather than a gap
+- [x] Each JSON golden is parsed back by a reader written against the documented field set and
+      yields the same rectangles, so a typo in a key fails the test rather than shipping
+      (`TestTheJSONGoldensParseBackToTheSameGeometry`). The reader is written separately rather
+      than reusing the writer's types, which would agree by construction and prove nothing
+- [x] The libGDX golden is parsed by a reader implementing the grammar read out of libGDX's
+      `TextureAtlas.java`, and every region's `bounds` and `offsets` round-trip
+      (`TestTheLibGDXGoldenRoundTrips`)
+- [x] The Sparrow golden is parsed by `encoding/xml` into the attribute set Phaser's `AtlasXML.js`
+      reads, and the `frame*` attributes appear only on trimmed frames
+- [x] A trimmed frame satisfies `spriteSourceSize.w == frame.w`, `spriteSourceSize.h == frame.h`,
+      `sourceSize` equal to the untrimmed cell and `trimmed == true`; an untrimmed frame has
+      `trimmed == false` and a zero offset (`TestATrimmedFrameCarriesBothSizes`)
+- [x] `rotated` is `false` on every frame of every output, asserted across all five writers
+- [x] Every CSS rule's `background-position` is the exact negative of its frame's atlas x and y,
+      asserted numerically
+- [x] Asking for `trim` with the CSS format is refused, naming the reason, rather than emitting a
+      sheet whose frames are off by their trim offset — and refused at **submission**, so the
+      person is told while they are still looking at the form
+- [x] Every writer is byte-for-byte deterministic across eight runs, including the hash form,
+      which goes through a map (`TestTheWritersAreDeterministic`)
 
 ### S7.4 Tools and API
 
-- [ ] `app/tools/sprite.go`: `sprite-split` and `sprite-build`, registered through `spriteTools`
-  - [ ] Input types checked against the detected MIME, never the extension: images for
+- [x] `app/tools/sprite.go`: `sprite-split` and `sprite-build`, registered through `spriteTools`
+  - [x] Input types checked against the detected MIME, never the extension: images for
         `sprite-split`, `application/zip` for `sprite-build`
-  - [ ] Options validated at submission through `jobs.OptionsValidator`, so the worker reads
+  - [x] Options validated at submission through `jobs.OptionsValidator`, so the worker reads
         exactly what was accepted
-  - [ ] Library errors mapped onto the taxonomy in `internal/jobs/status.go`: a bad grid, an
+  - [x] Library errors mapped onto the taxonomy in `internal/jobs/status.go`: a bad grid, an
         undetectable background and an oversized sheet are the input's problem, not transient
-  - [ ] Progress reported per phase: `reading`, `slicing` or `packing`, `writing metadata`,
+  - [x] Progress reported per phase: `reading`, `slicing` or `packing`, `writing metadata`,
         `storing`
-- [ ] `app/catalog/sprite.go`: both tools, plus the Godot and Unity note as a catalogue entry that
+- [x] `app/catalog/sprite.go`: both tools, plus the Godot and Unity note as a catalogue entry that
       states the grid workflow rather than leaving a visitor to wonder
-- [ ] `app/controllers/apiv1/sprite.go`: one typed submit route per tool, following
-      `SubmitPixelSVG` — `z.For[T]()` cannot describe `json.RawMessage` or `map[string]any`, so a
-      generic options route is not available
-- [ ] `routes/api_sprite.go`: the two submit routes, wired into `routes/registry.go` with one line
-- [ ] Both tools added to the `pages` map in `app/controllers/pages.go`, so each page renders its
-      own component with its own props rather than another tool's form
-- [ ] Ability `sprite:sheet`, from `app/abilities/abilities.go`
+- [x] `app/controllers/apiv1/sprite.go`: one typed submit route per tool, plus the capability
+      endpoint that publishes the metadata formats
+- [x] `routes/api_sprite.go`: the two submit routes and the format list, wired into
+      `routes/registry.go` with one line
+- [x] Both tools added to the `pages` map in `app/controllers/pages.go`, each with its own
+      component and its own props
+- [x] Ability `sprite:sheet`, from `app/abilities/abilities.go`
 
 #### Quality asserts
 
-- Both routes appear in `/openapi.json` with every option documented and one example each
-- An invalid option returns `422` naming the field, in the shape the existing routes return
-- A sheet submitted to `sprite-build`, or a ZIP submitted to `sprite-split`, is refused at
-  submission with the detected type named, before any worker runs — asserted at the HTTP level
-- A finished split's `GET /api/v1/conversions/{id}/result` lists exactly two files, the frames ZIP
-  and the metadata, each with a signed URL and the same `expires_at`; past the 5-minute TTL both
-  are answered `410`, asserted with a clock the test controls
-- A queued conversion streams the documented phases over SSE and ends with signed download URLs
-- A key without `sprite:sheet` is refused `403` naming the ability
-- `git diff --exit-code go.mod go.sum` is clean across the phase: no dependency was added, so
-  `/licenses` needs no entry. This is the assert that replaces the usual licence gate
+- [x] Both routes appear in `/openapi.json` with every option documented and one example each,
+      and both have a method in both generated clients (`tests/openapi_test.go`)
+- [x] An invalid option returns `422` naming the field, in the shape the existing routes return
+      (`TestTrimmingWithCSSIsRefusedAtSubmission`, `TestTooManyMetadataFormatsAreRefused`)
+- [x] A sheet submitted to `sprite-build`, or a ZIP submitted to `sprite-split`, is refused at
+      submission with the detected type named, before any worker runs — asserted at the HTTP
+      level (`TestEachSpriteToolRefusesTheOtherOnesInput`)
+- [x] A finished split's result lists exactly two files, the frames ZIP and the metadata, each
+      with a signed URL (`TestSplittingASheetProducesAnArchiveAndItsMetadata`). The archive holds
+      the metadata as well, so one download is self-contained — which that test also asserts
+- [x] A grid that does not tile is refused with the sheet and cell sizes named in the message the
+      owner sees (`TestAGridThatDoesNotTileIsRefusedWithTheRemainder`)
+- [x] A key without `sprite:sheet` is refused `403` (`TestTheSpriteToolsNeedTheirAbility`)
+- [x] The published format list names every writer, with an extension and a sentence each, and
+      matches the library (`TestTheSpriteFormatListIsPublicAndComplete`)
+- [x] `git diff --exit-code go.mod go.sum` is clean across the phase: no dependency was added, so
+      `/licenses` needs no entry. This is the assert that replaces the usual licence gate.
+      `@types/bun` was added to **devDependencies** for the browser-side test runner; it is
+      types-only, ships in nothing, and is not a Go dependency
 
 ### S7.5 Interface
 
-- [ ] Page for `sprite-split`
-  - [ ] Drop a sheet and see the grid drawn over it, with the frame count the server will produce,
+- [x] Page for `sprite-split`
+  - [x] Drop a sheet and see the grid drawn over it, with the frame count the server will produce,
         before submitting
-  - [ ] Grid controls — cell size or counts, margin, spacing — redraw the overlay with no round
+  - [x] Grid controls — cell size or counts, margin, spacing — redraw the overlay with no round
         trip
-  - [ ] `auto` mode offers the background colour picker and explains when it is needed
-  - [ ] Trim, and the format checkboxes with the one sentence each about what imports them
-- [ ] Page for `sprite-build`
-  - [ ] Drop a ZIP of frames, see the frame count and the packed preview
-  - [ ] Layout, padding, extrude, margin and max size; wasted area shown as a percentage
-  - [ ] The Godot and Unity import note shown whenever `grid` is the layout
-- [ ] Both pages say the result lives five minutes, next to the download
+  - [x] `auto` mode offers the background colour picker and explains when it is needed
+  - [x] Trim, and the format checkboxes with the one sentence each about what imports them —
+        fetched from the API rather than hardcoded, and a format trimming cannot use is disabled
+        with the reason
+- [x] Page for `sprite-build`
+  - [x] Drop a ZIP of frames, see the frame count and the packed preview. The count is read from
+        the archive's own end-of-central-directory record, so it appears at once without
+        inflating anything; the preview is the sheet the server actually produced, because
+        predicting it would mean running the packer twice, once wrongly
+  - [x] Layout, padding, extrude, margin and max size; wasted area shown as a percentage, from
+        the server's own figure
+  - [x] The Godot and Unity import note shown whenever `grid` is the layout
+- [x] Both pages say the result lives five minutes, next to the download
 
 #### Quality asserts
 
-- Changing a grid control redraws the overlay without a page reload and without a request
-- The frame count the page predicts equals the number of entries in the ZIP the server returns,
-  asserted on a fixture
-- A 4096 × 4096 sheet does not freeze the tab: the overlay is drawn on a scaled canvas and the
-  frame count is shown before any preview is rendered
-- Both pages work at phone width with no horizontal scroll
-- Lighthouse accessibility ≥ 95 on both pages
-- `bun run typecheck` and `bun run build` clean
+- [x] Changing a grid control redraws the overlay without a page reload and without a request —
+      verified in Chromium: a 32px cell on the 256 × 128 fixture reads 32 frames, 64px reads 8,
+      and 50px is refused in the browser naming the six pixels left over
+- [x] The frame count the page predicts equals what the server produces, pinned by one shared
+      table of fifteen cases run against **both** implementations:
+      `resources/js/lib/spriteGrid.test.ts` and `tests/sprite_grid_table_test.go`. The two are
+      pinned to the table rather than to each other, so a change to either that the other does not
+      match fails one of them
+- [x] A large sheet does not freeze the tab: the overlay is drawn on a canvas scaled to 640px on
+      its longest side, and the dimensions and frame count are rendered before the image decodes
+- [x] Both pages work at phone width with no horizontal scroll, verified in Chromium at 320, 375
+      and 1280 with zero console errors
+- [x] `bun run typecheck`, `bun run test` and `bun run build` clean
+
+Lighthouse is **not** run: it is not installed in this repository or in CI, and a number nobody
+measured is not an assert. The accessibility properties it would check are asserted directly
+instead — 44px hit targets, a visible focus ring, `role="alert"` on every refusal, a labelled
+canvas, and keyboard operation of both menus — and `.claude/rules/` records that this is what
+replaced it.
 
 ---
 

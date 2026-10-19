@@ -131,6 +131,10 @@ func registerWeb(
 
 	r.Get("/", pages.Index).Name("home")
 	r.Get("/licenses", pages.Licenses).Name("licenses")
+	// Absolute URLs built from APP_URL, not from the request's Host: see the
+	// controller. No auth, because a crawler has no account — which is also
+	// why the tool pages are not in it.
+	r.Get("/sitemap.xml", controllers.NewSitemap(app.Config.URL).Serve).Name("sitemap")
 	// A tool page needs an account: every conversion does, so showing the
 	// form to somebody who cannot submit it would be a dead end.
 	r.Get("/tools/{name}", pages.Tool).Name("tools.show").Use(auth.Required(acc.Web))

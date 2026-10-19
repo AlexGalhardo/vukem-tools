@@ -154,27 +154,28 @@ var pages = map[string]toolPage{ //nolint:gochecknoglobals // read-only table
 		props: func() inertia.Props { return inertia.Props{} },
 	},
 
-	// Every live PDF tool renders one page: the form is described
-	// client-side from the tool's own option schema, so there are no
+	// Every live PDF tool renders the generic form page: the form is
+	// described client-side from the tool's own field list, so there are no
 	// per-tool props to pass.
-	"pdf-merge":         {component: "Tools/Pdf"},
-	"pdf-split":         {component: "Tools/Pdf"},
-	"pdf-extract-pages": {component: "Tools/Pdf"},
-	"pdf-remove-pages":  {component: "Tools/Pdf"},
-	"pdf-organise":      {component: "Tools/Pdf"},
-	"pdf-rotate":        {component: "Tools/Pdf"},
-	"pdf-crop":          {component: "Tools/Pdf"},
-	"images-to-pdf":     {component: "Tools/Pdf"},
-	"pdf-to-image":      {component: "Tools/Pdf"},
-	"pdf-to-pdfa":       {component: "Tools/Pdf"},
-	"pdf-to-text":       {component: "Tools/Pdf"},
-	"pdf-compress":      {component: "Tools/Pdf"},
-	"pdf-repair":        {component: "Tools/Pdf"},
-	"pdf-protect":       {component: "Tools/Pdf"},
-	"pdf-unlock":        {component: "Tools/Pdf"},
-	"pdf-compare":       {component: "Tools/Pdf"},
-	"pdf-page-numbers":  {component: "Tools/Pdf"},
-	"pdf-watermark":     {component: "Tools/Pdf"},
+	"pdf-merge":         {component: "Tools/ToolForm"},
+	"pdf-split":         {component: "Tools/ToolForm"},
+	"pdf-extract-pages": {component: "Tools/ToolForm"},
+	"pdf-remove-pages":  {component: "Tools/ToolForm"},
+	"pdf-organise":      {component: "Tools/ToolForm"},
+	"pdf-rotate":        {component: "Tools/ToolForm"},
+	"pdf-crop":          {component: "Tools/ToolForm"},
+	"images-to-pdf":     {component: "Tools/ToolForm"},
+	"pdf-to-image":      {component: "Tools/ToolForm"},
+	"pdf-to-pdfa":       {component: "Tools/ToolForm"},
+	"pdf-to-text":       {component: "Tools/ToolForm"},
+	"pdf-compress":      {component: "Tools/ToolForm"},
+	"pdf-repair":        {component: "Tools/ToolForm"},
+	"pdf-protect":       {component: "Tools/ToolForm"},
+	"pdf-unlock":        {component: "Tools/ToolForm"},
+	"pdf-compare":       {component: "Tools/ToolForm"},
+	"pdf-page-numbers":  {component: "Tools/ToolForm"},
+	"pdf-watermark":     {component: "Tools/ToolForm"},
+
 }
 
 // Licenses renders the licence notice: GET /licenses.

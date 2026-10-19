@@ -22,7 +22,7 @@ import {
   type Field,
   type ResultFile,
   type ToolForm,
-} from "../../lib/pdf";
+} from "../../lib/toolForm";
 import { upload, UploadError } from "../../lib/upload";
 
 interface Props {
@@ -45,22 +45,28 @@ interface Staged {
 }
 
 /**
- * Every PDF tool's page.
+ * The page of every tool whose interface is a file picker, a field list and a
+ * download.
  *
- * One page for nineteen tools, driven by the form description in lib/pdf.ts.
- * The alternative was nineteen pages that differed in their fields and agreed
- * in everything else — the upload, the submit, the progress stream, the
+ * One page for twenty tools, driven by the form description in lib/toolForm.ts.
+ * The alternative was twenty pages that differed in their fields and agreed in
+ * everything else — the upload, the submit, the progress stream, the
  * multi-file result list, the way a server-side refusal is shown — and the
  * parts they would have agreed on are exactly the parts worth having one of.
  * A tool that needs a genuinely different interaction, rather than different
- * fields, gets its own page; none of these does.
+ * fields, gets its own page: the sprite tools draw a grid over the sheet,
+ * which is not something a field list can express.
  *
  * Nothing here decides anything. Progress, status, every failure message and
  * every download link come from the server, so the page cannot disagree with
  * the API about what happened.
  */
-export default function Pdf({ tool, maxBytes, tusPath }: Props): React.ReactElement {
-  const form: ToolForm = forms[tool.name] ?? { files: "one", accept: ["application/pdf"], fields: [] };
+export default function ToolForm({ tool, maxBytes, tusPath }: Props): React.ReactElement {
+  // An unknown tool falls back to one file and no options, which renders a
+  // usable page rather than a crash. It cannot happen: app/controllers/pages.go
+  // answers a 500 for a live tool with no page, and a tool with a page always
+  // has a form.
+  const form: ToolForm = forms[tool.name] ?? { files: "one", accept: [], fields: [] };
 
   const [values, setValues] = useState<Record<string, string | boolean>>({});
   const [staged, setStaged] = useState<Staged[]>([]);
@@ -392,9 +398,9 @@ function StagedList({
 
 /** Results lists every file a finished conversion produced.
  *
- *  Separate from the queue because the queue has room for one link and a PDF
- *  tool can produce twenty. The expiry is repeated here on purpose: a user
- *  with twenty links has five minutes for all of them. */
+ *  Separate from the queue because the queue has room for one link and a tool
+ *  can produce sixty-four. The expiry is repeated here on purpose: a user with
+ *  sixty-four links has five minutes for all of them. */
 function Results({
   downloads,
   jobs,

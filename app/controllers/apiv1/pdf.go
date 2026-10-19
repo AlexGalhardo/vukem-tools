@@ -35,20 +35,23 @@ import (
 // nineteen documented option sets; a reader of this file gets nineteen
 // declarations and one implementation.
 
-// pdfSubmitter is the contract a PDF tool's options satisfy: they can
+// optionsNormaliser is the contract a tool's options satisfy: they can
 // normalise themselves, returning the same concrete type. It is the same
 // contract app/tools uses, restated here because a controller must not import
 // a tool's internals to know it.
-type pdfSubmitter[T any] interface {
+//
+// Not PDF-specific despite living in this file: the PDF domain was the first
+// to need it, and the archive routes submit through the same helpers.
+type optionsNormaliser[T any] interface {
 	Normalise() (T, error)
 }
 
-// submitPDF is the body of every single-input PDF handler.
+// submitOne is the body of every single-input handler.
 //
 // It normalises the options before anything else, so a bad value is a 422 on
 // the right field rather than a conversion that is accepted and then fails
 // in a worker where nobody is listening.
-func submitPDF[O pdfSubmitter[O]](
+func submitOne[O optionsNormaliser[O]](
 	h *Conversions,
 	c *web.Ctx,
 	tool, fileID, key string,
@@ -72,14 +75,14 @@ func submitPDF[O pdfSubmitter[O]](
 	})
 }
 
-// submitPDFMany is the body of the handlers that take several files: merge
-// and compare.
+// submitMany is the body of every handler that takes several files: the PDF
+// merge and compare, and creating an archive.
 //
 // It cannot go through submit, which attaches one upload. The inputs are
 // attached in the order they were given, inside the conversion's own
 // transaction, and the order is the instruction — page one of the merged
 // document is page one of the first file.
-func submitPDFMany[O pdfSubmitter[O]](
+func submitMany[O optionsNormaliser[O]](
 	h *Conversions,
 	c *web.Ctx,
 	tool string,
@@ -124,7 +127,7 @@ func submitPDFMany[O pdfSubmitter[O]](
 			"The same upload is listed twice. Upload it again to use it twice.")
 	}
 
-	inputs, bytesIn, err := h.pdfInputs(c, userID, registered, fileIDs)
+	inputs, bytesIn, err := h.conversionInputs(c, userID, registered, fileIDs)
 	if err != nil {
 		return ConversionView{}, err
 	}
@@ -165,8 +168,12 @@ func submitPDFMany[O pdfSubmitter[O]](
 	return viewOf(created), nil
 }
 
-// pdfInputs looks up the caller's uploads and checks each one's type.
-func (h *Conversions) pdfInputs(
+// conversionInputs looks up the caller's uploads and checks each one's type.
+//
+// A tool that implements no Accepter takes anything the upload endpoint
+// accepted, which is what creating an archive means: the check is skipped
+// rather than widened to every type the service knows.
+func (h *Conversions) conversionInputs(
 	c *web.Ctx,
 	userID string,
 	tool jobs.Tool,
@@ -216,7 +223,7 @@ type SubmitPDFMerge struct {
 
 // PDFMerge joins PDFs: POST /api/v1/tools/pdf-merge.
 func (h *Conversions) PDFMerge(c *web.Ctx, in SubmitPDFMerge) (ConversionView, error) {
-	return submitPDFMany(h, c, tools.NamePDFMerge, in.FileIDs, in.IdempotencyKey, in.Options)
+	return submitMany(h, c, tools.NamePDFMerge, in.FileIDs, in.IdempotencyKey, in.Options)
 }
 
 // SubmitPDFCompare is the body of POST /api/v1/tools/pdf-compare.
@@ -229,7 +236,7 @@ type SubmitPDFCompare struct {
 
 // PDFCompare compares two PDFs: POST /api/v1/tools/pdf-compare.
 func (h *Conversions) PDFCompare(c *web.Ctx, in SubmitPDFCompare) (ConversionView, error) {
-	return submitPDFMany(h, c, tools.NamePDFCompare, in.FileIDs, in.IdempotencyKey, in.Options)
+	return submitMany(h, c, tools.NamePDFCompare, in.FileIDs, in.IdempotencyKey, in.Options)
 }
 
 // pdfFileInput is the two fields every single-input PDF submission shares.
@@ -248,7 +255,7 @@ type SubmitPDFSplit struct {
 
 // PDFSplit splits a PDF: POST /api/v1/tools/pdf-split.
 func (h *Conversions) PDFSplit(c *web.Ctx, in SubmitPDFSplit) (ConversionView, error) {
-	return submitPDF(h, c, tools.NamePDFSplit, in.FileID, in.IdempotencyKey, in.Options)
+	return submitOne(h, c, tools.NamePDFSplit, in.FileID, in.IdempotencyKey, in.Options)
 }
 
 // SubmitPDFExtractPages is the body of POST /api/v1/tools/pdf-extract-pages.
@@ -260,7 +267,7 @@ type SubmitPDFExtractPages struct {
 
 // PDFExtractPages extracts pages: POST /api/v1/tools/pdf-extract-pages.
 func (h *Conversions) PDFExtractPages(c *web.Ctx, in SubmitPDFExtractPages) (ConversionView, error) {
-	return submitPDF(h, c, tools.NamePDFExtractPages, in.FileID, in.IdempotencyKey, in.Options)
+	return submitOne(h, c, tools.NamePDFExtractPages, in.FileID, in.IdempotencyKey, in.Options)
 }
 
 // SubmitPDFRemovePages is the body of POST /api/v1/tools/pdf-remove-pages.
@@ -272,7 +279,7 @@ type SubmitPDFRemovePages struct {
 
 // PDFRemovePages removes pages: POST /api/v1/tools/pdf-remove-pages.
 func (h *Conversions) PDFRemovePages(c *web.Ctx, in SubmitPDFRemovePages) (ConversionView, error) {
-	return submitPDF(h, c, tools.NamePDFRemovePages, in.FileID, in.IdempotencyKey, in.Options)
+	return submitOne(h, c, tools.NamePDFRemovePages, in.FileID, in.IdempotencyKey, in.Options)
 }
 
 // SubmitPDFOrganise is the body of POST /api/v1/tools/pdf-organise.
@@ -284,7 +291,7 @@ type SubmitPDFOrganise struct {
 
 // PDFOrganise reorders pages: POST /api/v1/tools/pdf-organise.
 func (h *Conversions) PDFOrganise(c *web.Ctx, in SubmitPDFOrganise) (ConversionView, error) {
-	return submitPDF(h, c, tools.NamePDFOrganise, in.FileID, in.IdempotencyKey, in.Options)
+	return submitOne(h, c, tools.NamePDFOrganise, in.FileID, in.IdempotencyKey, in.Options)
 }
 
 // SubmitPDFRotate is the body of POST /api/v1/tools/pdf-rotate.
@@ -296,7 +303,7 @@ type SubmitPDFRotate struct {
 
 // PDFRotate rotates pages: POST /api/v1/tools/pdf-rotate.
 func (h *Conversions) PDFRotate(c *web.Ctx, in SubmitPDFRotate) (ConversionView, error) {
-	return submitPDF(h, c, tools.NamePDFRotate, in.FileID, in.IdempotencyKey, in.Options)
+	return submitOne(h, c, tools.NamePDFRotate, in.FileID, in.IdempotencyKey, in.Options)
 }
 
 // SubmitPDFCrop is the body of POST /api/v1/tools/pdf-crop.
@@ -308,7 +315,7 @@ type SubmitPDFCrop struct {
 
 // PDFCrop crops pages: POST /api/v1/tools/pdf-crop.
 func (h *Conversions) PDFCrop(c *web.Ctx, in SubmitPDFCrop) (ConversionView, error) {
-	return submitPDF(h, c, tools.NamePDFCrop, in.FileID, in.IdempotencyKey, in.Options)
+	return submitOne(h, c, tools.NamePDFCrop, in.FileID, in.IdempotencyKey, in.Options)
 }
 
 // SubmitImagesToPDF is the body of POST /api/v1/tools/images-to-pdf.
@@ -321,7 +328,7 @@ type SubmitImagesToPDF struct {
 
 // ImagesToPDF binds images into a PDF: POST /api/v1/tools/images-to-pdf.
 func (h *Conversions) ImagesToPDF(c *web.Ctx, in SubmitImagesToPDF) (ConversionView, error) {
-	return submitPDFMany(h, c, tools.NameImagesToPDF, in.FileIDs, in.IdempotencyKey, in.Options)
+	return submitMany(h, c, tools.NameImagesToPDF, in.FileIDs, in.IdempotencyKey, in.Options)
 }
 
 // SubmitPDFToImage is the body of POST /api/v1/tools/pdf-to-image.
@@ -333,7 +340,7 @@ type SubmitPDFToImage struct {
 
 // PDFToImage renders pages to images: POST /api/v1/tools/pdf-to-image.
 func (h *Conversions) PDFToImage(c *web.Ctx, in SubmitPDFToImage) (ConversionView, error) {
-	return submitPDF(h, c, tools.NamePDFToImage, in.FileID, in.IdempotencyKey, in.Options)
+	return submitOne(h, c, tools.NamePDFToImage, in.FileID, in.IdempotencyKey, in.Options)
 }
 
 // SubmitPDFToPDFA is the body of POST /api/v1/tools/pdf-to-pdfa.
@@ -345,7 +352,7 @@ type SubmitPDFToPDFA struct {
 
 // PDFToPDFA converts to PDF/A: POST /api/v1/tools/pdf-to-pdfa.
 func (h *Conversions) PDFToPDFA(c *web.Ctx, in SubmitPDFToPDFA) (ConversionView, error) {
-	return submitPDF(h, c, tools.NamePDFToPDFA, in.FileID, in.IdempotencyKey, in.Options)
+	return submitOne(h, c, tools.NamePDFToPDFA, in.FileID, in.IdempotencyKey, in.Options)
 }
 
 // SubmitPDFToText is the body of POST /api/v1/tools/pdf-to-text.
@@ -357,7 +364,7 @@ type SubmitPDFToText struct {
 
 // PDFToText extracts text: POST /api/v1/tools/pdf-to-text.
 func (h *Conversions) PDFToText(c *web.Ctx, in SubmitPDFToText) (ConversionView, error) {
-	return submitPDF(h, c, tools.NamePDFToText, in.FileID, in.IdempotencyKey, in.Options)
+	return submitOne(h, c, tools.NamePDFToText, in.FileID, in.IdempotencyKey, in.Options)
 }
 
 // SubmitPDFCompress is the body of POST /api/v1/tools/pdf-compress.
@@ -369,7 +376,7 @@ type SubmitPDFCompress struct {
 
 // PDFCompress compresses a PDF: POST /api/v1/tools/pdf-compress.
 func (h *Conversions) PDFCompress(c *web.Ctx, in SubmitPDFCompress) (ConversionView, error) {
-	return submitPDF(h, c, tools.NamePDFCompress, in.FileID, in.IdempotencyKey, in.Options)
+	return submitOne(h, c, tools.NamePDFCompress, in.FileID, in.IdempotencyKey, in.Options)
 }
 
 // SubmitPDFRepair is the body of POST /api/v1/tools/pdf-repair.
@@ -381,7 +388,7 @@ type SubmitPDFRepair struct {
 
 // PDFRepair rebuilds a damaged PDF: POST /api/v1/tools/pdf-repair.
 func (h *Conversions) PDFRepair(c *web.Ctx, in SubmitPDFRepair) (ConversionView, error) {
-	return submitPDF(h, c, tools.NamePDFRepair, in.FileID, in.IdempotencyKey, in.Options)
+	return submitOne(h, c, tools.NamePDFRepair, in.FileID, in.IdempotencyKey, in.Options)
 }
 
 // SubmitPDFProtect is the body of POST /api/v1/tools/pdf-protect.
@@ -398,7 +405,7 @@ type SubmitPDFProtect struct {
 
 // PDFProtect encrypts a PDF: POST /api/v1/tools/pdf-protect.
 func (h *Conversions) PDFProtect(c *web.Ctx, in SubmitPDFProtect) (ConversionView, error) {
-	return submitPDF(h, c, tools.NamePDFProtect, in.FileID, in.IdempotencyKey, in.Options)
+	return submitOne(h, c, tools.NamePDFProtect, in.FileID, in.IdempotencyKey, in.Options)
 }
 
 // SubmitPDFUnlock is the body of POST /api/v1/tools/pdf-unlock.
@@ -410,7 +417,7 @@ type SubmitPDFUnlock struct {
 
 // PDFUnlock removes a password: POST /api/v1/tools/pdf-unlock.
 func (h *Conversions) PDFUnlock(c *web.Ctx, in SubmitPDFUnlock) (ConversionView, error) {
-	return submitPDF(h, c, tools.NamePDFUnlock, in.FileID, in.IdempotencyKey, in.Options)
+	return submitOne(h, c, tools.NamePDFUnlock, in.FileID, in.IdempotencyKey, in.Options)
 }
 
 // SubmitPDFWatermark is the body of POST /api/v1/tools/pdf-watermark.
@@ -422,7 +429,7 @@ type SubmitPDFWatermark struct {
 
 // PDFWatermark stamps a watermark: POST /api/v1/tools/pdf-watermark.
 func (h *Conversions) PDFWatermark(c *web.Ctx, in SubmitPDFWatermark) (ConversionView, error) {
-	return submitPDF(h, c, tools.NamePDFWatermark, in.FileID, in.IdempotencyKey, in.Options)
+	return submitOne(h, c, tools.NamePDFWatermark, in.FileID, in.IdempotencyKey, in.Options)
 }
 
 // SubmitPDFPageNumbers is the body of POST /api/v1/tools/pdf-page-numbers.
@@ -434,5 +441,5 @@ type SubmitPDFPageNumbers struct {
 
 // PDFPageNumbers stamps page numbers: POST /api/v1/tools/pdf-page-numbers.
 func (h *Conversions) PDFPageNumbers(c *web.Ctx, in SubmitPDFPageNumbers) (ConversionView, error) {
-	return submitPDF(h, c, tools.NamePDFPageNumbers, in.FileID, in.IdempotencyKey, in.Options)
+	return submitOne(h, c, tools.NamePDFPageNumbers, in.FileID, in.IdempotencyKey, in.Options)
 }

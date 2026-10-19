@@ -8,9 +8,16 @@ on:
     tags: ["v*.*.*"]
   workflow_dispatch:
 
+# A pull request groups by ref, so pushing again cancels the run its commit
+# superseded: only the newest commit of a branch under review is worth minutes.
+# A push to main or a tag groups by commit instead, so it is alone in its group
+# and nothing can cancel or queue behind it. Grouping those by ref is what left
+# 4424a3c with no CI result at all: two merges landed ten seconds apart and the
+# second cancelled the first. The branch that records what shipped has to be
+# able to say whether each commit passed.
 concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true
+  group: ${{ github.workflow }}-${{ github.event_name == 'pull_request' && github.ref || github.sha }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 permissions:
   contents: read

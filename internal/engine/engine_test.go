@@ -39,6 +39,18 @@ func TestMain(m *testing.M) {
 	case "sleep":
 		time.Sleep(60 * time.Second)
 		os.Exit(0)
+	case "signal":
+		// Dies by a signal rather than by exiting, which is the only way to
+		// produce exit code -1 and the thing the engine's error has to be
+		// able to describe.
+		if p, err := os.FindProcess(os.Getpid()); err == nil {
+			_ = p.Kill()
+		}
+
+		// Unreachable once the signal lands; here so a platform that does not
+		// deliver it cannot hang past the runner's timeout.
+		time.Sleep(5 * time.Second)
+		os.Exit(1)
 	case "progress":
 		for i := range 4 {
 			os.Stdout.WriteString("out_time_ms=" + strconv.Itoa(i*1000) + "\n")
@@ -165,6 +177,40 @@ func TestAFailureCarriesTheStderrTail(t *testing.T) {
 
 	if !strings.Contains(exit.Stderr, "the input is not usable") {
 		t.Fatalf("stderr = %q, want the engine's reason", exit.Stderr)
+	}
+}
+
+// Go reports every death by signal as exit code -1, so the code alone cannot
+// tell a SIGKILL from outside the process from a SIGSEGV inside it — and those
+// two send an operator to opposite ends of the system. A production boot
+// failure read "write the capability probe image: other: engine: exit status
+// -1" and there was nowhere to go from there.
+func TestAProgramKilledBySignalSaysWhichSignal(t *testing.T) {
+	t.Parallel()
+
+	if runtime.GOOS != "linux" {
+		t.Skip("a death by signal is reported as an ordinary exit on this platform")
+	}
+
+	_, err := run(t, newRunner(t, engine.Limits{}), "signal", engine.Command{})
+
+	exit, ok := errors.AsType[*engine.ExitError](err)
+	if !ok {
+		t.Fatalf("err = %#v, want an *engine.ExitError", err)
+	}
+
+	if exit.Code != -1 {
+		t.Fatalf("code = %d, want -1 for a death by signal", exit.Code)
+	}
+
+	if !strings.Contains(exit.Status, "signal:") {
+		t.Errorf("status = %q, which does not name the signal", exit.Status)
+	}
+
+	// The message is what reaches a deploy log, and it is the only part of
+	// this an operator reads.
+	if !strings.Contains(err.Error(), "signal:") {
+		t.Errorf("the message is %q, which names no signal", err.Error())
 	}
 }
 

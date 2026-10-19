@@ -84,11 +84,24 @@ them. See [vukem-audit.md](vukem-audit.md).
 
   What is known: `vips -l` runs immediately before and succeeds, so the engine starts; the step
   that fails is the first one that writes, which is also the first one that builds a thread pool.
-  What is not known is the cause, because the error carried none. `EngineError.Error()` dropped
-  the wrapped error whenever the engine had printed nothing — which is exactly the case where the
-  engine never got to speak — so the deploy log named the step and nothing else. That is fixed,
-  in `internal/image` and `internal/ffmpeg` both, and the next occurrence will name its cause.
-  Do not guess at this one before then.
+  The error now carries its cause, which it did not before — `EngineError.Error()` dropped the
+  wrapped error whenever the engine had printed nothing, which is exactly the case where the
+  engine never got to speak — and on `c66dd0b` it said:
+
+  ```text
+  vukem: routes: tools: probe libvips: image: write the capability probe image: other:
+  engine: exit status -1
+  ```
+
+  **`-1` is Go for "terminated by a signal".** So `vips` is killed from outside, with its stderr
+  empty, which fits a SIGKILL losing whatever was buffered. The obvious reading is the cgroup OOM
+  killer and **that is ruled out by measurement**: the service's limit is 8 GB and its peak over
+  the surrounding two hours was 0.338 GB. Do not repeat "out of memory" as the cause.
+
+  What is still missing is the signal itself, because Go reports every one of them as `-1`.
+  `ExitError` now carries the kernel's own description ("signal: killed", "signal: segmentation
+  fault"), which separates a kill from outside the process from a crash inside it — opposite ends
+  of the system. The next occurrence settles it.
 
 - **`RLIMIT_NPROC` was an absolute number and is now headroom.** `prlimit --nproc` was passed the
   configured figure as-is, but the kernel measures that limit against every task the real UID owns

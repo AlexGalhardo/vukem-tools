@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"log/slog"
+	"os"
 	"os/exec"
 	"strings"
 	"time"
@@ -136,17 +137,44 @@ var ErrTimeout = errors.New("engine: the program exceeded its time limit")
 // ExitError reports a program that ran and failed. The stderr tail is on it
 // rather than in the message, so a caller decides what reaches a user.
 type ExitError struct {
-	Code   int
+	Code int
+	// Status is the kernel's own account of how the program ended, which is
+	// the only thing that tells the ways Code can be -1 apart: Go reports
+	// every death by signal as -1, so "exit status -1" cannot distinguish a
+	// SIGKILL from outside the process from a SIGSEGV inside it, and those
+	// two send an operator to opposite ends of the system. A production boot
+	// failure read "write the capability probe image: other: engine: exit
+	// status -1" and stopped there. Empty when the process state was lost.
+	Status string
 	Stderr string
 }
 
 // Error implements error.
+//
+// Status is preferred over the code because it says the same thing for a
+// normal exit ("exit status 1") and strictly more for a signal.
 func (e *ExitError) Error() string {
-	if e.Stderr == "" {
-		return fmt.Sprintf("engine: exit status %d", e.Code)
+	status := e.Status
+	if status == "" {
+		status = fmt.Sprintf("exit status %d", e.Code)
 	}
 
-	return fmt.Sprintf("engine: exit status %d: %s", e.Code, firstLine(e.Stderr))
+	if e.Stderr == "" {
+		return "engine: " + status
+	}
+
+	return fmt.Sprintf("engine: %s: %s", status, firstLine(e.Stderr))
+}
+
+// exitStatus is the kernel's description of how a program ended — "exit status
+// 1", "signal: killed", "signal: segmentation fault" — or empty when the
+// process state was lost.
+func exitStatus(state *os.ProcessState) string {
+	if state == nil {
+		return ""
+	}
+
+	return state.String()
 }
 
 // Run executes cmd and returns what it reported.
@@ -241,7 +269,7 @@ func (r *Runner) Run(ctx context.Context, cmd Command) (Result, error) {
 	}
 
 	if waitErr != nil {
-		return result, &ExitError{Code: result.ExitCode, Stderr: result.Stderr}
+		return result, &ExitError{Code: result.ExitCode, Status: exitStatus(proc.ProcessState), Stderr: result.Stderr}
 	}
 
 	return result, nil

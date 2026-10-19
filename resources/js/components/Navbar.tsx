@@ -62,19 +62,19 @@ export default function Navbar(): React.ReactElement {
 
         {auth?.user ? <AccountMenu name={auth.user.name} email={auth.user.email} /> : null}
 
+        {/* One button, not two. Signing up was the second one, and it is a
+            step past signing in rather than an alternative to it: the sign-in
+            page already carries the link, so the header spends its last
+            44px on the control that the people who come back every day
+            need. */}
         {!auth?.user && auth ? (
-          <div className="hidden items-center gap-1 sm:flex">
-            <Link href="/login" className={deskLink}>
-              Log in
-            </Link>
-            <Link
-              href="/register"
-              className="flex min-h-11 items-center rounded-field bg-signal px-3 text-sm font-medium
-                text-raised transition-colors duration-100 hover:opacity-90 dark:text-surface"
-            >
-              Create an account
-            </Link>
-          </div>
+          <Link
+            href="/login"
+            className="hidden min-h-11 items-center rounded-field bg-signal px-4 text-sm font-medium
+              text-raised transition-colors duration-100 hover:opacity-90 sm:flex dark:text-surface"
+          >
+            Log in
+          </Link>
         ) : null}
 
         <div className="sm:hidden">
@@ -130,9 +130,19 @@ function AccountMenu({ name, email }: { name: string; email: string }): React.Re
 
       <MenuSeparator />
 
+      {/* Three rows, and each one is a destination: the account, the API
+          reference, and the way out. "Profile and API keys" was one row
+          naming two things, and the API reference — the page a developer
+          here actually wants — was reachable only from the header's wide
+          layout, which a phone never shows. */}
       <Link href="/account" role="menuitem" className={MenuItemClass}>
-        <Icon name="key" className="size-4 shrink-0" />
-        Profile and API keys
+        <Icon name="user" className="size-4 shrink-0" />
+        Profile
+      </Link>
+
+      <Link href="/docs" role="menuitem" className={MenuItemClass}>
+        <Icon name="document" className="size-4 shrink-0" />
+        API
       </Link>
 
       <Link href="/logout" method="post" as="button" role="menuitem" className={MenuItemClass}>
@@ -147,7 +157,7 @@ function AccountMenu({ name, email }: { name: string; email: string }): React.Re
  * MobileMenu is the header's whole navigation behind one button, on a phone.
  *
  * It carries the theme as well as the pages, because the compact theme control
- * is three 28px squares with no words and has no business on a touch screen.
+ * is two 28px squares with no words and has no business on a touch screen.
  */
 function MobileMenu({
   signedIn,
@@ -168,15 +178,8 @@ function MobileMenu({
         <>
           <MenuSeparator />
 
-          <Link href="/login" role="menuitem" className={MenuItemClass}>
+          <Link href="/login" role="menuitem" className={`${MenuItemClass} font-medium text-signal`}>
             Log in
-          </Link>
-          <Link
-            href="/register"
-            role="menuitem"
-            className={`${MenuItemClass} font-medium text-signal`}
-          >
-            Create an account
           </Link>
         </>
       ) : null}

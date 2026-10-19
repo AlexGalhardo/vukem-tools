@@ -63,8 +63,16 @@ type EngineError struct {
 }
 
 // Error implements error.
+//
+// The wrapped error is in the message when ffmpeg printed nothing, and only
+// then: a failure with no output is one the engine never got to report, so
+// the runner's error is the only account of it there is.
 func (e *EngineError) Error() string {
 	if e.Stderr == "" {
+		if e.Err != nil {
+			return fmt.Sprintf("ffmpeg: %s: %s: %s", e.Doing, e.Kind, e.Err)
+		}
+
 		return fmt.Sprintf("ffmpeg: %s: %s", e.Doing, e.Kind)
 	}
 

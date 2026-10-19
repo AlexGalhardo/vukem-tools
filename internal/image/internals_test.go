@@ -299,6 +299,14 @@ func TestLibvipsErrorsAreClassifiedFromItsOwnWords(t *testing.T) {
 		{"vips_image_new_from_file: is not a known file format", KindUnsupported},
 		{"vips_tracked_malloc: out of memory --- size == 1200000000", KindOutOfMemory},
 		{"vips__file_write: write error --- no space left on device", KindDiskFull},
+		{"glib: Error creating thread: Resource temporarily unavailable", KindResourceLimit},
+		// Both at once is the common shape, and the thread is the cause: a
+		// server that withheld it should not be reported as a file too big
+		// to decode.
+		{
+			"vips_tracked_malloc: out of memory\nglib: Error creating thread: Resource temporarily unavailable",
+			KindResourceLimit,
+		},
 		{"something nobody has seen before", KindOther},
 	}
 
@@ -331,6 +339,22 @@ func TestATimeoutIsNotMistakenForABadFile(t *testing.T) {
 	var engineErr *EngineError
 	if !errors.As(err, &engineErr) || engineErr.Kind != KindTimeout {
 		t.Fatalf("want a timeout, got %v", err)
+	}
+}
+
+func TestAFailureWithNoEngineOutputStillSaysWhatWentWrong(t *testing.T) {
+	// A production boot died with "write the capability probe image: other"
+	// and nothing else, because the message dropped the wrapped error
+	// whenever libvips had printed nothing. That is precisely the case where
+	// the engine never got to speak — it could not be started, or the kernel
+	// killed it — so the runner's error is the only account of the failure
+	// there is, and an operator reading the deploy log has nothing without it.
+	cause := "engine: start /usr/bin/vips: fork/exec: resource temporarily unavailable"
+
+	err := classify(errors.New(cause), "write the capability probe image")
+
+	if !strings.Contains(err.Error(), cause) {
+		t.Errorf("the cause is missing from %q", err.Error())
 	}
 }
 

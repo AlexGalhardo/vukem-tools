@@ -110,7 +110,10 @@ them. See [vukem-audit.md](vukem-audit.md).
   sets `VIPS_CONCURRENCY` from `cpu.Limit()` but nothing sets `OMP_NUM_THREADS`, so OpenMP sizes
   its pool from the host's CPU count, which is the thing `AGENTS.md` forbids.
 
-- Cut the release the sprite phase was planned for.
+- `v0.5.0` is cut: it carries S7 (sprite sheets), S8 (archives), image compression, the sitemap
+  and the ten faults above. The version follows the ROADMAP's phase mapping rather than the
+  SemVer sequence — `v0.2.0` through `v0.4.0` were never used, because the work those phases
+  planned went out inside `v0.1.0`.
 - The two migrations this repository owes itself, both recorded in
   [vukem-audit.md](vukem-audit.md): body examples onto `MediaType.Example`, and both security
   schemes declared through `vukem.WithOpenAPI`.

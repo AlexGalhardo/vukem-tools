@@ -63,6 +63,26 @@ recorded figure is a failure, not a note.
   skip, which looks green and proves nothing.
 - **`.env` leaking into tests.** Tests must not read the developer's `.env`. If a test starts
   passing only on your machine, that is the cause.
+- **`t.TempDir` cleanup fails intermittently on Windows.** `go test -race ./...` fails every so
+  often with `TempDir RemoveAll cleanup: unlinkat ...: The folder is not empty`, in whichever
+  engine-backed package happened to be running — `internal/editor` and `app/controllers` have both
+  been seen, and it lands on a different test each time (1 run in 3 on `internal/editor` alone).
+  Windows refuses to delete a directory while any handle to it is open; **which** handle is open
+  has not been pinned, and it is not one cause. A surviving engine child is the obvious suspect —
+  the Windows sandbox is `nopSandbox`, which kills the process but not its group — but
+  `TestADatabaseWithoutItsSchemaFails` in `app/controllers` has failed the same way and runs no
+  subprocess at all, so a SQLite handle or the virus scanner reaches it too. Measure before
+  repeating any of these as the cause. What is established is that it is local to Windows and to
+  the tests: the same tree is deterministic on Linux, in Docker and in CI. Re-run it (the
+  `pre-push` hook runs it too, so a push may need a second attempt) and never reach for
+  `--no-verify`. If you want certainty rather than a re-run, run the suite on Linux:
+
+  ```bash
+  docker run --rm --network <net> -v "$PWD:/src" -w /src \
+    -e TEST_DATABASE_URL="postgres://pg:pg@<pg-host>:5432/postgres?sslmode=disable" \
+    golang:1.27.2 go test -race -count=1 ./...
+  ```
+
 - **CRLF on Windows.** `.gitattributes` forces LF. When generating files from a script, write bytes
   or pass `newline="\n"`; text mode writes CRLF and breaks `.sh` inside Docker.
 - **Indentation.** Tabs, width 4, per `.editorconfig`. YAML, JSON and Markdown use spaces.

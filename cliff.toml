@@ -25,6 +25,7 @@ body = """
 {% endfor %}
 """
 footer = """
+
 {% for release in releases -%}
 {% if release.version -%}
 {% if release.previous.version -%}
@@ -37,7 +38,20 @@ footer = """
 {% endif -%}
 {% endfor %}
 """
-trim = true
+# trim would strip the blank lines that separate the header, each version
+# heading and the link definitions, which markdownlint requires (MD022 and
+# MD034). Leaving it off produces runs of blank lines instead, so a
+# postprocessor collapses those (MD012). Without both, every release commit
+# fails `bun run lint:md`.
+trim = false
+
+[[changelog.postprocessors]]
+# Collapse any run of blank lines to one. A TOML literal string, so the
+# pattern reaches git-cliff as the two characters a regex wants.
+pattern = '\n{3,}'
+replace = """
+
+"""
 
 [git]
 conventional_commits = true

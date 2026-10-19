@@ -28,7 +28,7 @@ The ROADMAP maps phases to versions: S1 → `v0.1.0`, S2 → `v0.2.0`, S3 → `v
 ## 3. Generate the changelog and commit
 
 ```bash
-git cliff --tag vX.Y.Z -o CHANGELOG.md
+bun run changelog -- --tag vX.Y.Z   # git-cliff, then collapses the blank lines it leaves
 ```
 
 Read the diff. If an entry reads badly, the commit message was bad: that is a lesson for next

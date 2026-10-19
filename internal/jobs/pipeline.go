@@ -156,11 +156,27 @@ func NewPipeline(o PipelineOptions) (*Pipeline, error) {
 		o.Now = time.Now
 	}
 
+	// Absolute, because Work.Dir is handed to the engines as their working
+	// directory *and* used to build the paths in their arguments. A relative
+	// root is then resolved twice — once by this process, and again by the
+	// engine against the directory it was just given — so qpdf asked for
+	// storage/work/<id>/storage/work/<id>/input-0.pdf and every PDF tool in
+	// production answered "The converter could not process that PDF." WORK_DIR
+	// is unset there, and its default is the relative storage/work.
+	//
+	// The same fault was fixed for the capability probe in routes/api_media.go
+	// and not here, because every test gives this a t.TempDir, which is
+	// already absolute.
+	root, err := filepath.Abs(o.WorkRoot)
+	if err != nil {
+		return nil, fmt.Errorf("jobs: resolve the working root %s: %w", o.WorkRoot, err)
+	}
+
 	return &Pipeline{
 		store: o.Store,
 		queue: o.Queue,
 		tools: tools,
-		root:  o.WorkRoot,
+		root:  root,
 		quota: o.Quota,
 		log:   o.Log,
 		now:   o.Now,

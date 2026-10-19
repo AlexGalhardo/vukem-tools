@@ -26,7 +26,11 @@ import (
 // It only ever closes a row that has not been touched for longer than any
 // attempt could run, so it cannot race a worker that is simply slow.
 //
-// workaround(vukem): a queue handler cannot report a permanent failure.
+// The second case above is handled before the reaper ever sees it: settle
+// checks queue.AttemptFrom and closes the row on the last attempt. What is
+// left is the first — a worker that dies between claiming a conversion and
+// settling it — and no queue feature can fix that, because the process that
+// would have reported it is gone. This is the backstop for exactly that.
 type Reaper struct {
 	store *Store
 	after time.Duration

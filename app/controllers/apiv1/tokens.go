@@ -35,7 +35,7 @@ func NewTokens(a *accounts.Accounts) *Tokens { return &Tokens{a: a, TTL: 30 * 24
 // `validate` tags are static, so the cap cannot be written as
 // len(abilities.All()); TestIssueDocumentsEveryAbility asserts the two stay
 // equal, which is what keeps the tag honest when a tool is added.
-const MaxAbilitiesPerKey = 15
+const MaxAbilitiesPerKey = 16
 
 // IssueInput is the body of POST /api/v1/tokens.
 type IssueInput struct {
@@ -47,7 +47,7 @@ type IssueInput struct {
 	// Abilities the key is granted; every one must be known to
 	// app/abilities. There is no default and no wildcard: a key says what it
 	// may do, so revoking one tool is never a surprise.
-	Abilities []string `json:"abilities" validate:"required,min=1,max=15,dive,trim,min=1,max=64" doc:"What the key may do; GET /api/v1/abilities lists the accepted values."`
+	Abilities []string `json:"abilities" validate:"required,min=1,max=16,dive,trim,min=1,max=64" doc:"What the key may do; GET /api/v1/abilities lists the accepted values."`
 	// Code or RecoveryCode is required for users with two-factor
 	// authentication.
 	Code         string `json:"code"          validate:"trim,max=16" doc:"A two-factor code, for accounts with two-factor authentication."`
@@ -75,13 +75,8 @@ type AbilityList struct {
 }
 
 // RevokeInput is the path input of DELETE /api/v1/tokens/{token}.
-//
-// Token carries no `doc` tag because the generator reads it for query
-// parameters only and drops it for path parameters; the description lives in
-// routes/apidocs.go instead (workaround(vukem): path parameters ignore the
-// doc tag).
 type RevokeInput struct {
-	Token string `json:"token" validate:"required"`
+	Token string `json:"token" validate:"required" doc:"The id of the key to revoke, as returned in the id field when it was issued." example:"k_7f3c1b9e"`
 }
 
 // Issue exchanges email and password for a key: POST /api/v1/tokens.

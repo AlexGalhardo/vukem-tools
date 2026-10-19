@@ -65,6 +65,9 @@ type ConversionView struct {
 	// lists every code.
 	ErrorType    string `json:"error_type"    doc:"A code from the error taxonomy, empty unless it failed."`
 	ErrorMessage string `json:"error_message" doc:"What to tell the user, empty unless it failed."`
+	// Note is the conversion's own account of what it did, empty when there
+	// is nothing to add beyond the file it produced.
+	Note string `json:"note" doc:"What the conversion did, in its own words. Empty when the file says it all."`
 
 	StartedAt  *time.Time `json:"started_at"  doc:"When a worker picked it up, or null."`
 	FinishedAt *time.Time `json:"finished_at" doc:"When it ended, or null."`
@@ -86,9 +89,20 @@ func viewOf(c models.Conversion) ConversionView {
 		CreatedAt: c.CreatedAt,
 	}
 
+	if c.Note != nil {
+		v.Note = *c.Note
+	}
+
 	if c.ErrorType != nil {
 		v.ErrorType = *c.ErrorType
-		v.ErrorMessage = jobs.Describe(jobs.ErrorType(*c.ErrorType)).Message
+		// The stored sentence when there is one, the taxonomy's otherwise.
+		// The fallback covers a conversion that failed before the column
+		// existed, and a failure whose cause carried no public message.
+		if c.ErrorMessage != nil && *c.ErrorMessage != "" {
+			v.ErrorMessage = *c.ErrorMessage
+		} else {
+			v.ErrorMessage = jobs.Describe(jobs.ErrorType(*c.ErrorType)).Message
+		}
 	}
 
 	if c.StartedAt.Valid {
@@ -291,13 +305,8 @@ type ConversionList struct {
 }
 
 // ConversionIDInput is the path input of the per-conversion routes.
-//
-// ID carries no `doc` tag because the generator reads it for query parameters
-// only and drops it for path parameters; the description lives in
-// routes/apidocs.go instead (workaround(vukem): path parameters ignore the
-// doc tag).
 type ConversionIDInput struct {
-	ID string `json:"id" validate:"required"`
+	ID string `json:"id" validate:"required" doc:"The conversion's id, as returned when it was submitted." example:"01JQ8Z5X0K7M3N9P2R4T6V8W0Y"`
 }
 
 // ListInput is the query of GET /api/v1/conversions.

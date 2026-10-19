@@ -84,6 +84,7 @@ var tools = slices.Concat(
 	editCatalog,
 	pdfCatalog,
 	spriteCatalog,
+	archiveCatalog,
 )
 
 // pixelCatalog is the pixel-art domain (S2).
@@ -98,17 +99,6 @@ var pixelCatalog = []Tool{
 		Icon:     "vector",
 		Status:   Live,
 		Keywords: []string{"sprite", "vector", "trace", "pixelart", "game", "upscale"},
-	},
-	{
-		Name:     "archive",
-		Title:    "Create or extract an archive",
-		Summary:  "ZIP, TAR, GZ, XZ and ZSTD, in both directions.",
-		In:       []string{"ZIP", "TAR", "GZ", "XZ", "ZST"},
-		Out:      []string{"ZIP", "TAR", "GZ", "XZ", "ZST"},
-		Group:    GroupArchives,
-		Icon:     "archive",
-		Status:   Planned,
-		Keywords: []string{"zip", "unzip", "tar", "compress", "7z", "rar"},
 	},
 }
 

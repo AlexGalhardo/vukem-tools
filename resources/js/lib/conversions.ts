@@ -22,6 +22,11 @@ export interface Conversion {
   bytes_out: number;
   error_type: string;
   error_message: string;
+  /** note is the conversion's own account of what it did, empty when the file
+   *  says it all. It is on the conversion rather than only on the progress
+   *  stream, so a conversion that finished before the stream connected still
+   *  explains itself. */
+  note: string;
   started_at: string | null;
   finished_at: string | null;
   expires_at: string;

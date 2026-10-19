@@ -4,6 +4,14 @@ export type AbilityList = {
   data?: string[];
 };
 
+export type ArchiveCreateOptions = {
+  format?: string;
+  level?: number;
+  name?: string;
+};
+
+export type ArchiveExtractOptions = Record<string, unknown>;
+
 export type AudioCapabilities = {
   formats?: AudioFormat[];
   loudness_target?: number;
@@ -59,6 +67,7 @@ export type ConversionView = {
   expires_at?: string;
   finished_at?: string | null;
   id?: string;
+  note?: string;
   phase?: string;
   progress?: number;
   started_at?: string | null;
@@ -96,6 +105,12 @@ export type ErrorCatalogEntry = {
   message?: string;
   retry?: boolean;
   type?: string;
+};
+
+export type ImageCompressOptions = {
+  effort?: number;
+  mode?: string;
+  quality?: number;
 };
 
 export type ImageConvertOptions = {
@@ -302,6 +317,53 @@ export type ResultList = {
   data?: ResultFile[];
 };
 
+export type SpriteBuildOptions = {
+  aseprite?: boolean;
+  extrude?: number;
+  frame_ms?: number;
+  layout?: string;
+  margin?: number;
+  max_size?: number;
+  metadata?: string[];
+  padding?: number;
+  pot?: boolean;
+};
+
+export type SpriteCapabilities = {
+  formats?: SpriteFormat[];
+  layouts?: string[];
+  max_formats?: number;
+  max_frames?: number;
+  max_size?: number;
+  modes?: string[];
+};
+
+export type SpriteFormat = {
+  extension?: string;
+  imports?: string;
+  mime?: string;
+  name?: string;
+  trim?: boolean;
+};
+
+export type SpriteSplitOptions = {
+  aseprite?: boolean;
+  background?: string;
+  background_tolerance?: number;
+  cell_h?: number;
+  cell_w?: number;
+  cols?: number;
+  frame_ms?: number;
+  margin?: number;
+  metadata?: string[];
+  min_frame?: number;
+  mode?: string;
+  prefix?: string;
+  rows?: number;
+  spacing?: number;
+  trim?: boolean;
+};
+
 export type Token = {
   abilities?: string[];
   expires_at?: string | null;
@@ -430,6 +492,22 @@ export type TokensStoreBody = {
 
 export type TokensStoreResponse = TokenIssued;
 
+export type ToolsArchiveCreateBody = {
+  file_ids: string[];
+  idempotency_key?: string;
+  options?: ArchiveCreateOptions;
+};
+
+export type ToolsArchiveCreateResponse = ConversionView;
+
+export type ToolsArchiveExtractBody = {
+  file_id: string;
+  idempotency_key?: string;
+  options?: ArchiveExtractOptions;
+};
+
+export type ToolsArchiveExtractResponse = ConversionView;
+
 export type ToolsAudioConvertBody = {
   file_id: string;
   idempotency_key?: string;
@@ -439,6 +517,14 @@ export type ToolsAudioConvertBody = {
 export type ToolsAudioConvertResponse = ConversionView;
 
 export type ToolsAudioConvertFormatsResponse = AudioCapabilities;
+
+export type ToolsImageCompressBody = {
+  file_id: string;
+  idempotency_key?: string;
+  options?: ImageCompressOptions;
+};
+
+export type ToolsImageCompressResponse = ConversionView;
 
 export type ToolsImageConvertBody = {
   file_id: string;
@@ -603,6 +689,24 @@ export type ToolsPixelsToSvgBody = {
 };
 
 export type ToolsPixelsToSvgResponse = ConversionView;
+
+export type ToolsSpriteBuildBody = {
+  file_id: string;
+  idempotency_key?: string;
+  options?: SpriteBuildOptions;
+};
+
+export type ToolsSpriteBuildResponse = ConversionView;
+
+export type ToolsSpriteSplitBody = {
+  file_id: string;
+  idempotency_key?: string;
+  options?: SpriteSplitOptions;
+};
+
+export type ToolsSpriteSplitResponse = ConversionView;
+
+export type ToolsSpriteSplitFormatsResponse = SpriteCapabilities;
 
 export type ToolsVideoClipBody = {
   file_id: string;
@@ -858,6 +962,16 @@ export interface Client {
   tokensStore(args: { body: TokensStoreBody }): Promise<TokensStoreResponse>;
 
   /**
+   * POST /api/v1/tools/archive-create: Pack several files into one archive
+   */
+  toolsArchiveCreate(args: { body: ToolsArchiveCreateBody }): Promise<ToolsArchiveCreateResponse>;
+
+  /**
+   * POST /api/v1/tools/archive-extract: Unpack an archive into its files
+   */
+  toolsArchiveExtract(args: { body: ToolsArchiveExtractBody }): Promise<ToolsArchiveExtractResponse>;
+
+  /**
    * POST /api/v1/tools/audio-convert: Convert audio, or extract a video's soundtrack
    */
   toolsAudioConvert(args: { body: ToolsAudioConvertBody }): Promise<ToolsAudioConvertResponse>;
@@ -866,6 +980,11 @@ export interface Client {
    * GET /api/v1/tools/audio-convert/formats: List the audio formats this server can write
    */
   toolsAudioConvertFormats(): Promise<ToolsAudioConvertFormatsResponse>;
+
+  /**
+   * POST /api/v1/tools/image-compress: Make an image smaller without changing what it is
+   */
+  toolsImageCompress(args: { body: ToolsImageCompressBody }): Promise<ToolsImageCompressResponse>;
 
   /**
    * POST /api/v1/tools/image-convert: Convert, resize, crop, rotate or flip an image
@@ -978,6 +1097,21 @@ export interface Client {
   toolsPixelsToSvg(args: { body: ToolsPixelsToSvgBody }): Promise<ToolsPixelsToSvgResponse>;
 
   /**
+   * POST /api/v1/tools/sprite-build: Pack frames into a sprite sheet
+   */
+  toolsSpriteBuild(args: { body: ToolsSpriteBuildBody }): Promise<ToolsSpriteBuildResponse>;
+
+  /**
+   * POST /api/v1/tools/sprite-split: Cut a sprite sheet into frames
+   */
+  toolsSpriteSplit(args: { body: ToolsSpriteSplitBody }): Promise<ToolsSpriteSplitResponse>;
+
+  /**
+   * GET /api/v1/tools/sprite-split/formats: The metadata formats, the modes and the limits
+   */
+  toolsSpriteSplitFormats(): Promise<ToolsSpriteSplitFormatsResponse>;
+
+  /**
    * POST /api/v1/tools/video-clip: Cut, crop or split a video
    */
   toolsVideoClip(args: { body: ToolsVideoClipBody }): Promise<ToolsVideoClipResponse>;
@@ -1042,8 +1176,11 @@ export function createClient(options: ClientOptions = {}): Client {
     tokensIndex: () => request<TokensIndexResponse>("GET", "/api/v1/tokens"),
     tokensRevoke: (args) => request<TokensRevokeResponse>("DELETE", "/api/v1/tokens/{token}", args),
     tokensStore: (args) => request<TokensStoreResponse>("POST", "/api/v1/tokens", args),
+    toolsArchiveCreate: (args) => request<ToolsArchiveCreateResponse>("POST", "/api/v1/tools/archive-create", args),
+    toolsArchiveExtract: (args) => request<ToolsArchiveExtractResponse>("POST", "/api/v1/tools/archive-extract", args),
     toolsAudioConvert: (args) => request<ToolsAudioConvertResponse>("POST", "/api/v1/tools/audio-convert", args),
     toolsAudioConvertFormats: () => request<ToolsAudioConvertFormatsResponse>("GET", "/api/v1/tools/audio-convert/formats"),
+    toolsImageCompress: (args) => request<ToolsImageCompressResponse>("POST", "/api/v1/tools/image-compress", args),
     toolsImageConvert: (args) => request<ToolsImageConvertResponse>("POST", "/api/v1/tools/image-convert", args),
     toolsImageConvertFormats: () => request<ToolsImageConvertFormatsResponse>("GET", "/api/v1/tools/image-convert/formats"),
     toolsImagesToPdf: (args) => request<ToolsImagesToPdfResponse>("POST", "/api/v1/tools/images-to-pdf", args),
@@ -1066,6 +1203,9 @@ export function createClient(options: ClientOptions = {}): Client {
     toolsPdfUnlock: (args) => request<ToolsPdfUnlockResponse>("POST", "/api/v1/tools/pdf-unlock", args),
     toolsPdfWatermark: (args) => request<ToolsPdfWatermarkResponse>("POST", "/api/v1/tools/pdf-watermark", args),
     toolsPixelsToSvg: (args) => request<ToolsPixelsToSvgResponse>("POST", "/api/v1/tools/pixels-to-svg", args),
+    toolsSpriteBuild: (args) => request<ToolsSpriteBuildResponse>("POST", "/api/v1/tools/sprite-build", args),
+    toolsSpriteSplit: (args) => request<ToolsSpriteSplitResponse>("POST", "/api/v1/tools/sprite-split", args),
+    toolsSpriteSplitFormats: () => request<ToolsSpriteSplitFormatsResponse>("GET", "/api/v1/tools/sprite-split/formats"),
     toolsVideoClip: (args) => request<ToolsVideoClipResponse>("POST", "/api/v1/tools/video-clip", args),
     toolsVideoCompress: (args) => request<ToolsVideoCompressResponse>("POST", "/api/v1/tools/video-compress", args),
     toolsVideoConvert: (args) => request<ToolsVideoConvertResponse>("POST", "/api/v1/tools/video-convert", args),

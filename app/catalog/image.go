@@ -33,8 +33,8 @@ var imageCatalog = []Tool{
 		In:       []string{"PNG", "JPEG", "WebP", "GIF"},
 		Out:      []string{"PNG", "JPEG", "WebP", "GIF"},
 		Group:    GroupImages,
-		Icon:     "scale",
-		Status:   Planned,
-		Keywords: []string{"optimise", "optimize", "smaller", "lossless", "tinypng"},
+		Icon:     "compress",
+		Status:   Live,
+		Keywords: []string{"optimise", "optimize", "smaller", "lossless", "tinypng", "shrink"},
 	},
 }

@@ -1,6 +1,7 @@
 package jobs
 
 import (
+	"cmp"
 	"context"
 	"encoding/json"
 	"errors"
@@ -276,6 +277,16 @@ func (s *Store) Advance(ctx context.Context, id string, step Step) (bool, error)
 type Outcome struct {
 	BytesOut int64
 	CPUMs    int64
+	// Note is the tool's own account of what it did, shown to the owner. It
+	// is stored on the conversion rather than only appended to the progress
+	// trail, because a conversion that finishes before a browser's event
+	// stream connects is answered with a snapshot and never replays the
+	// trail — and the fast conversions are exactly the ones whose result
+	// most needs explaining, a compression that changed nothing above all.
+	//
+	// Client-safe by construction: it holds no path and no engine argument,
+	// the same contract as Step.Message.
+	Note string
 }
 
 // Finish settles a conversion as finished. It reports whether this caller
@@ -293,6 +304,7 @@ func (s *Store) Finish(ctx context.Context, id string, out Outcome) (bool, error
 			"phase":       "",
 			"bytes_out":   out.BytesOut,
 			"cpu_ms":      out.CPUMs,
+			"note":        truncate(out.Note, maxErrorMessage),
 			"finished_at": at,
 			// The clock on the result starts when the result exists, not when
 			// the conversion was submitted: a job that queued for an hour
@@ -308,7 +320,13 @@ func (s *Store) Finish(ctx context.Context, id string, out Outcome) (bool, error
 		return false, nil
 	}
 
-	return true, s.record(ctx, id, Event{Status: Finished, Progress: 100, Message: "Done."})
+	// The tool's own sentence where it had one, so a client watching the
+	// stream reads the same thing a client that reloads the page reads.
+	return true, s.record(ctx, id, Event{
+		Status:   Finished,
+		Progress: 100,
+		Message:  cmp.Or(out.Note, "Done."),
+	})
 }
 
 // Failure settles a conversion as failed, classifying cause through the
@@ -328,12 +346,17 @@ func (s *Store) Failure(ctx context.Context, id string, cause error) (bool, erro
 		Where("id", id).
 		WhereIn("status", string(Pending), string(Running)).
 		Update(ctx, orm.Set{
-			"status":       string(Errored),
-			"phase":        "",
-			"error_type":   string(kind),
-			"error_detail": truncate(detail, maxErrorDetail),
-			"finished_at":  at,
-			"updated_at":   at,
+			"status":     string(Errored),
+			"phase":      "",
+			"error_type": string(kind),
+			// The specific sentence, stored rather than only appended to the
+			// trail: a client that reloads the page reads the row, and
+			// deriving the message from the type alone there threw away
+			// whatever jobs.Refuse had been given to say.
+			"error_message": truncate(message, maxErrorMessage),
+			"error_detail":  truncate(detail, maxErrorDetail),
+			"finished_at":   at,
+			"updated_at":    at,
 		})
 	if err != nil {
 		return false, fmt.Errorf("jobs: fail %s: %w", id, err)
@@ -350,6 +373,11 @@ func (s *Store) Failure(ctx context.Context, id string, cause error) (bool, erro
 // megabyte of diagnostics must not be able to grow the table without limit,
 // and the first lines are the useful ones.
 const maxErrorDetail = 4000
+
+// maxErrorMessage bounds the client-safe sentence. The messages this app
+// writes are one sentence; the bound is here so a future one that interpolates
+// an engine's own words cannot grow the row without limit.
+const maxErrorMessage = 500
 
 // Cancel stops a conversion the owner still owns, and reports whether it was
 // cancelled. A conversion that already finished is not cancellable, which is

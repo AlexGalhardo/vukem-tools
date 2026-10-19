@@ -26,7 +26,7 @@ var editCatalog = []Tool{
 		In:       []string{"MP4", "WebM", "MKV", "MOV", "AVI", "MP3", "WAV", "FLAC", "OGG", "AAC"},
 		Out:      []string{"MP4", "MP3"},
 		Group:    GroupVideo,
-		Icon:     "scale",
+		Icon:     "compress",
 		Status:   Live,
 		Keywords: []string{"smaller", "shrink", "crf", "bitrate", "optimise", "optimize", "ffmpeg"},
 	},

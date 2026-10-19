@@ -12,6 +12,7 @@ import (
 	"github.com/AlexGalhardo/vukem-tools/app/catalog"
 	"github.com/AlexGalhardo/vukem-tools/app/licenses"
 	"github.com/AlexGalhardo/vukem-tools/app/tools"
+	"github.com/AlexGalhardo/vukem-tools/internal/spritesheet"
 )
 
 // Pages renders the public pages: the tool index and the licence notice.
@@ -132,6 +133,11 @@ var pages = map[string]toolPage{ //nolint:gochecknoglobals // read-only table
 			}
 		},
 	},
+	"image-compress": {
+		component: "Tools/ToolForm",
+		// No props: the modes and the formats it compresses are in the form
+		// table, and a Go test asserts the two lists agree.
+	},
 	"video-convert": {
 		component: "Tools/VideoConvert",
 		// No props: the containers and codecs this build can encode come
@@ -154,27 +160,72 @@ var pages = map[string]toolPage{ //nolint:gochecknoglobals // read-only table
 		props: func() inertia.Props { return inertia.Props{} },
 	},
 
-	// Every live PDF tool renders one page: the form is described
-	// client-side from the tool's own option schema, so there are no
+	// Every live PDF tool renders the generic form page: the form is
+	// described client-side from the tool's own field list, so there are no
 	// per-tool props to pass.
-	"pdf-merge":         {component: "Tools/Pdf"},
-	"pdf-split":         {component: "Tools/Pdf"},
-	"pdf-extract-pages": {component: "Tools/Pdf"},
-	"pdf-remove-pages":  {component: "Tools/Pdf"},
-	"pdf-organise":      {component: "Tools/Pdf"},
-	"pdf-rotate":        {component: "Tools/Pdf"},
-	"pdf-crop":          {component: "Tools/Pdf"},
-	"images-to-pdf":     {component: "Tools/Pdf"},
-	"pdf-to-image":      {component: "Tools/Pdf"},
-	"pdf-to-pdfa":       {component: "Tools/Pdf"},
-	"pdf-to-text":       {component: "Tools/Pdf"},
-	"pdf-compress":      {component: "Tools/Pdf"},
-	"pdf-repair":        {component: "Tools/Pdf"},
-	"pdf-protect":       {component: "Tools/Pdf"},
-	"pdf-unlock":        {component: "Tools/Pdf"},
-	"pdf-compare":       {component: "Tools/Pdf"},
-	"pdf-page-numbers":  {component: "Tools/Pdf"},
-	"pdf-watermark":     {component: "Tools/Pdf"},
+	"pdf-merge":         {component: "Tools/ToolForm"},
+	"pdf-split":         {component: "Tools/ToolForm"},
+	"pdf-extract-pages": {component: "Tools/ToolForm"},
+	"pdf-remove-pages":  {component: "Tools/ToolForm"},
+	"pdf-organise":      {component: "Tools/ToolForm"},
+	"pdf-rotate":        {component: "Tools/ToolForm"},
+	"pdf-crop":          {component: "Tools/ToolForm"},
+	"images-to-pdf":     {component: "Tools/ToolForm"},
+	"pdf-to-image":      {component: "Tools/ToolForm"},
+	"pdf-to-pdfa":       {component: "Tools/ToolForm"},
+	"pdf-to-text":       {component: "Tools/ToolForm"},
+	"pdf-compress":      {component: "Tools/ToolForm"},
+	"pdf-repair":        {component: "Tools/ToolForm"},
+	"pdf-protect":       {component: "Tools/ToolForm"},
+	"pdf-unlock":        {component: "Tools/ToolForm"},
+	"pdf-compare":       {component: "Tools/ToolForm"},
+	"pdf-page-numbers":  {component: "Tools/ToolForm"},
+	"pdf-watermark":     {component: "Tools/ToolForm"},
+
+	// The sprite tools get pages of their own rather than the generic form
+	// page: both draw the sheet, one with a grid overlay the controls redraw
+	// without a round trip and one with the packed result, and neither is a
+	// thing a field list can express.
+	"sprite-split": {
+		component: "Tools/SpriteSplit",
+		props: func() inertia.Props {
+			return inertia.Props{
+				"modes":    tools.SpriteModes(),
+				"metadata": spritesheet.MetaFormats(),
+				"limits":   spriteLimits(),
+			}
+		},
+	},
+	"sprite-build": {
+		component: "Tools/SpriteBuild",
+		props: func() inertia.Props {
+			return inertia.Props{
+				"layouts":  tools.SpriteLayouts(),
+				"metadata": spritesheet.MetaFormats(),
+				"limits":   spriteLimits(),
+			}
+		},
+	},
+
+	// The archive tools, on the same generic page: picking files, choosing a
+	// format and a level, and reading a list of results back is exactly what
+	// that page does. Their fields live in resources/js/lib/forms/archive.ts.
+	"archive-create":  {component: "Tools/ToolForm"},
+	"archive-extract": {component: "Tools/ToolForm"},
+}
+
+// spriteLimits is what the sprite pages need to refuse a sheet before
+// uploading it, so the browser says the same thing the server would.
+func spriteLimits() map[string]int {
+	return map[string]int{
+		"maxDimension": spritesheet.MaxDimension,
+		"maxPixels":    spritesheet.MaxPixels,
+		"maxFrames":    spritesheet.MaxFrames,
+		"maxGutter":    spritesheet.MaxGutter,
+		"maxExtrude":   spritesheet.MaxExtrude,
+		"maxSheetSize": spritesheet.DefaultMaxSheetSize,
+		"maxFormats":   spritesheet.MaxMetaFormats,
+	}
 }
 
 // Licenses renders the licence notice: GET /licenses.

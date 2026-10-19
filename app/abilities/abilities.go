@@ -22,6 +22,10 @@ const (
 	PDFCompress     = "pdf:compress"
 	VideoTranscribe = "video:transcribe"
 	SpriteSheet     = "sprite:sheet"
+	// Archive covers both directions. One ability rather than two because
+	// creating and extracting are one family: a key minted to zip files up is
+	// a key minted to work with archives.
+	Archive = "archive:files"
 )
 
 // all is the closed set, built from one slice per domain so that a domain can
@@ -41,6 +45,7 @@ var coreAbilities = []string{
 	PDFCompress,
 	VideoTranscribe,
 	SpriteSheet,
+	Archive,
 }
 
 // All returns every ability a key may be granted, in a stable order.

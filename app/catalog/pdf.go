@@ -240,7 +240,7 @@ var pdfCatalog = []Tool{
 		In:       []string{"PDF"},
 		Out:      []string{"PDF"},
 		Group:    GroupDocuments,
-		Icon:     "scale",
+		Icon:     "compress",
 		Status:   Live,
 		Keywords: []string{"smaller", "reduce", "ghostscript", "ilovepdf"},
 	},

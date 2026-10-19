@@ -18,6 +18,7 @@ export default {
 				"pdf",
 				"pixelsvg",
 				"sprite",
+				"archive",
 				"telemetry",
 				"downloader",
 				"editor",

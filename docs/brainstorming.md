@@ -205,3 +205,190 @@ Carried into the ROADMAP as explicit tasks rather than assumptions:
   `nsjail` and `bubblewrap` are already ruled out there (no user namespaces).
 - LibreOffice's licence is reported differently by the GitHub API (GPL-3.0) and by the project
   (MPL-2.0). Resolve before Office → PDF ships, which is a later phase anyway.
+
+## 6. Decisions taken while finishing the archive tools (2026-10-19)
+
+Recorded here because §3's decisions are final unless this file is updated first, and these
+change what the ROADMAP promised.
+
+### 6.1 Archives: ZIP, TAR, TAR.GZ and GZ — no XZ, no ZSTD
+
+The ROADMAP's `archive` entry promised "ZIP, TAR, GZ, XZ and ZSTD, in both directions". XZ and
+ZSTD are **dropped**, and the catalogue entries now say what ships.
+
+Neither format is in the Go standard library. XZ would mean `ulikunitz/xz` and ZSTD
+`klauspost/compress`: two modules, two `/licenses` entries and two more things to keep current, to
+add formats that overlap entirely with the four that ship for anything sent to a web service.
+`internal/spritesheet` set the precedent — pure Go, no dependency, `git diff go.mod go.sum` empty
+across the feature — and this follows it. TAR.GZ replaces the promised bare GZ as the useful
+multi-file compressed format; bare GZ ships too, for the single-file case.
+
+**Rejected:** shelling out to `xz` and `zstd`. Both would be new pinned engines in the Dockerfile
+for a pure-Go problem, which is the trade `.claude/rules/engines.md` exists to avoid making
+casually.
+
+### 6.2 Two tools, not one with a direction
+
+The ROADMAP had one entry, "Create or extract an archive". What ships is `archive-create` and
+`archive-extract`, which is the same call §S7.0 made for `sprite-split` and `sprite-build`.
+
+The reason is the type gate rather than taste. `jobs.Accepter` is what refuses a file at
+submission, before a worker is spent on it, and the two directions accept opposite things:
+creating takes any number of files of any type, extracting takes exactly one archive. One tool
+would have had to accept the union — every type the service knows — and the gate would have been
+gone. They share one ability, `archive:files`, because they are one family.
+
+### 6.3 `application/octet-stream` is a result type, not a known type
+
+An archive may hold anything, so an extracted member can be a type the service does not otherwise
+name. Refusing the whole archive over one such member would make extraction useless on real
+archives, so there is a fallback kind — and it lives in `internal/detect`'s `resultOnly` table,
+not in `known`.
+
+The distinction is load-bearing. The upload gate reads `Types()`, which reads `known`; putting a
+catch-all there would turn "unrecognised files are refused at the door" into "anything at all is
+accepted", which is the cheapest defence this service has. `detect.OfResult` is the identifier for
+a file the service **produced** and is the only thing that consults the fallback. `detect.Of`, the
+input identifier, is unchanged.
+
+`application/x-tar` **is** added to `known`, deliberately: extraction reads TAR, so a TAR upload
+has to be accepted. It is parsed by `archive/tar` from the standard library rather than by a C
+library, so the one-format widening adds no attack surface of the kind
+`docs/deployment.md § Known vulnerabilities` tracks.
+
+### 6.4 Extraction caps, and why a ratio cap is needed on top of a size cap
+
+64 members, 512 MiB unpacked, 128 bytes per member name — each refused with the number named.
+
+A ZIP declares every member's uncompressed size in its own directory and a TAR declares it in each
+member's header, so a declared bomb is refused from the declaration, before a byte is inflated. A
+**bare gzip declares nothing**, and there the size cap alone is not a defence: a kilobyte of gzip
+reaching 512 MiB means writing half a gigabyte and spending a minute of CPU to learn what the
+ratio made obvious in the first megabyte. So one compressed stream may expand at most 500× past a
+one-mebibyte floor.
+
+This was found by fuzzing rather than by review: with only the size cap, `FuzzExtract` stalled at
+zero executions per second for twenty-eight seconds on a single mutated input. With the ratio cap
+it sustains hundreds to thousands per second.
+
+### 6.5 The generic tool page is not the PDF domain's
+
+`resources/js/lib/pdf.ts` and `pages/Tools/Pdf.tsx` were the machinery for "a file picker, a field
+list and a download", which is what the archive tools need too. Rather than a second copy, the
+machinery is now `lib/toolForm.ts` and `pages/Tools/ToolForm.tsx`, with one form table per domain
+under `lib/forms/` — the structure `routes/apidocs.go` already uses on the server, and for the
+same reason.
+
+A tool whose **interaction** differs, rather than only its fields, still gets its own page. The
+sprite tools draw a grid over the sheet, which no field list can express.
+
+## 7. Image compression: libvips alone (2026-10-19)
+
+The ROADMAP's S4.2 planned a chain of specialist optimisers: `oxipng` for PNG, `jpegtran` for
+JPEG, `gifsicle -O3` for GIF, `pngquant`, `cwebp`, `avifenc`. **None of them ships.**
+
+Five more packages pinned into a 1.2 GB image, two of them GPL (`jpegoptim` and `gifsicle`) and so
+two more entries on `/licenses` with obligations attached, plus five more CVE surfaces to track —
+to beat an encoder already in the image. The engine rule in `.claude/rules/engines.md` exists to
+stop that trade being made casually, and this is the case it was written for.
+
+What that costs, stated rather than hidden:
+
+- **No lossless JPEG optimisation at all.** libvips has no such re-encode; `jpegtran` is what does
+  it. Asking for lossless on a JPEG is refused by name, with lossy named as the way forward,
+  rather than quietly done lossily.
+- **A general-purpose encoder loses to a specialist one more often**, so "returned unchanged"
+  happens more than it would with the chain. The measured examples are in
+  [benchmarks.md](benchmarks.md): a WebP and a GIF that libvips itself wrote cannot be beaten by
+  libvips.
+
+What it buys, measured rather than assumed: 74 % off a PNG losslessly and 39 % off a JPEG at
+SSIM 0.9977, with no new dependency, no new licence and no change to the image.
+
+The seam is left where a reader will find it. Every setting is one entry in the `recipes` table in
+`internal/image/compress.go`, so adding `oxipng` later is a candidate in a list rather than a
+rewrite.
+
+### 7.1 Try everything, keep the smallest
+
+A compressor that runs the encoder once and hands back the output is re-encoding, not compressing.
+Which settings win depends on the picture, and not mildly: PNG row filters make the gradient
+fixture seventy-four times smaller and a field of noise two per cent larger, and the palette — the
+lossy mode — is twenty-nine times *worse* than lossless on a gradient, because dithering adds
+noise the compressor then stores.
+
+So each mode lists what is worth trying, all of them run, and the smallest file wins. The lossy
+list contains the lossless candidates too, which is not a contradiction: lossy is permission to
+move the pixels, not an obligation, and returning a larger file because the smaller one happened
+to be lossless would be absurd.
+
+### 7.2 Never hand back something larger
+
+A file this encoder cannot beat comes back as itself, with a sentence saying so. That sentence is
+the whole answer for that case — "nothing was stored" would be true and useless, and a silent
+no-op reads as a broken tool.
+
+### 7.3 Compressing is its own tool, not a flag on converting
+
+The two answer different questions and a person arrives with one of them. "Make this smaller" has
+no output format, no geometry and no crop; burying it as a flag on a tool with fourteen options is
+how somebody accidentally resizes a photograph they only wanted to shrink the file of. The format
+therefore never changes, which also means every link to the file still resolves.
+
+## 8. Finishing the sprite sheets (2026-10-19)
+
+The library was already there; S7.3 to S7.5 were not. What shipping them settled:
+
+### 8.1 The grid arithmetic exists twice, on purpose
+
+The split page draws the grid over the sheet and shows the frame count as a control moves, with no
+round trip — which is what makes choosing a cell size feel like adjusting something rather than
+submitting a form. That needs the arithmetic in the browser, so
+`resources/js/lib/spriteGrid.ts` mirrors `internal/spritesheet/grid.go`.
+
+Two copies of a calculation is a liability, and the usual answer — have the client ask the server
+— is the one thing that would defeat the point. So the two are pinned against **one written-down
+table** of fifteen cases, run by `spriteGrid.test.ts` and by `tests/sprite_grid_table_test.go`.
+Neither is tested against the other, which would let both drift together; both are tested against
+the answers.
+
+The one real trap is in that table: Go divides integers and JavaScript does not, so four columns
+across a 124-pixel span is 31 in Go and 31 in a mirror that remembers to floor.
+
+**Rejected:** generating the TypeScript from the Go. The arithmetic is thirty lines and reads
+better written than generated, and a generator would be a build step nobody runs locally.
+
+### 8.2 `bun test`, and the one dev dependency
+
+Pinning the two implementations needs a JavaScript test runner. Bun has one built in, so
+`bun test` costs nothing to add, and `@types/bun` is the only new entry in `package.json` — types
+only, in devDependencies, in no shipped artifact. CI's assets job runs it.
+
+### 8.3 `blob:` in `img-src`
+
+Previewing a sheet somebody just dropped means `URL.createObjectURL`, and the default CSP's
+`img-src 'self' data:` refuses the resulting `blob:` URL — so the preview silently did not appear.
+
+The alternative, a `data:` URL, is base64: a 64 MB sheet becomes an 85 MB string held beside the
+decoded image. The directive is widened instead, for images only. A `blob:` URL is minted by the
+page's own JavaScript from a file the person chose, is unguessable, and dies with the document.
+
+### 8.4 The result's own sentence lives on the conversion, not the trail
+
+Several tools produce a result whose value is not obvious from the file: a compression that could
+not beat the original, a split that dropped three components as noise, a build that used 42 % of
+its sheet. That sentence was first written to the progress trail only — and a conversion that
+finishes before the browser's event stream connects is answered with a snapshot of the final
+state, which carries no trail. The fast conversions, which is most of them, lost the one thing
+that explained the result.
+
+So `jobs.Outcome` carries a `Note`, stored on the conversion beside the failure message that
+`§ 6` of this file's predecessor migration added. Both surfaces now read the same sentence.
+
+### 8.5 Godot and Unity get a catalogue entry, not a writer
+
+The phase decided this and it is worth restating as shipped: neither engine needs a file this
+service could write, and both would need an undocumented, version-fragile one. So there is a
+third catalogue entry, `sprite-godot-unity`, marked skipped with that reason — a visitor
+comparing this with TexturePacker finds the answer rather than concluding it is missing — and the
+build page shows the one-line import instruction whenever the layout is `grid`.

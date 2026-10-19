@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<TextureAtlas imagePath="sheet.png">
+  <SubTexture name="walk_000" x="0" y="0" width="32" height="32"></SubTexture>
+  <SubTexture name="walk_001" x="32" y="2" width="28" height="27" frameX="-3" frameY="-2" frameWidth="32" frameHeight="32"></SubTexture>
+  <SubTexture name="idle_000" x="64" y="0" width="32" height="32"></SubTexture>
+</TextureAtlas>

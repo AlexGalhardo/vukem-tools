@@ -134,6 +134,31 @@
 		text-decoration-thickness: from-font;
 	}
 
+	/* The two touch defaults that make a page feel like a document rather
+	   than an interface, both of which only show up on a phone.
+
+	   `touch-action: manipulation` drops the ~300ms a mobile browser waits
+	   after a tap to see whether a second one is coming: without it every
+	   control on the site answers a third of a second late, which reads as
+	   the server being slow.
+
+	   The tap highlight is a translucent grey box the browser paints over
+	   whatever is tapped, in its own colour and with its own shape, ignoring
+	   the border radius underneath. Set to transparent because every
+	   interactive thing here already has a hover and an active state drawn
+	   from the palette; this would be a second, uglier one on top. */
+	a,
+	button,
+	label,
+	summary,
+	[role="menuitem"],
+	input,
+	select,
+	textarea {
+		touch-action: manipulation;
+		-webkit-tap-highlight-color: transparent;
+	}
+
 	/* Every number that changes gets tabular figures, so it does not jitter. */
 	.tabular {
 		font-family: var(--font-mono);
@@ -150,6 +175,20 @@
 		letter-spacing: 0.08em;
 		text-transform: uppercase;
 		color: var(--color-ink-faint);
+	}
+}
+
+@layer base {
+	/* A notched phone in landscape puts the display cutout over the left or
+	   right edge of the viewport. The header and the footer run the full
+	   width, so without this their first and last items sit under it.
+
+	   `max()` rather than an addition: the inset is zero on every device
+	   without a cutout and in portrait, and adding it would be a no-op there
+	   while the existing 1rem gutter is what the design asks for. */
+	.edge-safe {
+		padding-left: max(1rem, env(safe-area-inset-left));
+		padding-right: max(1rem, env(safe-area-inset-right));
 	}
 }
 

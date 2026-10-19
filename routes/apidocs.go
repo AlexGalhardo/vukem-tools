@@ -116,12 +116,16 @@ func OpenAPIDocument(app *vukem.App) (*openapi.Document, error) {
 
 // describeSecurity documents the X-API-Key alternative.
 //
-// workaround(vukem): api.Op.Security may only name a scheme the document it
-// ends up in declares, and App.OpenAPI() (which vukemtest's
-// AssertMatchesOpenAPI and the codegen commands use) builds its document with
-// no Info.SecuritySchemes and no hook to add one. Naming "apiKey" in an Op
-// would therefore make App.OpenAPI() fail with ErrUnknownSecurityScheme, so
-// the Ops name only "bearer" and the second scheme is attached here.
+// Every Op names only "bearer", and the second scheme is attached to the
+// finished document here. That is **not** a framework limitation, and the
+// comment that used to say so was wrong: vukem.WithOpenAPI takes an
+// openapi.Info whose SecuritySchemes App.OpenAPI() then carries, so an Op
+// could name "apiKey" directly. This app has simply never passed that option.
+//
+// Adopting it means declaring both schemes at boot and widening every Op's
+// Security list, which is a change to a security-relevant surface for a
+// cosmetic gain; it is recorded as follow-up work in docs/vukem-audit.md
+// rather than done in passing.
 func describeSecurity(doc *openapi.Document) {
 	if doc.Components.SecuritySchemes == nil {
 		return // nothing secured: no scheme to extend
@@ -156,9 +160,16 @@ func describeSecurity(doc *openapi.Document) {
 
 // describeExamples attaches one example to every request body and response.
 //
-// workaround(vukem): openapi.MediaType carries a schema and nothing else, and
-// no struct tag feeds an example, so the only place an example fits is the
-// JSON Schema `examples` keyword of the schema itself.
+// The examples go into the schema's own JSON Schema `examples` keyword, which
+// is what tests/openapi_test.go asserts on. That is a choice this app made
+// early and has not revisited, **not** a framework limitation: openapi.MediaType
+// carries Example and Examples (proper OpenAPI Example Objects), and an
+// `example:"..."` struct tag feeds a field's example. The comment that used to
+// claim otherwise was wrong on both counts.
+//
+// Moving to MediaType.Example means changing hasExample in
+// tests/openapi_test.go and every example site at the same time, which is a
+// repo-wide sweep; docs/vukem-audit.md records it as follow-up work.
 func describeExamples(doc *openapi.Document) {
 	for name, ex := range componentExamples() {
 		if sc, ok := doc.Components.Schemas[name]; ok {
@@ -171,22 +182,11 @@ func describeExamples(doc *openapi.Document) {
 	exampleResponse(doc, "Problem", problemExample())
 	exampleResponse(doc, "ValidationError", validationProblemExample())
 
-	notes := parameterNotes()
-
+	// Parameters describe and illustrate themselves from their input type's
+	// `doc` and `example` tags, which the generator honours for a path
+	// parameter as well as a query one. Only request bodies need help here.
 	for _, methods := range doc.Paths {
 		for _, op := range methods {
-			for i := range op.Parameters {
-				p := &op.Parameters[i]
-
-				note, ok := notes[op.OperationID+"."+p.Name]
-				if !ok {
-					continue
-				}
-
-				p.Description = note.description
-				p.Schema["examples"] = []any{note.example}
-			}
-
 			ex, ok := requestExamples()[op.OperationID]
 			if !ok || op.RequestBody == nil {
 				continue
@@ -199,28 +199,11 @@ func describeExamples(doc *openapi.Document) {
 	}
 
 	// Each domain keeps its own examples in its own route file, so adding a
-	// tool is one line here instead of a conflict in the two maps above.
+	// tool is one line here instead of a conflict in the map above.
 	applyDomainExamples(doc, downloadExamples())
-}
-
-// paramNote documents one path or query parameter.
-//
-// workaround(vukem): openapi.Parameter is filled from the input type's fields,
-// but only a query parameter keeps the field's `doc` tag; a path parameter
-// loses it, and neither carries an example.
-type paramNote struct {
-	description string
-	example     any
-}
-
-// parameterNotes maps "<operationId>.<parameter>" to its documentation.
-func parameterNotes() map[string]paramNote {
-	return map[string]paramNote{
-		"tokens.revoke.token": {
-			description: "The id of the key to revoke, as returned in the id field when it was issued.",
-			example:     "k_7f3c1b9e",
-		},
-	}
+	applyDomainExamples(doc, DomainExamples{
+		Components: map[string]any{"SpriteCapabilities": spriteCapabilitiesExample()},
+	})
 }
 
 // exampleResponse gives one shared response its own example without touching
@@ -280,6 +263,15 @@ func requestExamples() map[string]any {
 				"keep_metadata": false,
 			},
 		},
+		"tools.image-compress": map[string]any{
+			"file_id":         "01JQ8Z5X0K7M3N9P2R4T6V8W0Y",
+			"idempotency_key": "gallery-shrink-12",
+			"options": map[string]any{
+				"mode":    "lossy",
+				"quality": 80,
+				"effort":  0,
+			},
+		},
 		"tools.video-convert": map[string]any{
 			"file_id":         "01JQ8Z5X0K7M3N9P2R4T6V8W0Y",
 			"idempotency_key": "lecture-7-720p",
@@ -317,6 +309,8 @@ func requestExamples() map[string]any {
 	}
 
 	maps.Copy(out, pdfRequestExamples())
+	maps.Copy(out, archiveRequestExamples())
+	maps.Copy(out, spriteRequestExamples())
 
 	return out
 }

@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"path/filepath"
 	"time"
 
 	vukem "github.com/AlexGalhardo/vukem"
@@ -124,6 +125,22 @@ func Media(c *services.Conversions) func(r *router.Router, app *vukem.App) error
 					Security: []string{SchemeBearer},
 				}, h.ImageConvert).Use(submit)
 
+				api.Register(p, "POST /tools/image-compress", api.Op{
+					Name:    "tools.image-compress",
+					Summary: "Make an image smaller without changing what it is",
+					Description: "The format never changes; image-convert is what changes a " +
+						"format. Each mode runs every encoder setting worth trying and keeps " +
+						"the smallest file, so a lossy compression can legitimately come back " +
+						"lossless when that was smaller. A file this encoder cannot beat is " +
+						"returned unchanged with the fact stated, rather than re-encoded into " +
+						"something larger. PNG and GIF compress losslessly by default, JPEG and " +
+						"WebP lossily; lossless is refused for JPEG, because libvips has no " +
+						"lossless JPEG re-encode and jpegtran is not in this image. Metadata is " +
+						"always removed.",
+					Tags:     []string{tagMedia},
+					Security: []string{SchemeBearer},
+				}, h.ImageCompress).Use(submit)
+
 				api.Register(p, "POST /tools/video-convert", api.Op{
 					Name:    "tools.video-convert",
 					Summary: "Convert a video between containers and codecs",
@@ -191,6 +208,16 @@ func resolveMediaEngines(app *vukem.App, c *services.Conversions) (*tools.Media,
 		return nil, err
 	}
 
+	// Removed once the probe has answered. It holds four pixels and a handful
+	// of trial encodes, none of which is worth anything after boot, and
+	// leaving it behind is what made two processes sharing a working root
+	// overwrite each other's probe image.
+	defer func() {
+		if err := os.RemoveAll(dir); err != nil {
+			app.Log.Warn("routes: engine probe directory not removed", "dir", dir, "err", err)
+		}
+	}()
+
 	// The probe is bounded. An engine that cannot encode four pixels
 	// promptly is an engine that will not convert anything, and a deploy
 	// should say so rather than hang.
@@ -232,12 +259,34 @@ func mediaProbeDir(app *vukem.App) (string, error) {
 		root = defaultMediaProbeRoot
 	}
 
-	dir := root + "/capability-probe"
+	// Absolute, because the probe passes this directory to the engine both as
+	// the command's working directory and inside the file arguments. A
+	// relative root would be resolved twice — once by this process and again
+	// by the engine against its own working directory — and the engine would
+	// refuse a path that does not exist. ENGINE_WORKDIR is absolute in the
+	// image, so only an unset or relative setting hit this, which is every
+	// local run and the whole of ./tests/.
+	base, err := filepath.Abs(root)
+	if err != nil {
+		return "", fmt.Errorf("routes: resolve the engine working root %s: %w", root, err)
+	}
 
 	// 0o700 because the engines run as this user and nothing else has any
 	// business reading what they write.
-	if err := os.MkdirAll(dir, 0o700); err != nil {
-		return "", fmt.Errorf("routes: prepare the engine probe directory %s: %w", dir, err)
+	if err := os.MkdirAll(base, 0o700); err != nil {
+		return "", fmt.Errorf("routes: prepare the engine working root %s: %w", base, err)
+	}
+
+	// A fresh directory per boot rather than a fixed "capability-probe",
+	// because the probe writes one file under a fixed name and then reads it
+	// back for every trial encode. Two apps sharing a working root — which is
+	// every parallel test in ./tests/ that does not sandbox, and any two
+	// processes on one volume — would overwrite each other's probe image
+	// halfway through and the engine would report a truncated file. MkdirTemp
+	// also creates it, with 0o700.
+	dir, err := os.MkdirTemp(base, "capability-probe-")
+	if err != nil {
+		return "", fmt.Errorf("routes: prepare the engine probe directory under %s: %w", base, err)
 	}
 
 	return dir, nil

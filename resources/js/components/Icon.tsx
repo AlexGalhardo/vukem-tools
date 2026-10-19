@@ -20,6 +20,9 @@ const paths = {
   audio: "M4 14V10h3l4-3.5v11L7 14H4zM15 9.5a4 4 0 0 1 0 5M18 7a7.5 7.5 0 0 1 0 10",
   document: "M6 3h7l5 5v13H6zM13 3v5h5",
   archive: "M4 7h16v13H4zM4 7l2-3h12l2 3M10 11h4",
+  /** A sprite sheet: a frame grid. Three by two rather than a square, so it
+   *  reads as a sheet of frames rather than as a layout or a table. */
+  grid: "M3.5 5h17v14h-17zM9.17 5v14M14.83 5v14M3.5 12h17",
   download: "M12 4v11M7.5 10.5 12 15l4.5-4.5M5 19h14",
   upload: "M12 16V5M7.5 9.5 12 5l4.5 4.5M5 19h14",
   close: "M6 6l12 12M18 6 6 18",
@@ -28,10 +31,32 @@ const paths = {
   clock: "M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18ZM12 7.5V12l3.5 2",
   sun: "M12 16.5a4.5 4.5 0 1 0 0-9 4.5 4.5 0 0 0 0 9ZM12 2v2M12 20v2M4.2 4.2l1.4 1.4M18.4 18.4l1.4 1.4M2 12h2M20 12h2M4.2 19.8l1.4-1.4M18.4 5.6l1.4-1.4",
   moon: "M20 14.5A8.5 8.5 0 0 1 9.5 4a8.5 8.5 0 1 0 10.5 10.5Z",
-  monitor: "M3 5h18v11H3zM8.5 20h7M12 16v4",
   key: "M15.5 3a5.5 5.5 0 0 1 2.9 10.2L17 14.6l-1.5-1.5-2 2-2-2-7 7v-3l7-7A5.5 5.5 0 0 1 15.5 3Z",
-  scale: "M4 7h16M8 7V4h8v3M6 7l1 13h10l1-13",
+  /** Compression: two edges pressed toward a line.
+   *
+   *  This replaces `scale`, which the three compression tools used and which
+   *  was drawn as a waste bin — so every "compress" tool on the index showed
+   *  a delete icon. One name was carrying two meanings and was drawn as
+   *  neither; this is one of them and `sliders` is the other. */
+  compress: "M12 3v6M9 6.5 12 9.5 15 6.5M12 21v-6M9 17.5 12 14.5 15 17.5M3.5 12h17",
+  /** A panel of settings: two tracks with a handle on each. The other half
+   *  of what `scale` was being asked to mean, on the option panels. */
+  sliders: "M4 8h7M15 8h5M4 16h3M11 16h9M13 5.5v5M9 13.5v5",
   external: "M14 4h6v6M20 4l-8 8M18 14v6H4V6h6",
+  /** The navigation menu, at the one weight the rest of the set uses: three
+   *  rules on the 24px grid rather than the heavier three-bar glyph an icon
+   *  font would supply. */
+  menu: "M4 7h16M4 12h16M4 17h16",
+  /** A person, for the signed-in account. Head and shoulders, which is the
+   *  plain reading of "the account" and needs no avatar image to stand in
+   *  for a name. */
+  user: "M12 11.5a3.75 3.75 0 1 0 0-7.5 3.75 3.75 0 0 0 0 7.5ZM4.75 20a7.25 7.25 0 0 1 14.5 0",
+  /** A disclosure chevron, pointing down: the menu opens below its trigger. */
+  chevron: "M7.5 10.5 12 15l4.5-4.5",
+  /** Leaving: a door with the way out drawn through it. Its own glyph rather
+   *  than `external`, which is an arrow leaving the page and reads as "opens
+   *  in a new tab" — the wrong promise on the control that ends a session. */
+  signout: "M14 4h4a1 1 0 0 1 1 1v14a1 1 0 0 1-1 1h-4M10.5 15.5 14 12l-3.5-3.5M14 12H4",
 } as const;
 
 /** Name is an icon in the set. */

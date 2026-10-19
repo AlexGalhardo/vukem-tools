@@ -401,6 +401,16 @@ and a `/up` route. What is left is below.
       accessibility defect was caught: wrapping the input and the button in one `<label>` made the
       field announce as "Password Show password"
 - [x] A favicon, served as SVG with an ICO fallback
+- [x] Header built for a phone first: the pages, the theme and the account behind one menu button,
+      every hit target 44px, and the brand reduced to "Tools" at phone width. The account is a
+      face icon rather than the person's name, because a name is a link whose width changes with
+      the person using the site
+- [x] `/sitemap.xml`, listing only what an anonymous visitor can actually read. Absolute URLs
+      built from `APP_URL`, never from the request's `Host`: a sitemap built from the Host lets
+      anyone mint one that advertises their own domain carrying this site's paths. The tool pages
+      are deliberately absent — they are behind `auth.Required`, so a crawler following one is
+      redirected, and a sitemap whose entries redirect is a list of promises the site does not
+      keep
 
 The shell is built and its structure verified from the served HTML (the pre-paint theme script
 with its nonce, the nonce-only CSP, the favicon, and the real catalogue props). **Three asserts
@@ -415,6 +425,12 @@ happened. They stay unticked, and `questions-to-dev.md` § 0 says so.
 - The queue survives a page reload mid-job, reattaching to the SSE stream
 - No layout shift above 0.1 CLS on the tool pages
 - `bun run build` output contains no source map in production and no unused Tailwind layer
+- [x] Every page the sitemap advertises answers 200 to a visitor with no account, and every public
+      page is either advertised or carries a written reason for being left out
+      (`TestTheSitemapCoversEveryPublicPage`, `TestEverySitemapURLIsReachableWithoutAnAccount`,
+      `TestTheSitemapIsValidAndAbsolute`)
+- [x] The header fits 320px with no horizontal overflow, signed in and signed out, and every
+      control in it is at least 44px — measured in Chromium, not asserted from the class names
 
 ### S1.11 Container and engines
 
@@ -839,30 +855,40 @@ Target version: `v0.4.0`.
 
 ### S4.2 Image compression and optimisation
 
-- [ ] Lossless chain: `oxipng` for PNG, `jpegtran` for JPEG, `gifsicle -O3` for GIF
-- [ ] Lossy chain: `cjpeg`/`cjpegli` for JPEG, `pngquant` for palette PNG, `cwebp`, `avifenc`,
-      `cjxl`
-- [ ] A single "make this smaller" entry point that picks the chain from the detected type and
+**Shipped on libvips alone. The specialist chain this section planned was not taken**, and the
+decision with its measurements is in [docs/brainstorming.md § 7](docs/brainstorming.md).
+
+- [~] ~~Lossless chain: `oxipng` for PNG, `jpegtran` for JPEG, `gifsicle -O3` for GIF~~ — not
+      taken. libvips's own lossless encoders do it, at the cost of no lossless JPEG optimisation
+      at all, which is refused by name rather than quietly done lossily
+- [~] ~~Lossy chain: `cjpeg`/`cjpegli`, `pngquant`, `cwebp`, `avifenc`, `cjxl`~~ — not taken.
+      libvips's savers with mozjpeg-style settings and a palette candidate for PNG
+- [x] A single "make this smaller" entry point that picks the settings from the detected type and
       reports what it did
-- [ ] Every optimiser pinned, and its licence on `/licenses` (`jpegoptim` and `gifsicle` are GPL,
-      `pngquant` is GPL-or-commercial)
+- [x] No optimiser pinned and no `/licenses` entry, because no engine was added. This replaces
+      the licence gate for this section, as it did for S7 and S8
 
 #### Quality asserts
 
-- [ ] Every chain produces a file that is smaller or the original is returned unchanged with a note
-- [ ] Lossless chains are verified lossless: decoded pixels are byte-identical to the source
-- [ ] Lossy chains record the SSIM or `ssimulacra2` score of a fixture, and a regression fails the
-  test
-- [ ] The reported "what it did" string names the actual tools used
+- [x] Every mode produces a file that is smaller, or the original is returned unchanged with a
+      note — and the note is on the progress trail, where a person reads it
+      (`TestAnIncompressibleFileComesBackUnchanged`, and the two measured zeroes in
+      [docs/benchmarks.md](docs/benchmarks.md))
+- [x] Lossless is verified lossless: the decoded pixels are compared one by one against the
+      source, and the failure names the first coordinate that moved
+      (`TestCompressingAPNGIsSmallerAndPixelIdentical`)
+- [x] Lossy records an SSIM, computed in the test rather than by a dependency, and a regression
+      below 0.95 fails (`TestCompressingAJPEGIsSmallerAndStaysFaithful`, measured 0.9977)
+- [x] The "what it did" string names the tool that actually ran, which candidate won and what it
+      saved (`TestTheReportNamesTheEngineAndTheMode`)
+- [x] Every setting worth trying is run and the smallest file wins, because which one wins depends
+      on the picture by factors of seventy, not percentages
+- [x] The modes the interface offers are exactly the modes the library implements, asserted across
+      the Go/TypeScript boundary (`TestTheInterfaceOffersEveryCompressModeAndNoOther`)
 
-**Nothing in S4.2 is done, and nothing in it can be yet.** Not one of the optimisers it names is in
-the production image: `oxipng`, `jpegtran`, `gifsicle`, `cjpeg`, `cjpegli`, `pngquant`, `cwebp`,
-`avifenc` and `cjxl` are all absent, and so is `ssimulacra2` for the quality assert. Each is a new
-Dockerfile pin, a new `/licenses` entry and a new CVE surface, and three of them are copyleft or
-dual-licensed (`gifsicle` and `jpegoptim` are GPL, `pngquant` is GPL-or-commercial), which the
-engine rules make an owner decision. Building a "make this smaller" entry point on libvips
-re-encoding alone would meet none of these asserts and would label a lossy re-encode as
-optimisation.
+`ssimulacra2` is still absent and is not needed: the SSIM above is forty lines in the test and
+costs no dependency. Revisiting the specialist chain is a candidate added to one table in
+`internal/image/compress.go`, not a rewrite.
 
 ### S4.3 Image editing
 
@@ -944,9 +970,11 @@ phase with its own asserts when it is picked up; the engines are already researc
 - [ ] **Sprite sheet and frame atlas** — split a sheet into frames, build a sheet from frames,
       export the metadata game engines import. Promoted out of this backlog: it is now its own
       phase, planned in [§ Phase S7](#phase-s7--sprite-sheets-and-frame-atlases).
-- [ ] **Archives** — ZIP, TAR, GZ, XZ, ZSTD, BR create and extract (`mholt/archives`,
-      `klauspost/compress`); 7z write through `7zz`; RAR **read only**, because the unRAR licence
-      forbids recreating RAR compression.
+- [x] **Archives** — promoted out of this backlog and shipped as its own phase, planned in
+      [§ Phase S8](#phase-s8--archives). The scope narrowed on the way: ZIP, TAR, TAR.GZ and GZ
+      ship, in both directions, pure Go and with **no new dependency**. XZ, ZSTD and BR are
+      **dropped** (neither `mholt/archives` nor `klauspost/compress` was taken), 7z and RAR are
+      not built. [docs/brainstorming.md § 6.1](docs/brainstorming.md) records why.
 - [ ] **PDF** — its own phase, planned in [§ Phase S6](#phase-s6--pdf).
 - [ ] **Data formats** — CSV ↔ JSON ↔ XML ↔ XLSX (`excelize`), Parquet later.
 - [ ] **Fonts** — TTF ↔ OTF ↔ WOFF ↔ WOFF2 with `fonttools`, plus subsetting.
@@ -1407,40 +1435,40 @@ checked against each consumer's own parser or documentation, cited in the packag
 
 ### S7.2 Core library — building a sheet
 
-- [ ] Frames read from a ZIP, in two passes over the same local file
-  - [ ] Pass one reads only each entry's `image.DecodeConfig`, so the packing decision costs
+- [x] Frames read from a ZIP, in two passes over the same local file
+  - [x] Pass one reads only each entry's `image.DecodeConfig`, so the packing decision costs
         headers rather than pixels
-  - [ ] Pass two allocates the canvas once and decodes one frame at a time into it, releasing each
+  - [x] Pass two allocates the canvas once and decodes one frame at a time into it, releasing each
         before the next
-- [ ] ZIP input hardened, because an archive is attacker-controlled
-  - [ ] At most 2048 entries and 512 MiB of declared uncompressed size, both refused with the
+- [x] ZIP input hardened, because an archive is attacker-controlled
+  - [x] At most 2048 entries and 512 MiB of declared uncompressed size, both refused with the
         limit named
-  - [ ] Entry names are never used as paths: the basename is sanitised and used only as the frame
+  - [x] Entry names are never used as paths: the basename is sanitised and used only as the frame
         name, so nothing is ever written outside the job directory
-  - [ ] Directories, empty entries and entries whose bytes are not an image this package decodes
+  - [x] Directories, empty entries and entries whose bytes are not an image this package decodes
         are refused, naming the entry
-- [ ] Layouts
-  - [ ] `grid` (default when every frame is the same size): uniform cells, column count chosen to
+- [x] Layouts
+  - [x] `grid` (default when every frame is the same size): uniform cells, column count chosen to
         keep the sheet near-square. This is the layout Godot 4 and Unity import with no metadata
         file, which is why it is the default
-  - [ ] `compact`: skyline bottom-left over frames sorted by descending height then name, so the
+  - [x] `compact`: skyline bottom-left over frames sorted by descending height then name, so the
         order is total and the output deterministic. **MaxRects is rejected for now** — the
         efficiency figure below is the evidence for whether it would earn its keep
-  - [ ] `margin`, `padding` and `extrude`, with `extrude` repeating the frame's edge pixels into
+  - [x] `margin`, `padding` and `extrude`, with `extrude` repeating the frame's edge pixels into
         the padding
-  - [ ] `max_size` (default 4096, at most 8192) and an optional power-of-two output size
-  - [ ] Frames that do not fit are refused, naming how many fitted and the size that would be
+  - [x] `max_size` (default 4096, at most 8192) and an optional power-of-two output size
+  - [x] Frames that do not fit are refused, naming how many fitted and the size that would be
         needed — never silently dropped
-- [ ] The **output size is refused before it is attempted**, because on this tool the output is
+- [x] The **output size is refused before it is attempted**, because on this tool the output is
       attacker-influenced too: a caller asking for a sheet from 2048 frames of 4096 × 4096 is
       asking for an allocation that must be declined, not discovered halfway through
-  - [ ] The canvas area is computed from the frame headers in pass one and checked against
+  - [x] The canvas area is computed from the frame headers in pass one and checked against
         `MaxPixels` before the canvas is allocated, so nothing large is ever allocated to find out
-  - [ ] The sum of the frame areas is checked the same way, so a set that could never fit any
+  - [x] The sum of the frame areas is checked the same way, so a set that could never fit any
         permitted sheet is refused without packing it first
-  - [ ] The refusal is a `jobs.Refuse` carrying a public message that states the limit as a
+  - [x] The refusal is a `jobs.Refuse` carrying a public message that states the limit as a
         number, because a person who hits a cap should be told what it is
-- [ ] The sheet streamed out through `png.Encoder` into the job directory, not held in memory twice
+- [x] The sheet streamed out through `png.Encoder` into the job directory, not held in memory twice
 
 #### Quality asserts
 
@@ -1470,98 +1498,236 @@ checked against each consumer's own parser or documentation, cited in the packag
 
 ### S7.3 Atlas metadata
 
-- [ ] One `Atlas` value — sheet size, and per frame its name, rectangle, trim offset and source
+- [x] One `Atlas` value — sheet size, and per frame its name, rectangle, trim offset and source
       size — written by five independent writers, so a format cannot change the geometry
-  - [ ] TexturePacker JSON hash, streamed through `encoding/json` into a `bufio.Writer`
-  - [ ] TexturePacker JSON array, the same frames with `filename` on each
-  - [ ] Aseprite extensions on both: per-frame `duration` from a `frame_ms` option, and
+  - [x] TexturePacker JSON hash, streamed through `encoding/json` into a `bufio.Writer`
+  - [x] TexturePacker JSON array, the same frames with `filename` on each
+  - [x] Aseprite extensions on both: per-frame `duration` from a `frame_ms` option, and
         `meta.frameTags` derived from the frame names, with 0-based inclusive `from`/`to`
-  - [ ] libGDX `.atlas`, in the modern `bounds:`/`offsets:` spelling
-  - [ ] Sparrow/Starling XML through `encoding/xml`, with the `frame*` attributes written only for
+  - [x] libGDX `.atlas`, in the modern `bounds:`/`offsets:` spelling
+  - [x] Sparrow/Starling XML through `encoding/xml`, with the `frame*` attributes written only for
         a trimmed frame
-  - [ ] CSS, one class per frame, which refuses `trim` because it has nowhere to put the offset
-- [ ] The format list, and the one sentence saying what imports each, published by the API so the
-      interface does not hardcode them
-- [ ] At most four formats requested at once
+  - [x] CSS, one class per frame, which refuses `trim` because it has nowhere to put the offset
+- [x] The format list, and the one sentence saying what imports each, published by the API
+      (`GET /api/v1/tools/sprite-split/formats`) so the interface does not hardcode them
+- [x] At most four formats requested at once
 
 #### Quality asserts
 
-- Golden files for all five writers over the same three-frame atlas, committed under `testdata`
-- Each JSON golden is parsed back by a reader written against the documented field set and yields
-  the same rectangles, so a typo in a key fails the test rather than shipping
-- The libGDX golden is parsed by a reader implementing the grammar read out of libGDX's
-  `TextureAtlas.java`, and every region's `bounds` and `offsets` round-trip
-- The Sparrow golden is parsed by `encoding/xml` into the attribute set Phaser's `AtlasXML.js`
-  reads, and `frameX`/`frameY`/`frameWidth`/`frameHeight` appear only on trimmed frames
-- A trimmed frame satisfies `spriteSourceSize.w == frame.w`, `spriteSourceSize.h == frame.h`,
-  `sourceSize` equal to the untrimmed cell and `trimmed == true`; an untrimmed frame has
-  `trimmed == false` and a zero offset
-- `rotated` is `false` on every frame of every output, asserted across all five writers
-- Every CSS rule's `background-position` is the exact negative of its frame's atlas x and y,
-  asserted numerically
-- Asking for `trim` with the CSS format is refused, naming the reason, rather than emitting a
-  sheet whose frames are off by their trim offset
+- [x] Golden files for all five writers over the same three-frame atlas, committed under
+      `testdata` (`TestEveryWriterMatchesItsGolden`). CSS has its own golden from an untrimmed
+      atlas, because it refuses a trimmed one — which is itself a decision rather than a gap
+- [x] Each JSON golden is parsed back by a reader written against the documented field set and
+      yields the same rectangles, so a typo in a key fails the test rather than shipping
+      (`TestTheJSONGoldensParseBackToTheSameGeometry`). The reader is written separately rather
+      than reusing the writer's types, which would agree by construction and prove nothing
+- [x] The libGDX golden is parsed by a reader implementing the grammar read out of libGDX's
+      `TextureAtlas.java`, and every region's `bounds` and `offsets` round-trip
+      (`TestTheLibGDXGoldenRoundTrips`)
+- [x] The Sparrow golden is parsed by `encoding/xml` into the attribute set Phaser's `AtlasXML.js`
+      reads, and the `frame*` attributes appear only on trimmed frames
+- [x] A trimmed frame satisfies `spriteSourceSize.w == frame.w`, `spriteSourceSize.h == frame.h`,
+      `sourceSize` equal to the untrimmed cell and `trimmed == true`; an untrimmed frame has
+      `trimmed == false` and a zero offset (`TestATrimmedFrameCarriesBothSizes`)
+- [x] `rotated` is `false` on every frame of every output, asserted across all five writers
+- [x] Every CSS rule's `background-position` is the exact negative of its frame's atlas x and y,
+      asserted numerically
+- [x] Asking for `trim` with the CSS format is refused, naming the reason, rather than emitting a
+      sheet whose frames are off by their trim offset — and refused at **submission**, so the
+      person is told while they are still looking at the form
+- [x] Every writer is byte-for-byte deterministic across eight runs, including the hash form,
+      which goes through a map (`TestTheWritersAreDeterministic`)
 
 ### S7.4 Tools and API
 
-- [ ] `app/tools/sprite.go`: `sprite-split` and `sprite-build`, registered through `spriteTools`
-  - [ ] Input types checked against the detected MIME, never the extension: images for
+- [x] `app/tools/sprite.go`: `sprite-split` and `sprite-build`, registered through `spriteTools`
+  - [x] Input types checked against the detected MIME, never the extension: images for
         `sprite-split`, `application/zip` for `sprite-build`
-  - [ ] Options validated at submission through `jobs.OptionsValidator`, so the worker reads
+  - [x] Options validated at submission through `jobs.OptionsValidator`, so the worker reads
         exactly what was accepted
-  - [ ] Library errors mapped onto the taxonomy in `internal/jobs/status.go`: a bad grid, an
+  - [x] Library errors mapped onto the taxonomy in `internal/jobs/status.go`: a bad grid, an
         undetectable background and an oversized sheet are the input's problem, not transient
-  - [ ] Progress reported per phase: `reading`, `slicing` or `packing`, `writing metadata`,
+  - [x] Progress reported per phase: `reading`, `slicing` or `packing`, `writing metadata`,
         `storing`
-- [ ] `app/catalog/sprite.go`: both tools, plus the Godot and Unity note as a catalogue entry that
+- [x] `app/catalog/sprite.go`: both tools, plus the Godot and Unity note as a catalogue entry that
       states the grid workflow rather than leaving a visitor to wonder
-- [ ] `app/controllers/apiv1/sprite.go`: one typed submit route per tool, following
-      `SubmitPixelSVG` — `z.For[T]()` cannot describe `json.RawMessage` or `map[string]any`, so a
-      generic options route is not available
-- [ ] `routes/api_sprite.go`: the two submit routes, wired into `routes/registry.go` with one line
-- [ ] Both tools added to the `pages` map in `app/controllers/pages.go`, so each page renders its
-      own component with its own props rather than another tool's form
-- [ ] Ability `sprite:sheet`, from `app/abilities/abilities.go`
+- [x] `app/controllers/apiv1/sprite.go`: one typed submit route per tool, plus the capability
+      endpoint that publishes the metadata formats
+- [x] `routes/api_sprite.go`: the two submit routes and the format list, wired into
+      `routes/registry.go` with one line
+- [x] Both tools added to the `pages` map in `app/controllers/pages.go`, each with its own
+      component and its own props
+- [x] Ability `sprite:sheet`, from `app/abilities/abilities.go`
 
 #### Quality asserts
 
-- Both routes appear in `/openapi.json` with every option documented and one example each
-- An invalid option returns `422` naming the field, in the shape the existing routes return
-- A sheet submitted to `sprite-build`, or a ZIP submitted to `sprite-split`, is refused at
-  submission with the detected type named, before any worker runs — asserted at the HTTP level
-- A finished split's `GET /api/v1/conversions/{id}/result` lists exactly two files, the frames ZIP
-  and the metadata, each with a signed URL and the same `expires_at`; past the 5-minute TTL both
-  are answered `410`, asserted with a clock the test controls
-- A queued conversion streams the documented phases over SSE and ends with signed download URLs
-- A key without `sprite:sheet` is refused `403` naming the ability
-- `git diff --exit-code go.mod go.sum` is clean across the phase: no dependency was added, so
-  `/licenses` needs no entry. This is the assert that replaces the usual licence gate
+- [x] Both routes appear in `/openapi.json` with every option documented and one example each,
+      and both have a method in both generated clients (`tests/openapi_test.go`)
+- [x] An invalid option returns `422` naming the field, in the shape the existing routes return
+      (`TestTrimmingWithCSSIsRefusedAtSubmission`, `TestTooManyMetadataFormatsAreRefused`)
+- [x] A sheet submitted to `sprite-build`, or a ZIP submitted to `sprite-split`, is refused at
+      submission with the detected type named, before any worker runs — asserted at the HTTP
+      level (`TestEachSpriteToolRefusesTheOtherOnesInput`)
+- [x] A finished split's result lists exactly two files, the frames ZIP and the metadata, each
+      with a signed URL (`TestSplittingASheetProducesAnArchiveAndItsMetadata`). The archive holds
+      the metadata as well, so one download is self-contained — which that test also asserts
+- [x] A grid that does not tile is refused with the sheet and cell sizes named in the message the
+      owner sees (`TestAGridThatDoesNotTileIsRefusedWithTheRemainder`)
+- [x] A key without `sprite:sheet` is refused `403` (`TestTheSpriteToolsNeedTheirAbility`)
+- [x] The published format list names every writer, with an extension and a sentence each, and
+      matches the library (`TestTheSpriteFormatListIsPublicAndComplete`)
+- [x] `git diff --exit-code go.mod go.sum` is clean across the phase: no dependency was added, so
+      `/licenses` needs no entry. This is the assert that replaces the usual licence gate.
+      `@types/bun` was added to **devDependencies** for the browser-side test runner; it is
+      types-only, ships in nothing, and is not a Go dependency
 
 ### S7.5 Interface
 
-- [ ] Page for `sprite-split`
-  - [ ] Drop a sheet and see the grid drawn over it, with the frame count the server will produce,
+- [x] Page for `sprite-split`
+  - [x] Drop a sheet and see the grid drawn over it, with the frame count the server will produce,
         before submitting
-  - [ ] Grid controls — cell size or counts, margin, spacing — redraw the overlay with no round
+  - [x] Grid controls — cell size or counts, margin, spacing — redraw the overlay with no round
         trip
-  - [ ] `auto` mode offers the background colour picker and explains when it is needed
-  - [ ] Trim, and the format checkboxes with the one sentence each about what imports them
-- [ ] Page for `sprite-build`
-  - [ ] Drop a ZIP of frames, see the frame count and the packed preview
-  - [ ] Layout, padding, extrude, margin and max size; wasted area shown as a percentage
-  - [ ] The Godot and Unity import note shown whenever `grid` is the layout
-- [ ] Both pages say the result lives five minutes, next to the download
+  - [x] `auto` mode offers the background colour picker and explains when it is needed
+  - [x] Trim, and the format checkboxes with the one sentence each about what imports them —
+        fetched from the API rather than hardcoded, and a format trimming cannot use is disabled
+        with the reason
+- [x] Page for `sprite-build`
+  - [x] Drop a ZIP of frames, see the frame count and the packed preview. The count is read from
+        the archive's own end-of-central-directory record, so it appears at once without
+        inflating anything; the preview is the sheet the server actually produced, because
+        predicting it would mean running the packer twice, once wrongly
+  - [x] Layout, padding, extrude, margin and max size; wasted area shown as a percentage, from
+        the server's own figure
+  - [x] The Godot and Unity import note shown whenever `grid` is the layout
+- [x] Both pages say the result lives five minutes, next to the download
 
 #### Quality asserts
 
-- Changing a grid control redraws the overlay without a page reload and without a request
-- The frame count the page predicts equals the number of entries in the ZIP the server returns,
-  asserted on a fixture
-- A 4096 × 4096 sheet does not freeze the tab: the overlay is drawn on a scaled canvas and the
-  frame count is shown before any preview is rendered
-- Both pages work at phone width with no horizontal scroll
-- Lighthouse accessibility ≥ 95 on both pages
-- `bun run typecheck` and `bun run build` clean
+- [x] Changing a grid control redraws the overlay without a page reload and without a request —
+      verified in Chromium: a 32px cell on the 256 × 128 fixture reads 32 frames, 64px reads 8,
+      and 50px is refused in the browser naming the six pixels left over
+- [x] The frame count the page predicts equals what the server produces, pinned by one shared
+      table of fifteen cases run against **both** implementations:
+      `resources/js/lib/spriteGrid.test.ts` and `tests/sprite_grid_table_test.go`. The two are
+      pinned to the table rather than to each other, so a change to either that the other does not
+      match fails one of them
+- [x] A large sheet does not freeze the tab: the overlay is drawn on a canvas scaled to 640px on
+      its longest side, and the dimensions and frame count are rendered before the image decodes
+- [x] Both pages work at phone width with no horizontal scroll, verified in Chromium at 320, 375
+      and 1280 with zero console errors
+- [x] `bun run typecheck`, `bun run test` and `bun run build` clean
+
+Lighthouse is **not** run: it is not installed in this repository or in CI, and a number nobody
+measured is not an assert. The accessibility properties it would check are asserted directly
+instead — 44px hit targets, a visible focus ring, `role="alert"` on every refusal, a labelled
+canvas, and keyboard operation of both menus — and `.claude/rules/` records that this is what
+replaced it.
+
+---
+
+## Phase S8 — Archives
+
+Promoted out of [§ Phase S5](#phase-s5--deferred-tools). Two tools, named for what a person
+wants: `archive-create` packs several uploads into one archive, `archive-extract` unpacks one
+archive into its files. One ability, `archive:files`, because they are one family.
+
+### S8.0 Decisions this phase is built on
+
+Recorded in full in [docs/brainstorming.md § 6](docs/brainstorming.md); the short form:
+
+- **Pure Go, no engine, no dependency.** `archive/zip`, `archive/tar` and `compress/gzip`.
+  XZ and ZSTD are **dropped**: neither is in the standard library, each would have cost a module
+  and a `/licenses` entry, and the four formats that ship cover what a web service is sent.
+  `git diff go.mod go.sum` over the phase is empty, which is an assert below rather than a hope.
+- **Two tools, not one with a direction option.** `jobs.Accepter` is what refuses a file at
+  submission, and the directions accept opposite things — any number of files of any type against
+  exactly one archive. One tool would have had to accept every type the service knows and the
+  gate would have been gone.
+- **One result row per extracted member.** The mechanism `pdf-split` already uses; there is no
+  re-archiving step and no second delivery mechanism. The entry cap is what keeps it sane.
+- **`application/octet-stream` is a result type, not a known type.** An archive holds anything, so
+  an extracted member needs a fallback kind — in `detect.resultOnly`, which the upload gate does
+  not read. Putting it in `known` would have turned "unrecognised files are refused at the door"
+  into "anything is accepted". `application/x-tar` **is** added to `known`, because extraction
+  reads TAR and a TAR upload has to be accepted.
+
+### S8.1 Core library
+
+- [x] Package `internal/archive`, pure Go, no cgo, no external binary, no new dependency
+  - [x] Create: ZIP (per-member deflate), TAR, TAR.GZ, GZ, with the compression level selectable
+  - [x] Extract: the format read from the archive's own bytes, never its name. A gzip stream is
+        sniffed from the inside, because a bare gzip and a gzipped tar have identical headers
+  - [x] Everything streams: `io.Copy` between the archive and disk, never a member held whole
+- [x] Extraction hardened, because an archive is attacker-controlled
+  - [x] An entry's name is never used as a path: only its basename survives, so the zip slip has
+        nowhere to go rather than being checked for
+  - [x] Two names that collide after sanitising are both kept, numbered — the common case, since
+        folders are flattened
+  - [x] A symlink, hard link, device or FIFO entry is refused, naming the entry
+  - [x] At most 64 members and 512 MiB unpacked, each refused with the number named. A ZIP's
+        declared sizes are refused from its directory, before a byte is inflated
+  - [x] One compressed stream may expand at most 500× past a one-mebibyte floor, which is the
+        only defence against a **bare gzip** bomb: it declares no size at all
+
+#### Quality asserts
+
+- [x] A ZIP round-trips: creating from two files and extracting gives back both, byte for byte,
+      under the names they went in with (`go test ./internal/archive/`:
+      `TestCreateAZipHoldsEveryMemberWithItsBytes`, `TestCreateATarGzRoundTripsThroughExtract`)
+- [x] A ZIP holding `../../etc/passwd`, `/absolute` and `..\..\windows\system32` writes nothing
+      outside the destination and leaves no sibling of it
+      (`TestExtractNeverWritesOutsideTheDestination`)
+- [x] Each cap is refused with its number in the message the person sees, not merely with a
+      non-nil error (`TestExtractRefusesMoreEntriesThanTheCap`,
+      `TestExtractRefusesADeclaredBombFromTheDirectoryAlone`,
+      `TestExtractRefusesATarThatGrowsPastTheTotalCap`,
+      `TestExtractRefusesABareGzipThatExpandsTooFar`)
+- [x] A gzip bomb is refused **early**: the test asserts how many bytes reached the disk before
+      the refusal, not only that it was refused
+- [x] `gz` with more than one member is refused at submission, on the `format` field, rather than
+      by a worker a moment later (`tests/`: `TestGzipWithSeveralFilesIsRefusedAtSubmission`)
+- [x] Peak live heap does not follow the member size: flat at 1.4 MiB across a 128× range, in
+      [docs/benchmarks.md](docs/benchmarks.md). Sampled **during** the extraction, because a
+      reading taken only at either end misses the peak this is looking for
+- [x] Peak live heap never reaches half the archive's size however finely it is split, with the
+      per-member decompressor churn measured and recorded rather than smoothed over
+- [x] A fuzz target over malformed archive bytes finds no panic and no write outside the
+      destination in 90 seconds (`FuzzExtract`). It is what found the missing ratio cap
+- [x] `go test -race -count=1 ./internal/archive/...` green; `go test -bench . -benchmem` recorded
+
+### S8.2 Tools, API and interface
+
+- [x] `app/tools/archive.go`: `archive-create` and `archive-extract`, registered through
+      `archiveTools`
+- [x] Input types checked against the detected MIME, never the extension
+- [x] Library errors mapped onto the taxonomy in `internal/jobs/status.go`: every cap and every
+      refused member is the input's problem, never transient
+- [x] Progress reported per phase: `reading`, `packing` or `extracting`, `storing`
+- [x] `app/catalog/archive.go`: both tools, saying what actually ships rather than what was
+      promised
+- [x] `app/controllers/apiv1/archive.go` and `routes/api_archive.go`, under their own OpenAPI tag
+- [x] Ability `archive:files`
+- [x] Both tools on the generic tool page, with their fields in
+      `resources/js/lib/forms/archive.ts`
+
+#### Quality asserts
+
+- [x] Both routes appear in `/openapi.json` with every option documented and one example each,
+      and both have a method in both generated clients (`tests/openapi_test.go`)
+- [x] A file that is not an archive is refused at submission with the detected type named, before
+      any worker runs (`TestANonArchiveIsRefusedAtSubmission`)
+- [x] A key without `archive:files` is refused `403` on both tools
+      (`TestTheArchiveToolsNeedTheirAbility`)
+- [x] Creating runs from two uploads to one download, and the download really is a ZIP holding
+      both under their upload names (`TestCreatingAnArchiveRunsFromUploadsToOneDownload`)
+- [x] Extracting produces one result row per member, each fetchable through its own signed link
+      (`TestExtractingAnArchiveProducesOneResultPerMember`)
+- [x] The formats the interface offers are exactly the formats the library writes, asserted
+      across the Go/TypeScript boundary (`TestTheInterfaceOffersEveryArchiveFormatAndNoOther`)
+- [x] `git diff --exit-code go.mod go.sum` is clean across the phase: no dependency was added, so
+      `/licenses` needs no entry. This is the assert that replaces the usual licence gate
+- [x] `bun run typecheck` and `bun run build` clean
 
 ---
 
@@ -1570,17 +1736,26 @@ checked against each consumer's own parser or documentation, cited in the packag
 vukem-tools exists partly to push the framework. At the end of **every** completed task group:
 
 - [ ] Append each vukem bug, missing feature, awkward API, security issue or wrong documentation
-      page to `../framework-feedback/vukem-tools-feedback.md`, one entry each, with the
-      reproduction and the docs URL when it is a docs finding
-- [ ] Record the local workaround in code with `// workaround(vukem): <entry title>`
-- [ ] Update `../framework-feedback/audit.md` when the finding changes the framework's backlog
-- [ ] Update `../status.md` with what shipped and what is next
+      page to [docs/vukem-feedback.md](docs/vukem-feedback.md), one entry each, with the
+      reproduction and the docs URL when it is a docs finding. The rule names
+      `../framework-feedback/vukem-tools-feedback.md`; that sibling checkout does not exist in a
+      cloud session, so the log lives in the repository and is copied across when working locally
+- [ ] Record the local workaround in code with `// workaround(vukem): <entry title>`, naming the
+      audit id in the prose so the marker carries its own expiry
+- [ ] **Re-check every existing marker against the version `go.mod` pins**, reading the module
+      cache rather than this repository, and delete the whole comment block for each finding that
+      has closed. Closing a finding is as much of the job as opening one
+- [ ] Update [docs/vukem-audit.md](docs/vukem-audit.md) when the finding changes the framework's
+      backlog
+- [ ] Update [docs/status.md](docs/status.md) with what shipped and what is next
 - [ ] Update `.claude/skills/` and `.claude/rules/` with what the workflow actually turned out to
       be, so the next session starts from the real process rather than the planned one
 - [ ] Never edit the vukem repository from here
 
 ### Quality asserts
 
-- Every `workaround(vukem)` comment in the codebase has a matching entry in
-  `vukem-tools-feedback.md`, checkable with `rg`
-- `status.md` names the current version and the next milestone
+- Every `workaround(vukem)` comment in the codebase has a matching **open** entry in
+  [docs/vukem-feedback.md](docs/vukem-feedback.md), checkable with `rg`. On 2026-10-19 the tree
+  held five markers and the log held no open entry for any of them: all five had closed in the
+  pinned version
+- [docs/status.md](docs/status.md) names the current version and the next milestone

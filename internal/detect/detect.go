@@ -121,6 +121,11 @@ var known = map[string]Kind{
 	"audio/aac":        {"audio/aac", ".aac", "an AAC audio file"},
 	"application/zip":  {"application/zip", ".zip", "a ZIP archive"},
 	"application/gzip": {"application/gzip", ".gz", "a gzip archive"},
+	// TAR is accepted because archive-extract reads it. It widens the upload
+	// gate by one format, and the format is parsed by archive/tar from the
+	// standard library rather than by a C library, so the widening carries no
+	// new attack surface of the kind docs/deployment.md tracks.
+	"application/x-tar": {"application/x-tar", ".tar", "a TAR archive"},
 }
 
 // extensions maps every accepted extension to its MIME type, built from
@@ -137,6 +142,8 @@ var extensions = func() map[string]string {
 	m[".jpe"] = "image/jpeg"
 	m[".tif"] = "image/tiff"
 	m[".gzip"] = "application/gzip"
+	// A gzipped tar, which is one stream and two conventional spellings.
+	m[".tgz"] = "application/gzip"
 
 	return m
 }()

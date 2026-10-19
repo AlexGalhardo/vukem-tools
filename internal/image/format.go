@@ -114,6 +114,43 @@ var byMIME = func() map[string]Format {
 	return m
 }()
 
+// byLoader maps a libvips loader operation to a format, for the formats where
+// that mapping is unambiguous.
+//
+// heifload reads both AVIF and HEIC, so neither is here: a loader cannot say
+// which of the two a file is. A caller that needs those has the detected MIME
+// type and should use FormatOf. Everything built from specs, so a format
+// cannot be half-added.
+var byLoader = func() map[string]Format {
+	seen := make(map[string]int, len(specs))
+	for _, s := range specs {
+		if s.loader != "" {
+			seen[s.loader]++
+		}
+	}
+
+	m := make(map[string]Format, len(specs))
+
+	for _, s := range specs {
+		if s.loader != "" && seen[s.loader] == 1 {
+			m[s.loader] = s.format
+		}
+	}
+
+	return m
+}()
+
+// FormatOfLoader returns the format a libvips loader reads, and whether that
+// loader names exactly one format.
+//
+// Probe reports the loader that actually read a file, which is the engine's
+// own answer to "what is this", and is therefore the right source for an
+// operation whose output format is "the same as the input".
+func FormatOfLoader(loader string) (Format, bool) {
+	f, ok := byLoader[strings.TrimSpace(strings.ToLower(loader))]
+	return f, ok
+}
+
 // FormatOf returns the format for a MIME type from internal/detect.
 func FormatOf(mime string) (Format, bool) {
 	f, ok := byMIME[strings.TrimSpace(strings.ToLower(mime))]

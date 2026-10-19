@@ -28,7 +28,18 @@ FROM golang:1.27.2-alpine3.24 AS build
 WORKDIR /src
 ENV CGO_ENABLED=0
 COPY go.mod go.sum ./
-RUN go mod download
+# Retried, because proxy.golang.org drops an HTTP/2 stream often enough to fail
+# a build on its own — "stream error: stream ID 247; INTERNAL_ERROR; received
+# from peer" took down the image build for the merge of #23. A module download
+# is pure network and go.sum pins what comes back, so trying again risks
+# nothing and the third failure is still the build's.
+RUN set -e; \
+	for attempt in 1 2 3; do \
+		if go mod download; then exit 0; fi; \
+		echo "go mod download failed (attempt $attempt of 3)"; \
+		sleep 5; \
+	done; \
+	exit 1
 COPY . .
 COPY --from=assets /src/resources/public/build resources/public/build
 # Same tags as vukem build: .buildtags lists them (one per line or

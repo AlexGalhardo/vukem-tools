@@ -50,6 +50,14 @@ Each has a regression test; the detail is in the commit and in
    size cap caught it. Found by fuzzing, not by review.
 7. **The CSP refused `blob:` images**, so no page could preview a file somebody had just chosen.
 8. **The `scale` icon was drawn as a waste bin** and was used by all three compression tools.
+9. **The job working directory was relative in production**, so every engine resolved its own
+   arguments twice and every tool failed. `WORK_DIR` is unset there and its default is the
+   relative `storage/work`, which a tool hands to its engine as the working directory *and* uses
+   to build the paths in the engine's arguments — so qpdf asked for
+   `storage/work/<id>/storage/work/<id>/input-0.pdf` and the owner got "The converter could not
+   process that PDF." on all nineteen PDF tools. It is fault 2 above, in the other half of the
+   app: that fix went into the capability probe and not into `jobs.NewPipeline`, and no test
+   caught it because every one of them passes a `t.TempDir`, which is already absolute.
 
 ## Framework feedback
 

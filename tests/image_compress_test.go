@@ -72,12 +72,39 @@ func compressMIME(format string) string {
 	}
 }
 
+// requireRegisteredTool skips when the engine a tool needs is missing from
+// this machine: the pipeline then never registers the tool and every route
+// for it answers 503, which is not the thing under test.
+//
+// It asks the running app rather than resolving a second pipeline, because
+// the app's own registry is the authority on what is registered. The skip is
+// loud on purpose: asserting the 503 instead would make these tests pass for
+// the wrong reason on the one machine that cannot run them.
+//
+// CI installs libvips (.github/workflows/ci.yml), so this fires only on a
+// contributor's machine without it.
+func requireRegisteredTool(t *testing.T, app *vukemtest.App, name string) {
+	t.Helper()
+
+	var list struct {
+		Data []string `json:"data"`
+	}
+
+	app.Client(t).Get("/api/v1/tools").AssertOK().JSON(&list)
+
+	if !slices.Contains(list.Data, name) {
+		t.Skipf("the %s tool is not registered here, so the engine it needs is missing from this machine", name)
+	}
+}
+
 // Compressing runs from upload to download, the result really is smaller, and
 // it is still a PNG.
 func TestCompressingAnImageRunsAndProducesASmallerFile(t *testing.T) {
 	t.Parallel()
 
 	app := vukemtest.New(t, bootstrap.New, vukemtest.Options{Env: sandbox(t)})
+	requireRegisteredTool(t, app, "image-compress")
+
 	key := issueKey(t, app, "imagecompress@example.com", "image:compress")
 
 	original := gradientPNG(t, 600, 400)
@@ -145,6 +172,8 @@ func TestTheCompressionReportsWhatItDid(t *testing.T) {
 	t.Parallel()
 
 	app := vukemtest.New(t, bootstrap.New, vukemtest.Options{Env: sandbox(t)})
+	requireRegisteredTool(t, app, "image-compress")
+
 	key := issueKey(t, app, "imagecompressreport@example.com", "image:compress")
 
 	fileID := upload(t, app, key, "photo.png", gradientPNG(t, 300, 200))
@@ -183,6 +212,8 @@ func TestCompressingNeedsItsOwnAbility(t *testing.T) {
 	t.Parallel()
 
 	app := vukemtest.New(t, bootstrap.New, vukemtest.Options{Env: sandbox(t)})
+	requireRegisteredTool(t, app, "image-compress")
+
 	key := issueKey(t, app, "imagecompressnoability@example.com", "image:convert")
 
 	fileID := upload(t, app, key, "photo.png", gradientPNG(t, 100, 100))

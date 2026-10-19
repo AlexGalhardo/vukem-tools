@@ -106,6 +106,12 @@ export type ErrorCatalogEntry = {
   type?: string;
 };
 
+export type ImageCompressOptions = {
+  effort?: number;
+  mode?: string;
+  quality?: number;
+};
+
 export type ImageConvertOptions = {
   crop_height?: number;
   crop_left?: number;
@@ -463,6 +469,14 @@ export type ToolsAudioConvertBody = {
 export type ToolsAudioConvertResponse = ConversionView;
 
 export type ToolsAudioConvertFormatsResponse = AudioCapabilities;
+
+export type ToolsImageCompressBody = {
+  file_id: string;
+  idempotency_key?: string;
+  options?: ImageCompressOptions;
+};
+
+export type ToolsImageCompressResponse = ConversionView;
 
 export type ToolsImageConvertBody = {
   file_id: string;
@@ -902,6 +916,11 @@ export interface Client {
   toolsAudioConvertFormats(): Promise<ToolsAudioConvertFormatsResponse>;
 
   /**
+   * POST /api/v1/tools/image-compress: Make an image smaller without changing what it is
+   */
+  toolsImageCompress(args: { body: ToolsImageCompressBody }): Promise<ToolsImageCompressResponse>;
+
+  /**
    * POST /api/v1/tools/image-convert: Convert, resize, crop, rotate or flip an image
    */
   toolsImageConvert(args: { body: ToolsImageConvertBody }): Promise<ToolsImageConvertResponse>;
@@ -1080,6 +1099,7 @@ export function createClient(options: ClientOptions = {}): Client {
     toolsArchiveExtract: (args) => request<ToolsArchiveExtractResponse>("POST", "/api/v1/tools/archive-extract", args),
     toolsAudioConvert: (args) => request<ToolsAudioConvertResponse>("POST", "/api/v1/tools/audio-convert", args),
     toolsAudioConvertFormats: () => request<ToolsAudioConvertFormatsResponse>("GET", "/api/v1/tools/audio-convert/formats"),
+    toolsImageCompress: (args) => request<ToolsImageCompressResponse>("POST", "/api/v1/tools/image-compress", args),
     toolsImageConvert: (args) => request<ToolsImageConvertResponse>("POST", "/api/v1/tools/image-convert", args),
     toolsImageConvertFormats: () => request<ToolsImageConvertFormatsResponse>("GET", "/api/v1/tools/image-convert/formats"),
     toolsImagesToPdf: (args) => request<ToolsImagesToPdfResponse>("POST", "/api/v1/tools/images-to-pdf", args),

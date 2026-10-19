@@ -177,7 +177,7 @@ function Options({
 
       <details className="rounded-panel border border-edge bg-raised">
         <summary className="flex cursor-pointer items-center gap-2 px-4 py-3 text-sm font-medium">
-          <Icon name="scale" className="size-4 text-ink-faint" />
+          <Icon name="sliders" className="size-4 text-ink-faint" />
           Size, rotation and quality
           <span className="text-ink-faint">— every one has a sensible default</span>
         </summary>

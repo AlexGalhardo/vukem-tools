@@ -839,30 +839,40 @@ Target version: `v0.4.0`.
 
 ### S4.2 Image compression and optimisation
 
-- [ ] Lossless chain: `oxipng` for PNG, `jpegtran` for JPEG, `gifsicle -O3` for GIF
-- [ ] Lossy chain: `cjpeg`/`cjpegli` for JPEG, `pngquant` for palette PNG, `cwebp`, `avifenc`,
-      `cjxl`
-- [ ] A single "make this smaller" entry point that picks the chain from the detected type and
+**Shipped on libvips alone. The specialist chain this section planned was not taken**, and the
+decision with its measurements is in [docs/brainstorming.md § 7](docs/brainstorming.md).
+
+- [~] ~~Lossless chain: `oxipng` for PNG, `jpegtran` for JPEG, `gifsicle -O3` for GIF~~ — not
+      taken. libvips's own lossless encoders do it, at the cost of no lossless JPEG optimisation
+      at all, which is refused by name rather than quietly done lossily
+- [~] ~~Lossy chain: `cjpeg`/`cjpegli`, `pngquant`, `cwebp`, `avifenc`, `cjxl`~~ — not taken.
+      libvips's savers with mozjpeg-style settings and a palette candidate for PNG
+- [x] A single "make this smaller" entry point that picks the settings from the detected type and
       reports what it did
-- [ ] Every optimiser pinned, and its licence on `/licenses` (`jpegoptim` and `gifsicle` are GPL,
-      `pngquant` is GPL-or-commercial)
+- [x] No optimiser pinned and no `/licenses` entry, because no engine was added. This replaces
+      the licence gate for this section, as it did for S7 and S8
 
 #### Quality asserts
 
-- [ ] Every chain produces a file that is smaller or the original is returned unchanged with a note
-- [ ] Lossless chains are verified lossless: decoded pixels are byte-identical to the source
-- [ ] Lossy chains record the SSIM or `ssimulacra2` score of a fixture, and a regression fails the
-  test
-- [ ] The reported "what it did" string names the actual tools used
+- [x] Every mode produces a file that is smaller, or the original is returned unchanged with a
+      note — and the note is on the progress trail, where a person reads it
+      (`TestAnIncompressibleFileComesBackUnchanged`, and the two measured zeroes in
+      [docs/benchmarks.md](docs/benchmarks.md))
+- [x] Lossless is verified lossless: the decoded pixels are compared one by one against the
+      source, and the failure names the first coordinate that moved
+      (`TestCompressingAPNGIsSmallerAndPixelIdentical`)
+- [x] Lossy records an SSIM, computed in the test rather than by a dependency, and a regression
+      below 0.95 fails (`TestCompressingAJPEGIsSmallerAndStaysFaithful`, measured 0.9977)
+- [x] The "what it did" string names the tool that actually ran, which candidate won and what it
+      saved (`TestTheReportNamesTheEngineAndTheMode`)
+- [x] Every setting worth trying is run and the smallest file wins, because which one wins depends
+      on the picture by factors of seventy, not percentages
+- [x] The modes the interface offers are exactly the modes the library implements, asserted across
+      the Go/TypeScript boundary (`TestTheInterfaceOffersEveryCompressModeAndNoOther`)
 
-**Nothing in S4.2 is done, and nothing in it can be yet.** Not one of the optimisers it names is in
-the production image: `oxipng`, `jpegtran`, `gifsicle`, `cjpeg`, `cjpegli`, `pngquant`, `cwebp`,
-`avifenc` and `cjxl` are all absent, and so is `ssimulacra2` for the quality assert. Each is a new
-Dockerfile pin, a new `/licenses` entry and a new CVE surface, and three of them are copyleft or
-dual-licensed (`gifsicle` and `jpegoptim` are GPL, `pngquant` is GPL-or-commercial), which the
-engine rules make an owner decision. Building a "make this smaller" entry point on libvips
-re-encoding alone would meet none of these asserts and would label a lossy re-encode as
-optimisation.
+`ssimulacra2` is still absent and is not needed: the SSIM above is forty lines in the test and
+costs no dependency. Revisiting the specialist chain is a candidate added to one table in
+`internal/image/compress.go`, not a rewrite.
 
 ### S4.3 Image editing
 

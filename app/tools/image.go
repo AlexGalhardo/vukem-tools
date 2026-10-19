@@ -27,7 +27,7 @@ func ImageTools(f *files.Store, m *Media) []jobs.Tool {
 		return nil
 	}
 
-	return []jobs.Tool{NewImageConvert(f, m)}
+	return []jobs.Tool{NewImageConvert(f, m), NewImageCompress(f, m)}
 }
 
 // ImageConvert converts, resizes, crops, rotates and flips a raster image.

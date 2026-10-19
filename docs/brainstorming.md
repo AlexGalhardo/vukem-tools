@@ -281,3 +281,56 @@ same reason.
 
 A tool whose **interaction** differs, rather than only its fields, still gets its own page. The
 sprite tools draw a grid over the sheet, which no field list can express.
+
+## 7. Image compression: libvips alone (2026-10-19)
+
+The ROADMAP's S4.2 planned a chain of specialist optimisers: `oxipng` for PNG, `jpegtran` for
+JPEG, `gifsicle -O3` for GIF, `pngquant`, `cwebp`, `avifenc`. **None of them ships.**
+
+Five more packages pinned into a 1.2 GB image, two of them GPL (`jpegoptim` and `gifsicle`) and so
+two more entries on `/licenses` with obligations attached, plus five more CVE surfaces to track —
+to beat an encoder already in the image. The engine rule in `.claude/rules/engines.md` exists to
+stop that trade being made casually, and this is the case it was written for.
+
+What that costs, stated rather than hidden:
+
+- **No lossless JPEG optimisation at all.** libvips has no such re-encode; `jpegtran` is what does
+  it. Asking for lossless on a JPEG is refused by name, with lossy named as the way forward,
+  rather than quietly done lossily.
+- **A general-purpose encoder loses to a specialist one more often**, so "returned unchanged"
+  happens more than it would with the chain. The measured examples are in
+  [benchmarks.md](benchmarks.md): a WebP and a GIF that libvips itself wrote cannot be beaten by
+  libvips.
+
+What it buys, measured rather than assumed: 74 % off a PNG losslessly and 39 % off a JPEG at
+SSIM 0.9977, with no new dependency, no new licence and no change to the image.
+
+The seam is left where a reader will find it. Every setting is one entry in the `recipes` table in
+`internal/image/compress.go`, so adding `oxipng` later is a candidate in a list rather than a
+rewrite.
+
+### 7.1 Try everything, keep the smallest
+
+A compressor that runs the encoder once and hands back the output is re-encoding, not compressing.
+Which settings win depends on the picture, and not mildly: PNG row filters make the gradient
+fixture seventy-four times smaller and a field of noise two per cent larger, and the palette — the
+lossy mode — is twenty-nine times *worse* than lossless on a gradient, because dithering adds
+noise the compressor then stores.
+
+So each mode lists what is worth trying, all of them run, and the smallest file wins. The lossy
+list contains the lossless candidates too, which is not a contradiction: lossy is permission to
+move the pixels, not an obligation, and returning a larger file because the smaller one happened
+to be lossless would be absurd.
+
+### 7.2 Never hand back something larger
+
+A file this encoder cannot beat comes back as itself, with a sentence saying so. That sentence is
+the whole answer for that case — "nothing was stored" would be true and useless, and a silent
+no-op reads as a broken tool.
+
+### 7.3 Compressing is its own tool, not a flag on converting
+
+The two answer different questions and a person arrives with one of them. "Make this smaller" has
+no output format, no geometry and no crop; burying it as a flag on a tool with fourteen options is
+how somebody accidentally resizes a photograph they only wanted to shrink the file of. The format
+therefore never changes, which also means every link to the file still resolves.

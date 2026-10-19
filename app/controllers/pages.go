@@ -132,6 +132,11 @@ var pages = map[string]toolPage{ //nolint:gochecknoglobals // read-only table
 			}
 		},
 	},
+	"image-compress": {
+		component: "Tools/ToolForm",
+		// No props: the modes and the formats it compresses are in the form
+		// table, and a Go test asserts the two lists agree.
+	},
 	"video-convert": {
 		component: "Tools/VideoConvert",
 		// No props: the containers and codecs this build can encode come

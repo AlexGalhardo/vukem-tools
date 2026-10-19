@@ -125,6 +125,22 @@ func Media(c *services.Conversions) func(r *router.Router, app *vukem.App) error
 					Security: []string{SchemeBearer},
 				}, h.ImageConvert).Use(submit)
 
+				api.Register(p, "POST /tools/image-compress", api.Op{
+					Name:    "tools.image-compress",
+					Summary: "Make an image smaller without changing what it is",
+					Description: "The format never changes; image-convert is what changes a " +
+						"format. Each mode runs every encoder setting worth trying and keeps " +
+						"the smallest file, so a lossy compression can legitimately come back " +
+						"lossless when that was smaller. A file this encoder cannot beat is " +
+						"returned unchanged with the fact stated, rather than re-encoded into " +
+						"something larger. PNG and GIF compress losslessly by default, JPEG and " +
+						"WebP lossily; lossless is refused for JPEG, because libvips has no " +
+						"lossless JPEG re-encode and jpegtran is not in this image. Metadata is " +
+						"always removed.",
+					Tags:     []string{tagMedia},
+					Security: []string{SchemeBearer},
+				}, h.ImageCompress).Use(submit)
+
 				api.Register(p, "POST /tools/video-convert", api.Op{
 					Name:    "tools.video-convert",
 					Summary: "Convert a video between containers and codecs",

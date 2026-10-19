@@ -30,7 +30,16 @@ const paths = {
   moon: "M20 14.5A8.5 8.5 0 0 1 9.5 4a8.5 8.5 0 1 0 10.5 10.5Z",
   monitor: "M3 5h18v11H3zM8.5 20h7M12 16v4",
   key: "M15.5 3a5.5 5.5 0 0 1 2.9 10.2L17 14.6l-1.5-1.5-2 2-2-2-7 7v-3l7-7A5.5 5.5 0 0 1 15.5 3Z",
-  scale: "M4 7h16M8 7V4h8v3M6 7l1 13h10l1-13",
+  /** Compression: two edges pressed toward a line.
+   *
+   *  This replaces `scale`, which the three compression tools used and which
+   *  was drawn as a waste bin — so every "compress" tool on the index showed
+   *  a delete icon. One name was carrying two meanings and was drawn as
+   *  neither; this is one of them and `sliders` is the other. */
+  compress: "M12 3v6M9 6.5 12 9.5 15 6.5M12 21v-6M9 17.5 12 14.5 15 17.5M3.5 12h17",
+  /** A panel of settings: two tracks with a handle on each. The other half
+   *  of what `scale` was being asked to mean, on the option panels. */
+  sliders: "M4 8h7M15 8h5M4 16h3M11 16h9M13 5.5v5M9 13.5v5",
   external: "M14 4h6v6M20 4l-8 8M18 14v6H4V6h6",
   /** The navigation menu, at the one weight the rest of the set uses: three
    *  rules on the 24px grid rather than the heavier three-bar glyph an icon

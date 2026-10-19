@@ -318,6 +318,15 @@ type ErrorCatalog struct {
 	Data []ErrorCatalogEntry `json:"data,omitempty"`
 }
 
+type ImageCompressOptions struct {
+	// 1 to 10, meaning depends on the format. 0 uses the highest the encoder supports.
+	Effort *int64 `json:"effort,omitempty"`
+	// lossless or lossy. Empty picks by format: lossless for PNG and GIF, lossy for JPEG and WebP.
+	Mode *string `json:"mode,omitempty"`
+	// 1 to 100, for a lossy compression. 0 uses the format's default.
+	Quality *int64 `json:"quality,omitempty"`
+}
+
 type ImageConvertOptions struct {
 	// Crop height. 0 means no crop.
 	CropHeight *int64 `json:"crop_height,omitempty"`
@@ -793,6 +802,15 @@ type ToolsAudioConvertBody struct {
 	Options *AudioConvertOptions `json:"options,omitempty"`
 }
 
+type ToolsImageCompressBody struct {
+	// The id of an upload of yours, from the resumable upload endpoint.
+	FileID string `json:"file_id"`
+	// Repeat a submission safely: the same key returns the same conversion.
+	IdempotencyKey *string `json:"idempotency_key,omitempty"`
+	// How hard to compress. Every field is optional.
+	Options *ImageCompressOptions `json:"options,omitempty"`
+}
+
 type ToolsImageConvertBody struct {
 	// The id of an upload of yours, from the resumable upload endpoint.
 	FileID string `json:"file_id"`
@@ -1153,6 +1171,14 @@ func (c *Client) ToolsAudioConvert(ctx context.Context, body ToolsAudioConvertBo
 func (c *Client) ToolsAudioConvertFormats(ctx context.Context) (AudioCapabilities, error) {
 	var out AudioCapabilities
 	err := c.do(ctx, "GET", "/api/v1/tools/audio-convert/formats", nil, nil, &out)
+
+	return out, err
+}
+
+// ToolsImageCompress calls POST /api/v1/tools/image-compress: Make an image smaller without changing what it is.
+func (c *Client) ToolsImageCompress(ctx context.Context, body ToolsImageCompressBody) (ConversionView, error) {
+	var out ConversionView
+	err := c.do(ctx, "POST", "/api/v1/tools/image-compress", nil, body, &out)
 
 	return out, err
 }

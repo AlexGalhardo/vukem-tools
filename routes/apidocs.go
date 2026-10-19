@@ -280,6 +280,15 @@ func requestExamples() map[string]any {
 				"keep_metadata": false,
 			},
 		},
+		"tools.image-compress": map[string]any{
+			"file_id":         "01JQ8Z5X0K7M3N9P2R4T6V8W0Y",
+			"idempotency_key": "gallery-shrink-12",
+			"options": map[string]any{
+				"mode":    "lossy",
+				"quality": 80,
+				"effort":  0,
+			},
+		},
 		"tools.video-convert": map[string]any{
 			"file_id":         "01JQ8Z5X0K7M3N9P2R4T6V8W0Y",
 			"idempotency_key": "lecture-7-720p",

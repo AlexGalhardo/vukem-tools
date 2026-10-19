@@ -86,6 +86,34 @@ func (h *Media) ImageConvert(c *web.Ctx, in SubmitImageConvert) (ConversionView,
 	})
 }
 
+// SubmitImageCompress is the body of POST /api/v1/tools/image-compress.
+type SubmitImageCompress struct {
+	FileID         string                     `json:"file_id"         validate:"required,trim" doc:"The id of an upload of yours, from the resumable upload endpoint."`
+	IdempotencyKey string                     `json:"idempotency_key" validate:"trim,max=128"  doc:"Repeat a submission safely: the same key returns the same conversion."`
+	Options        tools.ImageCompressOptions `json:"options"                                  doc:"How hard to compress. Every field is optional."`
+}
+
+// ImageCompress submits an image compression:
+// POST /api/v1/tools/image-compress.
+func (h *Media) ImageCompress(c *web.Ctx, in SubmitImageCompress) (ConversionView, error) {
+	opts, err := in.Options.Normalise()
+	if err != nil {
+		return ConversionView{}, err
+	}
+
+	encoded, err := json.Marshal(opts)
+	if err != nil {
+		return ConversionView{}, err
+	}
+
+	return h.submit(c, submission{
+		Tool:           tools.NameImageCompress,
+		FileID:         in.FileID,
+		IdempotencyKey: in.IdempotencyKey,
+		Options:        encoded,
+	})
+}
+
 // ImageCapabilities answers GET /api/v1/tools/image-convert/formats.
 func (h *Media) ImageCapabilities(_ *web.Ctx, _ struct{}) (MediaCapabilities, error) {
 	caps := h.imageCapabilities()

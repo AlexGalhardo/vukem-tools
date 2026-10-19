@@ -42,6 +42,7 @@ func All(f *files.Store, e Engines, m *Media) []jobs.Tool {
 		editTools(f, e),
 		pdfTools(f),
 		spriteTools(f),
+		archiveTools(f),
 	)
 }
 

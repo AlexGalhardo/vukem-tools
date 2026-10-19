@@ -176,6 +176,11 @@ var pages = map[string]toolPage{ //nolint:gochecknoglobals // read-only table
 	"pdf-page-numbers":  {component: "Tools/ToolForm"},
 	"pdf-watermark":     {component: "Tools/ToolForm"},
 
+	// The archive tools, on the same generic page: picking files, choosing a
+	// format and a level, and reading a list of results back is exactly what
+	// that page does. Their fields live in resources/js/lib/forms/archive.ts.
+	"archive-create":  {component: "Tools/ToolForm"},
+	"archive-extract": {component: "Tools/ToolForm"},
 }
 
 // Licenses renders the licence notice: GET /licenses.

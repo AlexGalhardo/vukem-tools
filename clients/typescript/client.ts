@@ -4,6 +4,14 @@ export type AbilityList = {
   data?: string[];
 };
 
+export type ArchiveCreateOptions = {
+  format?: string;
+  level?: number;
+  name?: string;
+};
+
+export type ArchiveExtractOptions = Record<string, unknown>;
+
 export type AudioCapabilities = {
   formats?: AudioFormat[];
   loudness_target?: number;
@@ -429,6 +437,22 @@ export type TokensStoreBody = {
 };
 
 export type TokensStoreResponse = TokenIssued;
+
+export type ToolsArchiveCreateBody = {
+  file_ids: string[];
+  idempotency_key?: string;
+  options?: ArchiveCreateOptions;
+};
+
+export type ToolsArchiveCreateResponse = ConversionView;
+
+export type ToolsArchiveExtractBody = {
+  file_id: string;
+  idempotency_key?: string;
+  options?: ArchiveExtractOptions;
+};
+
+export type ToolsArchiveExtractResponse = ConversionView;
 
 export type ToolsAudioConvertBody = {
   file_id: string;
@@ -858,6 +882,16 @@ export interface Client {
   tokensStore(args: { body: TokensStoreBody }): Promise<TokensStoreResponse>;
 
   /**
+   * POST /api/v1/tools/archive-create: Pack several files into one archive
+   */
+  toolsArchiveCreate(args: { body: ToolsArchiveCreateBody }): Promise<ToolsArchiveCreateResponse>;
+
+  /**
+   * POST /api/v1/tools/archive-extract: Unpack an archive into its files
+   */
+  toolsArchiveExtract(args: { body: ToolsArchiveExtractBody }): Promise<ToolsArchiveExtractResponse>;
+
+  /**
    * POST /api/v1/tools/audio-convert: Convert audio, or extract a video's soundtrack
    */
   toolsAudioConvert(args: { body: ToolsAudioConvertBody }): Promise<ToolsAudioConvertResponse>;
@@ -1042,6 +1076,8 @@ export function createClient(options: ClientOptions = {}): Client {
     tokensIndex: () => request<TokensIndexResponse>("GET", "/api/v1/tokens"),
     tokensRevoke: (args) => request<TokensRevokeResponse>("DELETE", "/api/v1/tokens/{token}", args),
     tokensStore: (args) => request<TokensStoreResponse>("POST", "/api/v1/tokens", args),
+    toolsArchiveCreate: (args) => request<ToolsArchiveCreateResponse>("POST", "/api/v1/tools/archive-create", args),
+    toolsArchiveExtract: (args) => request<ToolsArchiveExtractResponse>("POST", "/api/v1/tools/archive-extract", args),
     toolsAudioConvert: (args) => request<ToolsAudioConvertResponse>("POST", "/api/v1/tools/audio-convert", args),
     toolsAudioConvertFormats: () => request<ToolsAudioConvertFormatsResponse>("GET", "/api/v1/tools/audio-convert/formats"),
     toolsImageConvert: (args) => request<ToolsImageConvertResponse>("POST", "/api/v1/tools/image-convert", args),

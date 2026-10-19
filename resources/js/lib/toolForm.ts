@@ -1,4 +1,5 @@
 import { ApiError, type Conversion } from "./conversions";
+import { archiveForms } from "./forms/archive";
 import { pdfForms } from "./forms/pdf";
 
 /**
@@ -154,7 +155,7 @@ export interface ToolForm {
  *  A tool whose interaction is genuinely different, rather than only its
  *  fields, gets a page of its own and no entry here — the sprite tools draw a
  *  grid over the sheet, which no field list can express. */
-export const forms: Record<string, ToolForm> = { ...pdfForms };
+export const forms: Record<string, ToolForm> = { ...pdfForms, ...archiveForms };
 
 /** optionsFrom turns the form's values into the request body.
  *

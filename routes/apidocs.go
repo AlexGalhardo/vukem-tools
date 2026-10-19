@@ -317,6 +317,7 @@ func requestExamples() map[string]any {
 	}
 
 	maps.Copy(out, pdfRequestExamples())
+	maps.Copy(out, archiveRequestExamples())
 
 	return out
 }

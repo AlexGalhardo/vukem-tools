@@ -148,6 +148,17 @@ type AbilityList struct {
 	Data []string `json:"data,omitempty"`
 }
 
+type ArchiveCreateOptions struct {
+	// zip, tar.gz, tar or gz. Default zip.
+	Format *string `json:"format,omitempty"`
+	// Compression level, 1 to 9. 0 uses the format's default.
+	Level *int64 `json:"level,omitempty"`
+	// The archive's name, without an extension. Default archive.
+	Name *string `json:"name,omitempty"`
+}
+
+type ArchiveExtractOptions map[string]any
+
 type AudioFormat struct {
 	// The canonical extension, with the dot.
 	Extension *string `json:"extension,omitempty"`
@@ -755,6 +766,24 @@ type TokensStoreBody struct {
 	RecoveryCode *string `json:"recovery_code,omitempty"`
 }
 
+type ToolsArchiveCreateBody struct {
+	// The uploads to pack, in order. One to sixty-four.
+	FileIds []string `json:"file_ids"`
+	// Repeat a submission safely: the same key returns the same conversion.
+	IdempotencyKey *string `json:"idempotency_key,omitempty"`
+	// The format, the compression level and the archive's name. Every field is optional.
+	Options *ArchiveCreateOptions `json:"options,omitempty"`
+}
+
+type ToolsArchiveExtractBody struct {
+	// The id of an upload of yours: a ZIP, TAR, TAR.GZ or GZ.
+	FileID string `json:"file_id"`
+	// Repeat a submission safely.
+	IdempotencyKey *string `json:"idempotency_key,omitempty"`
+	// Extracting has no options: the archive says what it is.
+	Options ArchiveExtractOptions `json:"options,omitempty"`
+}
+
 type ToolsAudioConvertBody struct {
 	// The id of an upload of yours, from the resumable upload endpoint.
 	FileID string `json:"file_id"`
@@ -1092,6 +1121,22 @@ func (c *Client) TokensRevoke(ctx context.Context, token string) error {
 func (c *Client) TokensStore(ctx context.Context, body TokensStoreBody) (TokenIssued, error) {
 	var out TokenIssued
 	err := c.do(ctx, "POST", "/api/v1/tokens", nil, body, &out)
+
+	return out, err
+}
+
+// ToolsArchiveCreate calls POST /api/v1/tools/archive-create: Pack several files into one archive.
+func (c *Client) ToolsArchiveCreate(ctx context.Context, body ToolsArchiveCreateBody) (ConversionView, error) {
+	var out ConversionView
+	err := c.do(ctx, "POST", "/api/v1/tools/archive-create", nil, body, &out)
+
+	return out, err
+}
+
+// ToolsArchiveExtract calls POST /api/v1/tools/archive-extract: Unpack an archive into its files.
+func (c *Client) ToolsArchiveExtract(ctx context.Context, body ToolsArchiveExtractBody) (ConversionView, error) {
+	var out ConversionView
+	err := c.do(ctx, "POST", "/api/v1/tools/archive-extract", nil, body, &out)
 
 	return out, err
 }

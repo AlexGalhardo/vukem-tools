@@ -58,6 +58,14 @@ Each has a regression test; the detail is in the commit and in
    process that PDF." on all nineteen PDF tools. It is fault 2 above, in the other half of the
    app: that fix went into the capability probe and not into `jobs.NewPipeline`, and no test
    caught it because every one of them passes a `t.TempDir`, which is already absolute.
+10. **The header's API link was an Inertia link to a page Inertia does not render.** `/docs` is
+    the Scalar reference, served as plain HTML by `vukem/apidocs`, so the visit fetched it by XHR,
+    got a response with no `X-Inertia` header, and the client rendered it in its full-screen error
+    iframe: a white panel over the home page that never navigated and could not be dismissed.
+    Confirmed against production rather than inferred — with a matching `X-Inertia-Version`,
+    `GET /docs` returns `200 text/html` and no Inertia header. The entries now live in
+    `resources/js/lib/nav.ts` so the rule "a link that leaves the app is a document link" is
+    tested without a DOM.
 
 ## Framework feedback
 

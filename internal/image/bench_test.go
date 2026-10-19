@@ -105,6 +105,27 @@ func TestShrinkOnLoadIsCheaperThanAFullDecode(t *testing.T) {
 	t.Logf("3000x2000 JPEG: shrink-on-load to 375 wide peaks at %.1f MB, full size at %.1f MB",
 		float64(shrunk)/(1<<20), float64(full)/(1<<20))
 
+	// Two different conversions reporting the same peak to the byte is not a
+	// measurement, it is the channel reporting a floor.
+	//
+	// MaxRSS comes from wait4's rusage, and a forked child inherits the
+	// parent's resident pages until exec replaces its image — so ru_maxrss
+	// is really max(the parent's RSS at fork, the engine's own peak). The
+	// test binary is usually small enough for that floor to sit under both
+	// figures; under -race it is instrumented to around 150 MB, which is
+	// above both, and then every engine reports exactly that.
+	//
+	// Skipped rather than failed, because the assertion has not been
+	// contradicted — it could not be evaluated. Running this package without
+	// -race measures it, and that is what the message says to do. The same
+	// floor applies to every MaxRSS figure in docs/benchmarks.md, which
+	// records the caveat.
+	if shrunk == full {
+		t.Skipf("peak memory came back identical for both conversions (%d bytes), which means "+
+			"wait4 reported the parent's own resident size rather than the engine's: run "+
+			"`go test ./internal/image/` without -race to measure this", shrunk)
+	}
+
 	if shrunk >= full {
 		t.Errorf("shrink-on-load peaked at %d bytes and a full decode at %d: the decoder is not being "+
 			"asked for a reduced image", shrunk, full)

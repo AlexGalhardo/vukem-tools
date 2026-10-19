@@ -340,6 +340,21 @@ Net: **3.8 × faster, 18 × less allocated, 822 × fewer allocations.** Recorded
 asks for a measurement rather than a claim, and because the first number was the one that would
 have shipped.
 
+## A caveat on every `MaxRSS` figure here
+
+The engine's peak resident memory comes from `wait4`'s rusage, and a forked child inherits the
+parent's resident pages until `exec` replaces its image. So `ru_maxrss` is really
+**max(the worker's own RSS at fork, the engine's peak)**, not the engine's peak alone.
+
+It is usually harmless — the worker is far smaller than a conversion — but it is a floor, so a
+small conversion's figure can be the worker's size rather than its own. It stops being harmless
+under `go test -race`, where the instrumented binary is around 150 MB and every engine then
+reports exactly that: `TestShrinkOnLoadIsCheaperThanAFullDecode` detects the two conversions
+coming back identical to the byte and skips rather than asserting on a number that measures
+nothing.
+
+Read any engine RSS row below as an upper bound, and measure without `-race`.
+
 ## Archives
 
 Pure Go: `archive/zip`, `archive/tar` and `compress/gzip`. No engine, no subprocess, so these are
@@ -411,3 +426,55 @@ a peak.
 Neither is in the standard library. Each would have cost a module and a `/licenses` entry to add a
 format the four here already cover for anything sent to a web service, so neither ships;
 `docs/brainstorming.md` records the decision. `git diff go.mod go.sum` over this feature is empty.
+
+## Image compression (S4.2)
+
+libvips only. The ROADMAP planned a chain of specialist optimisers — oxipng, jpegtran, pngquant,
+gifsicle, cwebp — and that is not what shipped; `docs/brainstorming.md § 7` records why. These are
+the figures that decision has to be judged against.
+
+Fixtures are the project's gradient seed, which has structure. A flat colour compresses to nothing
+whatever the encoder does and would make any of this look like it works.
+
+```bash
+go test -count=1 -run TestCompressing -v ./internal/image/
+```
+
+| Date | Input | Before | After | Saved | Mode |
+| --- | --- | --- | --- | --- | --- |
+| 2026-10-19 | PNG 1200×800, encoded by Go | 22 075 B | 5 717 B | **74.1 %** | lossless |
+| 2026-10-19 | JPEG 1200×800 | 28 349 B | 17 234 B | **39.2 %** | lossy, SSIM 0.9977 |
+| 2026-10-19 | WebP 1200×800, written by libvips | 5 370 B | 5 370 B | 0 % | returned unchanged |
+| 2026-10-19 | GIF 1200×800, written by libvips | 282 344 B | 282 344 B | 0 % | returned unchanged |
+
+The two zeroes are the point rather than a disappointment. Those fixtures were written by libvips
+at its own defaults, so libvips cannot beat them, and the tool returns the original with a sentence
+saying so instead of handing back a re-encode that is larger. A specialist chain would win here;
+one general-purpose encoder does not, and the interface says which happened.
+
+The JPEG figure carries an SSIM rather than a mean difference. A mean is dominated by flat areas
+and stays high while an edge turns to mush, which is exactly the failure a quality regression
+produces; `TestCompressingAJPEGIsSmallerAndStaysFaithful` fails below 0.95.
+
+### The PNG row-filter bug this found
+
+libvips's `pngsave` defaults to **no row filtering**. libpng recommends that only for
+already-compressed data; on anything with structure the compressor is left with nothing to work
+with. Measured on the 600 × 400 gradient fixture:
+
+| pngsave options | Bytes |
+| --- | --- |
+| `compression=9` (what this service shipped) | **150 527** |
+| `compression=9,filter=all` | **2 026** |
+| Go's `image/png`, for reference | 2 063 |
+| `compression=9,palette=true,Q=80,dither=1` | 58 982 |
+
+Seventy-four times larger, on every PNG `image-convert` has ever written. `filter=all` is now the
+default there, and `TestConvertingToPNGUsesRowFilters` is the regression test.
+
+Two things worth keeping from the table. The filters lose on one input kind — a field of pure
+noise is 235 297 B unfiltered against 240 775 B filtered, about 2 % — which is why the compression
+tool runs both and keeps the smaller rather than picking one. And the palette, which is the lossy
+mode, is twenty-nine times *worse* than lossless here, because dithering a smooth gradient adds
+noise the compressor then has to store: that is why the lossy candidate list also contains the
+lossless candidates, and why "lossy" means permission to move the pixels rather than an obligation.

@@ -453,7 +453,18 @@ var defaults = map[Format]encodeDefaults{
 	},
 	PNG: {
 		effort: true, Effort: 7, minEffort: 1, maxEffort: 10,
-		extra: []string{"compression=9"},
+		// filter=all is not a tuning choice, it is the difference between a
+		// PNG and a PNG seventy times too large. libvips's pngsave defaults
+		// to no row filtering, which libpng's own documentation recommends
+		// only for already-compressed data; on anything with structure the
+		// compressor then has nothing to work with. The project's gradient
+		// fixture measures 150 527 bytes unfiltered and 2 026 filtered, and
+		// Go's own encoder — which filters — produces 2 063.
+		//
+		// The one case it loses is a field of pure noise, where the per-row
+		// filter bytes are overhead and it costs about two per cent.
+		// docs/benchmarks.md records both.
+		extra: []string{"compression=9", "filter=all"},
 	},
 	WebP: {
 		quality: true, Quality: 82,

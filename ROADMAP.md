@@ -1720,17 +1720,26 @@ Recorded in full in [docs/brainstorming.md § 6](docs/brainstorming.md); the sho
 vukem-tools exists partly to push the framework. At the end of **every** completed task group:
 
 - [ ] Append each vukem bug, missing feature, awkward API, security issue or wrong documentation
-      page to `../framework-feedback/vukem-tools-feedback.md`, one entry each, with the
-      reproduction and the docs URL when it is a docs finding
-- [ ] Record the local workaround in code with `// workaround(vukem): <entry title>`
-- [ ] Update `../framework-feedback/audit.md` when the finding changes the framework's backlog
-- [ ] Update `../status.md` with what shipped and what is next
+      page to [docs/vukem-feedback.md](docs/vukem-feedback.md), one entry each, with the
+      reproduction and the docs URL when it is a docs finding. The rule names
+      `../framework-feedback/vukem-tools-feedback.md`; that sibling checkout does not exist in a
+      cloud session, so the log lives in the repository and is copied across when working locally
+- [ ] Record the local workaround in code with `// workaround(vukem): <entry title>`, naming the
+      audit id in the prose so the marker carries its own expiry
+- [ ] **Re-check every existing marker against the version `go.mod` pins**, reading the module
+      cache rather than this repository, and delete the whole comment block for each finding that
+      has closed. Closing a finding is as much of the job as opening one
+- [ ] Update [docs/vukem-audit.md](docs/vukem-audit.md) when the finding changes the framework's
+      backlog
+- [ ] Update [docs/status.md](docs/status.md) with what shipped and what is next
 - [ ] Update `.claude/skills/` and `.claude/rules/` with what the workflow actually turned out to
       be, so the next session starts from the real process rather than the planned one
 - [ ] Never edit the vukem repository from here
 
 ### Quality asserts
 
-- Every `workaround(vukem)` comment in the codebase has a matching entry in
-  `vukem-tools-feedback.md`, checkable with `rg`
-- `status.md` names the current version and the next milestone
+- Every `workaround(vukem)` comment in the codebase has a matching **open** entry in
+  [docs/vukem-feedback.md](docs/vukem-feedback.md), checkable with `rg`. On 2026-10-19 the tree
+  held five markers and the log held no open entry for any of them: all five had closed in the
+  pinned version
+- [docs/status.md](docs/status.md) names the current version and the next milestone

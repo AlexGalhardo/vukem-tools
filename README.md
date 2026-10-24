@@ -29,6 +29,32 @@ sheets, the developer tools and the Telegram bot are in. A tool whose engine is 
 image is not registered at all, so the tool index shows it as planned rather than offering a form
 that cannot work — `GET /api/v1/capabilities` reports which engines a given deployment has.
 
+## Demo
+
+Pixel art to SVG, with the options and the finished conversion:
+
+![Pixel art to SVG: choose the geometry, drop a PNG and get the SVG](docs/media/pixel-art-to-svg.gif)
+
+Format and validate JSON, with the line and column of the first error:
+
+![Format and validate JSON: an unclosed object is flagged, then fixed and formatted](docs/media/json-format.gif)
+
+Clean an LLM reply down to the JSON it contained:
+
+![Clean LLM output: strips the code fence and repairs a trailing comma](docs/media/clean-llm-output.gif)
+
+Diff two texts or two JSON documents:
+
+![Diff JSON and text: a line diff, then a key-by-key JSON diff](docs/media/diff.gif)
+
+Generate and validate CPF and CNPJ numbers:
+
+![CPF and CNPJ: generate a pair, switch to the alphanumeric CNPJ and validate a number](docs/media/cpf-cnpj.gif)
+
+Search every tool with `Ctrl+K`, switch to the dark theme and browse the index:
+
+![Command palette search, dark theme and the tool index](docs/media/search-and-theme.gif)
+
 ## Tools
 
 Every tool needs an account. The index at `/` lists them, `Ctrl+K` searches them, and the sidebar

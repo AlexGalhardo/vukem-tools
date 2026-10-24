@@ -5,32 +5,34 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.6.0] - 2026-10-24
+
+### Added
+
+- **ui:** Add a sidebar with grouped tools, Ctrl+K search and the developer tools ([f02060e](https://github.com/AlexGalhardo/vukem-tools/commit/f02060e9f020dad5ef28c9676d9679d8bc85f673))
+- **pdf:** Convert Office documents, recognise scans, fill forms and sign with a certificate ([19f104c](https://github.com/AlexGalhardo/vukem-tools/commit/19f104c55796f0429dfe200556318fec942936f8))
+- **bot:** Sign each person in from the chat and serve the tools from button menus ([d4772e4](https://github.com/AlexGalhardo/vukem-tools/commit/d4772e4ed5f0cffa91cf9e0cf0562b0ba8f3f09b))
+
+### Fixed
+
+- **infra:** Name the signal when an engine is killed ([73c529c](https://github.com/AlexGalhardo/vukem-tools/commit/73c529cccf1e66dacaae80bdd1c4a6eb2e9d3769))
+- **deps:** Override markdown-it past two quadratic-time advisories ([76a2104](https://github.com/AlexGalhardo/vukem-tools/commit/76a2104c3676fd674754898bd0edcaefb50b2053))
+- **infra:** Build on Go 1.27.3 for the crypto/x509 advisory GO-2026-6809 ([c838452](https://github.com/AlexGalhardo/vukem-tools/commit/c838452ac2123244e1872a70a0fe551cf6dec553))
+- **infra:** Stop an engine probe from waiting on a child that holds its pipe ([49de10e](https://github.com/AlexGalhardo/vukem-tools/commit/49de10e9e7ca6fc51f99547807c653e432eaaea0))
+
 ## [0.5.0] - 2026-10-19
 
 ### Added
 
-- **archive:** Create and extract ZIP, TAR, TAR.GZ and GZ ([9910ab2](https://github.com/AlexGalhardo/vukem-tools/commit/9910ab2d2ccbf7ad80908abfcd42b3e0564c01fe))
-- **ui:** Rebuild the header for a phone ([4e5601c](https://github.com/AlexGalhardo/vukem-tools/commit/4e5601c3d53d1a8d23109d6b5500009a0db14457))
-- **image:** Compress an image without changing what it is ([0bdab01](https://github.com/AlexGalhardo/vukem-tools/commit/0bdab0137f067793abe9b73562688d886ac5d3ee))
-- **sprite:** Write the five atlas formats a game engine imports ([ef48497](https://github.com/AlexGalhardo/vukem-tools/commit/ef48497ddb598468494b9609782bb0615222a9c9))
-- **sprite:** Ship sprite-split and sprite-build ([9683835](https://github.com/AlexGalhardo/vukem-tools/commit/9683835209e400178556f8c9ebf547c2dc682d5c))
-- **ui:** Draw the grid over the sheet, and show the packed result ([a760ebe](https://github.com/AlexGalhardo/vukem-tools/commit/a760ebe69a4c0ac30481d3205ddbad7b126c5f58))
 - **ui:** Serve /sitemap.xml ([9c60315](https://github.com/AlexGalhardo/vukem-tools/commit/9c60315ba99e5007400eb50a58f584aed7ba9510))
 
 ### Changed
 
-- **ui:** Lift the generic tool form out of the pdf domain ([2c72fba](https://github.com/AlexGalhardo/vukem-tools/commit/2c72fbaf2abd957d7afb73150a8329cc172d15c9))
 - **ui:** Trim the header to what it is for ([a6e1c04](https://github.com/AlexGalhardo/vukem-tools/commit/a6e1c04bac59724230f85c993babf88e27037bc8))
 - **ui:** Drop the header links that duplicate what is already there ([e4a5ed7](https://github.com/AlexGalhardo/vukem-tools/commit/e4a5ed7cbb505599f5a50cf796330e6d60ffd1fc))
 
 ### Fixed
 
-- **api:** Authenticate the app's own pages, render every PDF page, show the new key ([7b3023d](https://github.com/AlexGalhardo/vukem-tools/commit/7b3023df67fc100dd496ca1169794ae1181f5e17))
-- **infra:** Resolve the engine probe directory per boot and absolutely ([cd2b97f](https://github.com/AlexGalhardo/vukem-tools/commit/cd2b97fb3cde97f3011776aca098f4668dff983d))
-- **jobs:** Keep a failure's specific message on the conversion ([c88c07c](https://github.com/AlexGalhardo/vukem-tools/commit/c88c07c94349339322805c2bc040ffdb47133042))
-- **image:** Turn on PNG row filters, which were off on every PNG written ([5f6ba8e](https://github.com/AlexGalhardo/vukem-tools/commit/5f6ba8e1deeac9bab1104d57c617660eba366f11))
-- **jobs:** Give a conversion somewhere to say what it did ([af38a46](https://github.com/AlexGalhardo/vukem-tools/commit/af38a469247d45974544e787749cab5b827e4488))
-- **ui:** Allow blob: images, so a dropped file can be previewed ([ca21f29](https://github.com/AlexGalhardo/vukem-tools/commit/ca21f2905b6590aac69e2083a016025a455f7c5c))
 - **infra:** Size the engine process limit from what the UID already owns ([6ea47c1](https://github.com/AlexGalhardo/vukem-tools/commit/6ea47c1e4ce770e4ca6c75288f59acd1fb2d6f24))
 - **image:** Keep the cause when the engine printed nothing ([09cf93c](https://github.com/AlexGalhardo/vukem-tools/commit/09cf93c2031b4bca0fdb4ba82298ac7762b0ccfa))
 - **jobs:** Resolve the job working directory absolutely ([1074b84](https://github.com/AlexGalhardo/vukem-tools/commit/1074b84a58994a94996a3773ffac237d0c3bdcd7))
@@ -39,6 +41,46 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Security
 
 - **repo:** Close the five stale vukem workarounds ([c3e896b](https://github.com/AlexGalhardo/vukem-tools/commit/c3e896bf770d2106371951f77d199c4068a51b0a))
+
+## [0.4.0] - 2026-10-19
+
+### Added
+
+- **sprite:** Write the five atlas formats a game engine imports ([ef48497](https://github.com/AlexGalhardo/vukem-tools/commit/ef48497ddb598468494b9609782bb0615222a9c9))
+- **sprite:** Ship sprite-split and sprite-build ([9683835](https://github.com/AlexGalhardo/vukem-tools/commit/9683835209e400178556f8c9ebf547c2dc682d5c))
+- **ui:** Draw the grid over the sheet, and show the packed result ([a760ebe](https://github.com/AlexGalhardo/vukem-tools/commit/a760ebe69a4c0ac30481d3205ddbad7b126c5f58))
+
+### Fixed
+
+- **jobs:** Give a conversion somewhere to say what it did ([af38a46](https://github.com/AlexGalhardo/vukem-tools/commit/af38a469247d45974544e787749cab5b827e4488))
+- **ui:** Allow blob: images, so a dropped file can be previewed ([ca21f29](https://github.com/AlexGalhardo/vukem-tools/commit/ca21f2905b6590aac69e2083a016025a455f7c5c))
+
+## [0.3.0] - 2026-10-19
+
+### Added
+
+- **ui:** Rebuild the header for a phone ([4e5601c](https://github.com/AlexGalhardo/vukem-tools/commit/4e5601c3d53d1a8d23109d6b5500009a0db14457))
+- **image:** Compress an image without changing what it is ([0bdab01](https://github.com/AlexGalhardo/vukem-tools/commit/0bdab0137f067793abe9b73562688d886ac5d3ee))
+
+### Fixed
+
+- **image:** Turn on PNG row filters, which were off on every PNG written ([5f6ba8e](https://github.com/AlexGalhardo/vukem-tools/commit/5f6ba8e1deeac9bab1104d57c617660eba366f11))
+
+## [0.2.0] - 2026-10-19
+
+### Added
+
+- **archive:** Create and extract ZIP, TAR, TAR.GZ and GZ ([9910ab2](https://github.com/AlexGalhardo/vukem-tools/commit/9910ab2d2ccbf7ad80908abfcd42b3e0564c01fe))
+
+### Changed
+
+- **ui:** Lift the generic tool form out of the pdf domain ([2c72fba](https://github.com/AlexGalhardo/vukem-tools/commit/2c72fbaf2abd957d7afb73150a8329cc172d15c9))
+
+### Fixed
+
+- **api:** Authenticate the app's own pages, render every PDF page, show the new key ([7b3023d](https://github.com/AlexGalhardo/vukem-tools/commit/7b3023df67fc100dd496ca1169794ae1181f5e17))
+- **infra:** Resolve the engine probe directory per boot and absolutely ([cd2b97f](https://github.com/AlexGalhardo/vukem-tools/commit/cd2b97fb3cde97f3011776aca098f4668dff983d))
+- **jobs:** Keep a failure's specific message on the conversion ([c88c07c](https://github.com/AlexGalhardo/vukem-tools/commit/c88c07c94349339322805c2bc040ffdb47133042))
 
 ## [0.1.0] - 2026-10-19
 
@@ -127,5 +169,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - OpenAPI document and Scalar API reference ([8e3918b](https://github.com/AlexGalhardo/vukem-tools/commit/8e3918b5b33675e837ddd3e7969ba0c9110a208f))
 
-[0.5.0]: https://github.com/AlexGalhardo/vukem-tools/compare/v0.1.0...v0.5.0
+[0.6.0]: https://github.com/AlexGalhardo/vukem-tools/compare/v0.5.0...v0.6.0
+[0.5.0]: https://github.com/AlexGalhardo/vukem-tools/compare/v0.4.0...v0.5.0
+[0.4.0]: https://github.com/AlexGalhardo/vukem-tools/compare/v0.3.0...v0.4.0
+[0.3.0]: https://github.com/AlexGalhardo/vukem-tools/compare/v0.2.0...v0.3.0
+[0.2.0]: https://github.com/AlexGalhardo/vukem-tools/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/AlexGalhardo/vukem-tools/releases/tag/v0.1.0

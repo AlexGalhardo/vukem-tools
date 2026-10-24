@@ -5,7 +5,7 @@ Where the project is, and what is next. Updated at the end of every completed ta
 
 ## Now
 
-**Version:** `v0.6.0` released, with `v0.2.0` to `v0.4.0` added as tags on the commits that finished
+**Version:** `v0.6.1` released (`v0.6.0` plus the sidebar's stacked theme options), with `v0.2.0` to `v0.4.0` added as tags on the commits that finished
 archives, image compression and sprite sheets (see [brainstorming.md § 9.7](brainstorming.md)).
 **Next:** record peak memory and wall-clock for LibreOffice and OCR in
 [benchmarks.md](benchmarks.md), rebuild and check the production image, and try the bot against the

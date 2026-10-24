@@ -57,3 +57,6 @@ tests/storage/
 
 # Owner-local notes for the developer; questions raised while working alone.
 questions-to-dev.md
+
+# Owner-local vukem framework feedback, handed to another agent.
+vukem-feedback.md

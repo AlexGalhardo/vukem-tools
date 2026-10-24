@@ -39,6 +39,23 @@ func TestMain(m *testing.M) {
 	case "sleep":
 		time.Sleep(60 * time.Second)
 		os.Exit(0)
+	case "launcher":
+		// Starts the lingerer holding this process's output pipe, prints a
+		// version and exits at once: what a shim in front of the real engine
+		// does.
+		child := exec.Command(os.Args[0])
+		child.Env = append(os.Environ(), "ENGINE_TEST_ROLE=lingerer")
+		child.Stdout, child.Stderr = os.Stdout, os.Stderr
+
+		if err := child.Start(); err != nil {
+			os.Exit(2)
+		}
+
+		os.Stdout.WriteString("launcher 1.0\n")
+		os.Exit(0)
+	case "lingerer":
+		time.Sleep(20 * time.Second)
+		os.Exit(0)
 	case "signal":
 		// Dies by a signal rather than by exiting, which is the only way to
 		// produce exit code -1 and the thing the engine's error has to be
@@ -584,3 +601,31 @@ func TestAConfiguredPathWins(t *testing.T) {
 type lookup map[string]string
 
 func (l lookup) Get(key string) string { return l[key] }
+
+// A launcher that exits while its child keeps the output pipe open must not
+// hold up resolution. Before the probe had a WaitDelay, the boot of the whole
+// app waited for the child, which on a scoop shim under load was minutes.
+func TestResolveDoesNotWaitForAChildHoldingThePipe(t *testing.T) {
+	// No t.Parallel: it sets an environment variable the probe inherits.
+
+	t.Setenv("ENGINE_TEST_ROLE", "launcher")
+
+	began := time.Now()
+
+	registry, err := engine.Resolve(t.Context(), lookup{"FAKE_BIN": self(t)}, []engine.Binary{{
+		Name:        "fake",
+		EnvVar:      "FAKE_BIN",
+		VersionArgs: []string{"-test.run=TestResolveDoesNotWaitForAChildHoldingThePipe^$"},
+	}})
+	if err != nil {
+		t.Fatalf("resolve: %v", err)
+	}
+
+	if took := time.Since(began); took > 8*time.Second {
+		t.Fatalf("resolution took %s: it waited for the child that held the pipe", took)
+	}
+
+	if !registry.Has("fake") {
+		t.Fatalf("the launcher was not resolved; missing: %v", registry.Missing())
+	}
+}

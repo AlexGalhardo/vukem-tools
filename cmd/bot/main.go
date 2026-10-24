@@ -1,20 +1,23 @@
-// Command bot runs the Telegram front end: paste a URL, choose a format,
-// receive the file.
+// Command bot runs the Telegram front end: sign in once, pick a tool from a
+// menu, send a file or a link, receive the result.
 //
 // It is a separate binary from cmd/app on purpose. The bot is a client of the
-// HTTP API with an API key that carries one ability, so it needs no database,
-// no bucket, no engines and no signing key — and running it in the web
-// process would have given it all five. It also means the bot can be
-// restarted, scaled or switched off without touching the API.
+// HTTP API and holds no key of its own: each person signs in to their own
+// account through a link the server approves, and the bot keeps their key in
+// memory for as long as they stay signed in. So it needs no database, no
+// bucket, no engines and no signing key, and running it in the web process
+// would have given it all four. It also means the bot can be restarted,
+// scaled or switched off without touching the API; a restart signs everybody
+// out, which costs one click each.
 //
 // Every setting comes from the environment, because that is what the platform
 // supplies and the bot has no configuration file of its own:
 //
 //	TELEGRAM_BOT_TOKEN       the bot's token from BotFather (required)
-//	TELEGRAM_ALLOWED_USERS   comma-separated Telegram user ids (required)
-//	BOT_API_URL              the base URL of the vukem-tools API (required)
-//	BOT_API_KEY              an API key with only the video:download ability
-//	DEPLOY_TARGET            what /status calls this deploy
+//	BOT_API_URL              the base URL of the vukem-tools app (required)
+//	TELEGRAM_ALLOWED_USERS   comma-separated Telegram user ids; empty lets
+//	                         anybody try to sign in, which reaches only their
+//	                         own account
 package main
 
 import (
@@ -59,18 +62,20 @@ func run() error {
 		return err
 	}
 
-	api, apiDeploy, err := bot.NewAPI(os.Getenv("BOT_API_URL"), os.Getenv("BOT_API_KEY"), nil)
+	apiURL := strings.TrimSpace(os.Getenv("BOT_API_URL"))
+
+	links, err := bot.NewLinks(apiURL, nil)
 	if err != nil {
 		return err
 	}
 
 	b, err := bot.New(bot.Options{
-		Telegram:        telegram,
-		API:             api,
-		AllowedUsers:    allowed,
-		DeployTarget:    os.Getenv("DEPLOY_TARGET"),
-		APIDeployTarget: apiDeploy,
-		Log:             log,
+		Telegram:     telegram,
+		Links:        links,
+		Connect:      func(key string) (bot.Session, error) { return bot.NewSession(apiURL, key, nil) },
+		APIBaseURL:   apiURL,
+		AllowedUsers: allowed,
+		Log:          log,
 	})
 	if err != nil {
 		return err
@@ -82,17 +87,18 @@ func run() error {
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
 
-	log.Info("bot: starting", "allowed_users", len(allowed), "abilities", bot.Abilities())
+	log.Info("bot: starting", "restricted", len(allowed) > 0)
 
 	return b.Run(ctx)
 }
 
-// allowedUsers parses the allow-list.
+// allowedUsers parses the optional allow-list.
 //
-// An empty list is an error here rather than a warning: bot.New tolerates it
-// and refuses everybody, which is right for a library, but a deploy that
-// forgot the list should fail loudly instead of running a bot nobody can use
-// and nobody notices is broken.
+// Empty is valid: the sign-in is what keeps a stranger out of anybody's
+// account, so the list is a way to also keep strangers from using the bot's
+// capacity, not the only gate. Garbage is not valid: a list that silently
+// parsed to fewer ids than were written would let in people the owner meant
+// to keep out, or lock out the people they meant to let in.
 func allowedUsers(raw string) ([]int64, error) {
 	var ids []int64
 
@@ -114,11 +120,6 @@ func allowedUsers(raw string) ([]int64, error) {
 		}
 
 		ids = append(ids, id)
-	}
-
-	if len(ids) == 0 {
-		return nil, errors.New("TELEGRAM_ALLOWED_USERS is required: a download bot with no allow-list is " +
-			"a download bot for the internet")
 	}
 
 	return ids, nil

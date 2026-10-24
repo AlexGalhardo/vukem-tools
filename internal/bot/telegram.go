@@ -44,6 +44,40 @@ type Message struct {
 	From *Sender `json:"from,omitzero"`
 	Chat *Chat   `json:"chat,omitzero"`
 	Text string  `json:"text,omitzero"`
+	// Caption is the text sent along with a file.
+	Caption string `json:"caption,omitzero"`
+	// The file kinds a user can send. At most one is set. Photo is a list of
+	// the same picture at several sizes.
+	Document *Attachment `json:"document,omitzero"`
+	Photo    []PhotoSize `json:"photo,omitzero"`
+	Audio    *Attachment `json:"audio,omitzero"`
+	Video    *Attachment `json:"video,omitzero"`
+	Voice    *Attachment `json:"voice,omitzero"`
+}
+
+// Attachment is a file a user sent: a document, audio, video or voice note.
+// Every field is the sender's to choose, so none is trusted until validate.go
+// has looked at it.
+type Attachment struct {
+	FileID   string `json:"file_id"`
+	FileName string `json:"file_name,omitzero"`
+	MimeType string `json:"mime_type,omitzero"`
+	FileSize int64  `json:"file_size,omitzero"`
+}
+
+// PhotoSize is one rendition of a photo.
+type PhotoSize struct {
+	FileID   string `json:"file_id"`
+	Width    int    `json:"width,omitzero"`
+	Height   int    `json:"height,omitzero"`
+	FileSize int64  `json:"file_size,omitzero"`
+}
+
+// File is what getFile answers: where on Telegram's servers the bytes are.
+type File struct {
+	FileID   string `json:"file_id"`
+	FilePath string `json:"file_path,omitzero"`
+	FileSize int64  `json:"file_size,omitzero"`
 }
 
 // CallbackQuery is a press on an inline keyboard button.
@@ -78,7 +112,10 @@ type Button struct {
 	Text string `json:"text"`
 	// Data is returned verbatim as CallbackQuery.Data. It is set by this bot
 	// and never by a user, and Telegram caps it at 64 bytes.
-	Data string `json:"callback_data"`
+	Data string `json:"callback_data,omitempty"`
+	// URL makes the button open a link instead of calling back. Exactly one of
+	// Data and URL is set.
+	URL string `json:"url,omitempty"`
 }
 
 // Keyboard is an inline keyboard: a list of rows of buttons.
@@ -92,8 +129,16 @@ type Telegram interface {
 	// slice when the poll timed out with nothing to report, which is the
 	// normal case and not an error.
 	GetUpdates(ctx context.Context, offset int64, timeout time.Duration) ([]Update, error)
-	// SendMessage sends text, with an optional inline keyboard.
-	SendMessage(ctx context.Context, chatID int64, text string, keyboard *Keyboard) error
+	// SendMessage sends text, with an optional inline keyboard, and returns
+	// the new message's id so a later step can edit it in place.
+	SendMessage(ctx context.Context, chatID int64, text string, keyboard *Keyboard) (int64, error)
+	// EditMessage replaces the text and keyboard of a message the bot sent,
+	// which is how a menu changes without filling the chat with copies.
+	EditMessage(ctx context.Context, chatID, messageID int64, text string, keyboard *Keyboard) error
+	// GetFile asks where a file the user sent can be fetched.
+	GetFile(ctx context.Context, fileID string) (File, error)
+	// OpenFile streams a file by the path GetFile returned. The caller closes it.
+	OpenFile(ctx context.Context, filePath string) (io.ReadCloser, error)
 	// SendVideo asks Telegram to fetch a URL and post it as a video.
 	SendVideo(ctx context.Context, chatID int64, fileURL, caption string) error
 	// SendAudio does the same for an audio file.
@@ -225,7 +270,7 @@ func (t *httpTelegram) GetUpdates(ctx context.Context, offset int64, timeout tim
 }
 
 // SendMessage implements Telegram.
-func (t *httpTelegram) SendMessage(ctx context.Context, chatID int64, text string, keyboard *Keyboard) error {
+func (t *httpTelegram) SendMessage(ctx context.Context, chatID int64, text string, keyboard *Keyboard) (int64, error) {
 	body := map[string]any{
 		"chat_id": chatID,
 		"text":    truncate(text, maxMessageLength),
@@ -239,7 +284,82 @@ func (t *httpTelegram) SendMessage(ctx context.Context, chatID int64, text strin
 		body["reply_markup"] = keyboard
 	}
 
-	return t.call(ctx, "sendMessage", body, nil)
+	var sent struct {
+		ID int64 `json:"message_id"`
+	}
+
+	if err := t.call(ctx, "sendMessage", body, &sent); err != nil {
+		return 0, err
+	}
+
+	return sent.ID, nil
+}
+
+// EditMessage implements Telegram.
+func (t *httpTelegram) EditMessage(
+	ctx context.Context,
+	chatID, messageID int64,
+	text string,
+	keyboard *Keyboard,
+) error {
+	body := map[string]any{
+		"chat_id":                  chatID,
+		"message_id":               messageID,
+		"text":                     truncate(text, maxMessageLength),
+		"disable_web_page_preview": true,
+	}
+
+	if keyboard != nil {
+		body["reply_markup"] = keyboard
+	}
+
+	return t.call(ctx, "editMessageText", body, nil)
+}
+
+// GetFile implements Telegram.
+func (t *httpTelegram) GetFile(ctx context.Context, fileID string) (File, error) {
+	var file File
+
+	if err := t.call(ctx, "getFile", map[string]any{"file_id": fileID}, &file); err != nil {
+		return File{}, err
+	}
+
+	return file, nil
+}
+
+// OpenFile implements Telegram.
+//
+// The bot downloads the file itself and passes it on to the API as it
+// arrives, instead of handing Telegram's URL to the API: that URL contains the
+// bot's token, and a token must never leave this process.
+func (t *httpTelegram) OpenFile(ctx context.Context, filePath string) (io.ReadCloser, error) {
+	if filePath == "" || strings.Contains(filePath, "..") {
+		return nil, errors.New("bot: telegram gave no usable file path")
+	}
+
+	endpoint := t.base + "/file/bot" + t.token + "/" + filePath
+
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, endpoint, http.NoBody)
+	if err != nil {
+		return nil, errors.New("bot: build the file request")
+	}
+
+	res, err := t.client.Do(req)
+	if err != nil {
+		if urlErr, ok := errors.AsType[*url.Error](err); ok {
+			return nil, fmt.Errorf("bot: download a file: %w", urlErr.Err)
+		}
+
+		return nil, errors.New("bot: download a file failed")
+	}
+
+	if res.StatusCode != http.StatusOK {
+		_ = res.Body.Close()
+
+		return nil, fmt.Errorf("bot: telegram answered %d for the file", res.StatusCode)
+	}
+
+	return res.Body, nil
 }
 
 // maxMessageLength is Telegram's own limit on a message.

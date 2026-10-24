@@ -1,6 +1,6 @@
 module github.com/AlexGalhardo/vukem-tools
 
-go 1.27.2
+go 1.27.3
 
 require (
 	github.com/AlexGalhardo/vukem v0.30.0
@@ -62,6 +62,7 @@ require (
 	modernc.org/mathutil v1.7.1 // indirect
 	modernc.org/memory v1.12.1 // indirect
 	modernc.org/sqlite v1.60.1 // indirect
+	software.sslmate.com/src/go-pkcs12 v0.7.4 // indirect
 )
 
 tool golang.org/x/vuln/cmd/govulncheck

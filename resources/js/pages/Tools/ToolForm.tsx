@@ -543,6 +543,16 @@ function FieldInput({
             </option>
           ))}
         </select>
+      ) : field.kind === "textarea" ? (
+        <textarea
+          id={id}
+          className={`${controlClass} font-mono text-sm`}
+          rows={6}
+          placeholder={field.placeholder}
+          spellCheck={false}
+          value={typeof value === "string" ? value : ""}
+          onChange={(event) => onChange(field.name, event.target.value)}
+        />
       ) : (
         <input
           id={id}

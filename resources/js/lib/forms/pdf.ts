@@ -261,4 +261,76 @@ export const pdfForms: Record<string, ToolForm> = {
       { ...pageRangeField, help: "A range such as 2-z to leave a cover page unnumbered." },
     ],
   },
+  "word-to-pdf": {
+    files: "one",
+    accept: ["application/vnd.openxmlformats-officedocument.wordprocessingml.document", "application/msword", "application/vnd.oasis.opendocument.text"],
+    fields: [],
+    note: "Fonts the server does not have are replaced by similar ones, so line breaks can differ from the original application. Macros never run.",
+  },
+  "powerpoint-to-pdf": {
+    files: "one",
+    accept: ["application/vnd.openxmlformats-officedocument.presentationml.presentation", "application/vnd.ms-powerpoint", "application/vnd.oasis.opendocument.presentation"],
+    fields: [],
+    note: "Fonts the server does not have are replaced by similar ones, so line breaks can differ from the original application. Macros never run.",
+  },
+  "excel-to-pdf": {
+    files: "one",
+    accept: ["application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", "application/vnd.ms-excel", "application/vnd.oasis.opendocument.spreadsheet"],
+    fields: [],
+    note: "Fonts the server does not have are replaced by similar ones, so line breaks can differ from the original application. Macros never run.",
+  },
+  "pdf-ocr": {
+    files: "one",
+    accept: ["application/pdf"],
+    fields: [
+      {
+        name: "languages",
+        label: "Language of the scan",
+        kind: "choice",
+        choices: ["eng", "por", "eng+por"],
+        help: "eng is English and por is Portuguese. Pick eng+por for a document that mixes both.",
+      },
+      { name: "deskew", label: "Straighten crooked pages", kind: "toggle" },
+    ],
+    note: "At most 100 pages. Pages that already have text are left as they are. Recognition makes mistakes, so check names and numbers.",
+  },
+  "pdf-forms": {
+    files: "one",
+    accept: ["application/pdf"],
+    fields: [
+      {
+        name: "action",
+        label: "What to do",
+        kind: "choice",
+        choices: ["list", "fill", "flatten"],
+        help: "list gives you the fields as a JSON file; fill sets the values below; flatten turns the form into plain page content.",
+      },
+      {
+        name: "values",
+        label: "Values to fill",
+        kind: "textarea",
+        placeholder: "full_name=Ana Souza",
+        help: "One field per line as name=value. A checkbox takes true or false; a radio group or a choice takes one of its options. Run list first to see the names.",
+      },
+      { name: "flatten", label: "Flatten after filling", kind: "toggle", help: "The values can no longer be edited." },
+    ],
+    note: "Scripts in a form do not run, so calculated fields are not recalculated.",
+  },
+  "pdf-sign": {
+    files: "many",
+    accept: ["application/pdf", "application/x-pkcs12", ".p12", ".pfx"],
+    fields: [
+      {
+        name: "password",
+        label: "Password of the .p12 file",
+        kind: "password",
+        required: true,
+        help: "The key is used for this one signature and is not kept.",
+      },
+      { name: "reason", label: "Reason", kind: "text", placeholder: "I approve this document" },
+      { name: "location", label: "Location", kind: "text" },
+      { name: "contact", label: "Contact", kind: "text" },
+    ],
+    note: "Add two files: the PDF and your .p12 certificate bundle, in either order. A self-signed certificate proves the document has not changed since signing, but PDF readers will not vouch for who you are until they trust that certificate. A document that is already signed is refused.",
+  },
 };

@@ -80,9 +80,25 @@ recorded figure is a failure, not a note.
   ```bash
   docker run --rm --network <net> -v "$PWD:/src" -w /src \
     -e TEST_DATABASE_URL="postgres://pg:pg@<pg-host>:5432/postgres?sslmode=disable" \
-    golang:1.27.2 go test -race -count=1 ./...
+    golang:1.27.3 go test -race -count=1 ./...
   ```
 
+- **PDF, Office and OCR engines.** `soffice`, `ocrmypdf`, `qpdf`, `gs` and `pdftotext` are not on a
+  Windows machine, so `internal/pdf` tests that need them skip. Run them on Linux against the real
+  engines: build a Debian trixie image with the packages pinned in the `Dockerfile`
+  (`libreoffice-writer`, `-calc`, `-impress`, `ocrmypdf`, `tesseract-ocr-eng`, `-por`, `qpdf`,
+  `ghostscript`, `poppler-utils`) and Go, mount the repository and run
+  `go test -count=1 ./internal/pdf/...`. Without `gcc` there is no `-race` in that image.
+  `TestAScanBecomesSearchable` and the signing tests are only meaningful there; the signing tests
+  also need `pdfsig`, which ships with `poppler-utils`.
+- **Generated clients.** After any change to a route or to a request or response type, regenerate
+  `clients/` (the commands are in `docs/api.md`). `TestGeneratedClientsCoverEveryOperation` and
+  `TestEveryRequestAndResponseHasAnExample` fail until both clients and the OpenAPI examples in
+  `routes/apidocs.go` know the operation.
+- **Looking at the UI.** `bun run typecheck` proves nothing about layout. Start Postgres, run
+  `go run ./cmd/app migrate` and `serve` (not on port 3000, which Windows may reserve), and check
+  the page at phone and desktop width in both themes. The assets are embedded, so rebuild with
+  `bun run build` and restart after every frontend change.
 - **CRLF on Windows.** `.gitattributes` forces LF. When generating files from a script, write bytes
   or pass `newline="\n"`; text mode writes CRLF and breaks `.sh` inside Docker.
 - **Indentation.** Tabs, width 4, per `.editorconfig`. YAML, JSON and Markdown use spaces.

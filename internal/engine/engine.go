@@ -138,7 +138,16 @@ func probe(ctx context.Context, path string, args []string) string {
 	// Combined output, because several engines print their version to
 	// stderr: poppler's pdftotext and pdftoppm answer -v there with exit 0,
 	// and reading only stdout logged them as "unknown" while they worked.
-	out, err := exec.CommandContext(ctx, path, args...).CombinedOutput()
+	//
+	// WaitDelay bounds the wait for the output pipe once the program has been
+	// killed at the timeout. A launcher that starts the real program as a
+	// child (a scoop shim on Windows) is killed alone, and without this the
+	// child keeps the pipe open and the probe, and with it the boot of the
+	// whole app, waits for it forever.
+	cmd := exec.CommandContext(ctx, path, args...)
+	cmd.WaitDelay = time.Second
+
+	out, err := cmd.CombinedOutput()
 	if err != nil && len(out) == 0 {
 		return "unknown"
 	}

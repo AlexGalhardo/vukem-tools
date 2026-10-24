@@ -63,6 +63,8 @@ var pdfBinaries = []engine.Binary{
 	{Name: pdf.EnginePDFToPPM, EnvVar: "PDFTOPPM_PATH", VersionArgs: []string{"-v"}},
 	{Name: pdf.EnginePDFToText, EnvVar: "PDFTOTEXT_PATH", VersionArgs: []string{"-v"}},
 	{Name: pdf.EngineVips, EnvVar: "VIPS_PATH", VersionArgs: []string{"--version"}},
+	{Name: pdf.EngineLibreOffice, EnvVar: "SOFFICE_PATH", VersionArgs: []string{"--version"}},
+	{Name: pdf.EngineOCRmyPDF, EnvVar: "OCRMYPDF_PATH", VersionArgs: []string{"--version"}},
 }
 
 // The engine limits the PDF tools run under.

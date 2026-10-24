@@ -23,12 +23,16 @@ SemVer, and below 1.0.0 a breaking change is a minor bump:
 - only `fix`/`perf`/`refactor` → patch.
 - a `!` commit or a `BREAKING CHANGE:` footer → minor while below 1.0.0, major after.
 
-The ROADMAP maps phases to versions: S1 → `v0.1.0`, S2 → `v0.2.0`, S3 → `v0.3.0`, S4 → `v0.4.0`.
+The ROADMAP maps phases to versions: S1 → `v0.1.0`, S2 → `v0.2.0`, S3 → `v0.3.0`, S4 → `v0.4.0`,
+S9 → `v0.6.0`. Several early phases went out inside `v0.1.0`, so `v0.2.0` to `v0.4.0` were later
+added as tags on the commits that finished archives, image compression and sprite sheets; see
+`docs/brainstorming.md` § 9.7. Never move a tag to renumber: add tags on the right commits.
 
 ## 3. Generate the changelog and commit
 
 ```bash
 bun run changelog -- --tag vX.Y.Z   # git-cliff, then collapses the blank lines it leaves
+git cliff --strip header vA.B.C..vX.Y.Z   # one version's notes, for gh release create
 ```
 
 Read the diff. If an entry reads badly, the commit message was bad: that is a lesson for next
@@ -37,10 +41,14 @@ time, not a reason to edit `CHANGELOG.md`.
 Bump `version` in `package.json` to `X.Y.Z` — CI checks that a `vX.Y.Z` tag matches it.
 
 ```bash
+git switch -c chore/release-vX.Y.Z
 git add CHANGELOG.md package.json
 git commit -m "chore(release): vX.Y.Z"
-git push origin main
+git push -u origin chore/release-vX.Y.Z   # then a pull request, merged once CI is green
 ```
+
+The release commit goes through a pull request like everything else; tag the merge result on
+`main`, not the branch.
 
 ## 4. Tag, one at a time
 
@@ -66,6 +74,23 @@ and re-run. Only as a last resort publish by hand:
 ```bash
 gh release create vX.Y.Z --verify-tag --notes-file <section>
 ```
+
+## 5b. A tag added after the fact
+
+`release.yml` runs on every tag push, builds a container image from the tagged commit and then
+looks for a changelog section in that commit's own `CHANGELOG.md`. A back-filled tag points at a
+commit that does not have the section, so the run builds the image and then fails at that step.
+Push such tags one at a time, accept the red run, and publish the release by hand with the notes
+`git cliff` generates for the range, `--latest=false` so the newest version stays "Latest":
+
+```bash
+git cliff --strip header vPREV..vTAG > notes.md
+gh release create vTAG --verify-tag --title vTAG --notes-file notes.md --latest=false
+```
+
+GitHub lists releases newest first by creation date, so create them oldest first and the newest
+last; recreate the newest release (the release only, never the tag) if the order came out wrong.
+Do not disable the workflow to avoid the red run.
 
 ## 6. Close the loop
 

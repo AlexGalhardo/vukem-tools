@@ -3,14 +3,17 @@ package routes
 
 import (
 	"net/http"
+	"time"
 
 	vukem "github.com/AlexGalhardo/vukem"
 	"github.com/AlexGalhardo/vukem/auth"
 	"github.com/AlexGalhardo/vukem/inertia"
 	"github.com/AlexGalhardo/vukem/middleware"
+	"github.com/AlexGalhardo/vukem/ratelimit"
 	"github.com/AlexGalhardo/vukem/router"
 
 	"github.com/AlexGalhardo/vukem-tools/app/accounts"
+	"github.com/AlexGalhardo/vukem-tools/app/catalog"
 	"github.com/AlexGalhardo/vukem-tools/app/controllers"
 	"github.com/AlexGalhardo/vukem-tools/app/services"
 	"github.com/AlexGalhardo/vukem-tools/internal/httpx"
@@ -76,7 +79,7 @@ func registerWeb(
 		return err
 	}
 
-	share, err := shareProps(app)
+	share, err := shareProps(app, conversions.Pipeline().Tools())
 	if err != nil {
 		return err
 	}
@@ -135,9 +138,26 @@ func registerWeb(
 	// controller. No auth, because a crawler has no account — which is also
 	// why the tool pages are not in it.
 	r.Get("/sitemap.xml", controllers.NewSitemap(app.Config.URL).Serve).Name("sitemap")
+	// The llmstxt.org index: the live tools, read by a model in one request.
+	llms := controllers.NewLLMs(app.Config.Name, app.Config.URL, conversions.Pipeline().Tools())
+	r.Get("/llms.txt", llms.Index).Name("llms")
+	r.Get("/llms-full.txt", llms.Full).Name("llms.full")
 	// A tool page needs an account: every conversion does, so showing the
 	// form to somebody who cannot submit it would be a dead end.
 	r.Get("/tools/{name}", pages.Tool).Name("tools.show").Use(auth.Required(acc.Web))
+
+	// The two registry lookups behind the Brazil tools. Signed in and limited
+	// per IP, because each request costs an outbound call to a free public
+	// service whose own limits this app would otherwise spend for everybody.
+	limiters, err := app.RateLimiters()
+	if err != nil {
+		return err
+	}
+
+	lookup := controllers.NewLookup(nil)
+	lookupLimit := ratelimit.Middleware(limiters("lookup", 30, time.Minute), ratelimit.ByIP)
+	r.Get("/lookup/cep/{cep}", lookup.CEP).Name("lookup.cep").Use(auth.Required(acc.Web), lookupLimit)
+	r.Get("/lookup/cnpj/{cnpj}", lookup.CNPJ).Name("lookup.cnpj").Use(auth.Required(acc.Web), lookupLimit)
 
 	return nil
 }
@@ -148,7 +168,7 @@ func registerWeb(
 // the sign-in pages never render a button that leads to an error. Resolved
 // once at boot, not per request: the credentials cannot change under a running
 // process.
-func shareProps(app *vukem.App) (func(http.Handler) http.Handler, error) {
+func shareProps(app *vukem.App, live []string) (func(http.Handler) http.Handler, error) {
 	s, err := accounts.NewSocial(app, socialProviders...)
 	if err != nil {
 		return nil, err
@@ -163,11 +183,17 @@ func shareProps(app *vukem.App) (func(http.Handler) http.Handler, error) {
 	// password fields would post to a route that does not exist.
 	passwordAuth := PasswordAuthEnabled(app)
 
+	// The sidebar lists the tools on every page, so they are shared rather
+	// than asked for by each page. The set cannot change under a running
+	// process, so it is built once.
+	toolGroups := catalog.NavGroups(live)
+
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			inertia.Share(r.Context(), "appName", app.Config.Name)
 			inertia.Share(r.Context(), "socialProviders", configured)
 			inertia.Share(r.Context(), "passwordAuth", passwordAuth)
+			inertia.Share(r.Context(), "toolGroups", toolGroups)
 			next.ServeHTTP(w, r)
 		})
 	}, nil

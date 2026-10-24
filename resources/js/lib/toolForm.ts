@@ -103,7 +103,7 @@ export function submitMany(
 }
 
 /** FieldKind is how one option is edited. */
-export type FieldKind = "text" | "number" | "choice" | "toggle" | "password";
+export type FieldKind = "text" | "textarea" | "number" | "choice" | "toggle" | "password";
 
 /** Field describes one of a tool's options, for the form.
  *
@@ -195,6 +195,30 @@ export function optionsFrom(form: ToolForm, values: Record<string, string | bool
     // they are sent as numbers: the API's field is an integer.
     if (field.name === "degrees" || field.name === "part") {
       out[field.name] = Number(value);
+
+      continue;
+    }
+
+    // The forms tool takes {name, value} pairs; the form takes one
+    // "name=value" per line, which is what a person types.
+    if (field.name === "values") {
+      out[field.name] = String(value)
+        .split("\n")
+        .map((line) => line.trim())
+        .filter((line) => line !== "")
+        .map((line) => {
+          const at = line.indexOf("=");
+
+          return at < 0 ? { name: line, value: "" } : { name: line.slice(0, at).trim(), value: line.slice(at + 1).trim() };
+        });
+
+      continue;
+    }
+
+    // The API takes a list of languages; the form offers "eng+por" as one
+    // choice.
+    if (field.name === "languages") {
+      out[field.name] = String(value).split("+");
 
       continue;
     }

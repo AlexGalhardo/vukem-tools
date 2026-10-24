@@ -45,15 +45,16 @@ func TestTheAllowListIsParsedFromTheSetting(t *testing.T) {
 	}
 }
 
-func TestAnEmptyAllowListIsADeployError(t *testing.T) {
+func TestAnEmptyAllowListMeansAnybodyMayTrySigningIn(t *testing.T) {
 	t.Parallel()
 
-	// bot.New tolerates an empty list and refuses everybody, which is right
-	// for a library. A deploy that forgot the setting should fail loudly
-	// instead of running a bot nobody can use and nobody notices is broken.
+	// The sign-in is the gate now: a stranger who signs in reaches only their
+	// own account. The list restricts who may use the bot's capacity at all,
+	// and leaving it empty is a choice, not a mistake.
 	for _, raw := range []string{"", "   ", ",", " , , "} {
-		if _, err := allowedUsers(raw); err == nil {
-			t.Errorf("allowedUsers(%q) was accepted", raw)
+		ids, err := allowedUsers(raw)
+		if err != nil || len(ids) != 0 {
+			t.Errorf("allowedUsers(%q) = %v, %v; want no ids and no error", raw, ids, err)
 		}
 	}
 }

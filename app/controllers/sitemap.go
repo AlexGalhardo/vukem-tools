@@ -87,6 +87,8 @@ var sitemapExcluded = []sitemapOmission{
 	{path: "/health", why: "an operator endpoint"},
 	{path: "/health/deep", why: "an operator endpoint"},
 	{path: "/sitemap.xml", why: "the sitemap itself"},
+	{path: "/llms.txt", why: "a Markdown index for language models, read on request, not a page for search"},
+	{path: "/llms-full.txt", why: "the same index with the content inline, for language models"},
 }
 
 // SitemapPaths returns the advertised paths, for the gate in ./tests.

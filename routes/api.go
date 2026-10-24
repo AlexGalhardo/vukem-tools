@@ -1,6 +1,7 @@
 package routes
 
 import (
+	"net/http"
 	"strings"
 	"time"
 
@@ -13,6 +14,7 @@ import (
 
 	"github.com/AlexGalhardo/vukem-tools/app/accounts"
 	"github.com/AlexGalhardo/vukem-tools/app/controllers/apiv1"
+	"github.com/AlexGalhardo/vukem-tools/app/devicelink"
 	"github.com/AlexGalhardo/vukem-tools/internal/httpx"
 )
 
@@ -46,6 +48,15 @@ func API(r *router.Router, app *vukem.App) error {
 	r.UseServer(cors) // preflight OPTIONS requests have no route
 
 	h := apiv1.NewTokens(acc)
+
+	// Short-lived link state lives in the cache, so it needs no table and
+	// disappears on its own.
+	appCache, err := app.Cache()
+	if err != nil {
+		return err
+	}
+
+	links := apiv1.NewDeviceLinks(devicelink.New(appCache.Store(), nil), acc, app.Config.URL)
 	// The IP limit runs first: tokens are only trusted as a rate-limit key
 	// once auth.Required has verified them.
 	perIP := ratelimit.Middleware(limiters("api.ip", 120, time.Minute), ratelimit.ByIP)
@@ -68,6 +79,32 @@ func API(r *router.Router, app *vukem.App) error {
 				"The secret is returned once and never stored: only its SHA-256 hash is.",
 			Tags: []string{tagTokens},
 		}, h.Issue).Use(issue)
+
+		// A program that cannot show a login form starts a link, the person
+		// approves it in the browser, and the program collects a key. Both
+		// calls are public: the link's codes are the credential, and starting
+		// one grants nothing until a signed-in person approves it.
+		api.Register(g, "POST /device-links", api.Op{
+			Name:    "devicelinks.start",
+			Summary: "Start linking a program to an account",
+			Description: "For a program that cannot show a login form, such as a chat bot. Returns a secret " +
+				"device_code to poll with and a short user_code to show the person, who opens verification_url " +
+				"in a browser, checks the code and approves. What the key may do is fixed by the client kind, " +
+				"not asked for. Rate limited per IP.",
+			Tags: []string{tagTokens},
+		}, links.Start).Use(issue)
+
+		api.Register(g, "POST /device-links/token", api.Op{
+			Name:    "devicelinks.token",
+			Summary: "Collect the key of an approved link",
+			Description: "Poll every `interval` seconds. status is pending until the person decides, then " +
+				"approved with the key (shown once and made at that moment), denied, or expired. A link that " +
+				"never existed reads as expired.",
+			Tags: []string{tagTokens},
+			// A poll creates nothing, so it answers 200 rather than the 201
+			// a POST gets by default.
+			Status: http.StatusOK,
+		}, links.Token)
 
 		api.Register(g, "GET /abilities", api.Op{
 			Name:        "abilities",

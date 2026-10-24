@@ -39,6 +39,12 @@ var engines = []engine.Binary{
 	{Name: "pdftotext", EnvVar: "PDFTOTEXT_PATH", VersionArgs: []string{"-v"}},
 	// qpdf: PDF structure — split, merge, rotate, encrypt (S6). Apache-2.0.
 	{Name: "qpdf", EnvVar: "QPDF_PATH", VersionArgs: []string{"--version"}},
+	// LibreOffice: Word, Excel and PowerPoint to PDF (S6). MPL-2.0 with
+	// LGPL and other parts, declared on /licenses.
+	{Name: "soffice", EnvVar: "SOFFICE_PATH", VersionArgs: []string{"--version"}},
+	// OCRmyPDF, with Tesseract underneath: scans to searchable PDF (S6).
+	// MPL-2.0 and Apache-2.0.
+	{Name: "ocrmypdf", EnvVar: "OCRMYPDF_PATH", VersionArgs: []string{"--version"}},
 }
 
 // Engine limits. They are deliberately generous enough for a 4K image and

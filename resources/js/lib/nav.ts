@@ -1,7 +1,9 @@
-/** Page is one entry of the header's navigation. */
+/** Page is one entry of the sidebar's navigation. */
 export type Page = {
   href: string;
   label: string;
+  /** icon names an icon in components/Icon.tsx. */
+  icon: string;
   /**
    * document asks for a real browser navigation rather than an Inertia visit.
    *
@@ -14,19 +16,24 @@ export type Page = {
   document?: boolean;
 };
 
+/** The tools and the account: what somebody comes to the app to use. */
+export const mainPages: Page[] = [
+  { href: "/", label: "All tools", icon: "grid" },
+  { href: "/account", label: "Account", icon: "user" },
+];
+
 /**
- * The site's own pages, in the order the header lists them.
- *
- * The home page is not one of them: the mark and the name to the left of the
- * row are already the link to it, so listing it again spends 44px of a phone
- * header on a destination the header already offers.
+ * The links at the foot of the sidebar, in order. The licence notice is not
+ * one of them: the page footer already carries it.
  *
  * They live here rather than in the component so the rule above can be tested
  * without a DOM.
  */
-export const headerPages: Page[] = [
+export const footerPages: Page[] = [
   // /docs is the Scalar API reference, which vukem/apidocs serves as plain
   // HTML. It is not an Inertia page and must never be visited as one.
-  { href: "/docs", label: "API", document: true },
-  { href: "/licenses", label: "Licences" },
+  { href: "/docs", label: "API reference", icon: "document", document: true },
 ];
+
+/** Every page the sidebar links to. */
+export const headerPages: Page[] = [...mainPages, ...footerPages];

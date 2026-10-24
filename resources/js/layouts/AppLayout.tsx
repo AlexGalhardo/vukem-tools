@@ -2,16 +2,14 @@ import { Link, usePage } from "@inertiajs/react";
 import type { ReactNode } from "react";
 
 import Icon from "../components/Icon";
-import Navbar from "../components/Navbar";
+import Sidebar from "../components/Sidebar";
 import type { SharedProps } from "../types";
 
 /**
- * The shell every page sits in.
- *
- * It is deliberately thin: this is an Operate surface, so the chrome gets out
- * of the way of the task. The header is its own component because it now has
- * two layouts and two menus; the footer holds the one thing a visitor legally
- * needs to find, which is the licence notice.
+ * The shell every page sits in: a navigation column on the left and the page
+ * on the right. The column is its own component because it is a fixed panel on
+ * a wide screen and a drawer behind a hamburger on a phone; the footer holds
+ * the one thing a visitor legally needs to find, which is the licence notice.
  */
 export default function AppLayout({ children }: { children: ReactNode }): React.ReactElement {
   const page = usePage<SharedProps>();
@@ -19,7 +17,7 @@ export default function AppLayout({ children }: { children: ReactNode }): React.
   const message = page.flash?.success ?? page.flash?.status;
 
   return (
-    <div className="flex min-h-dvh flex-col">
+    <div className="min-h-dvh md:pl-64">
       {/* Keyboard users reach the content without walking the header. */}
       <a
         href="#main"
@@ -28,8 +26,9 @@ export default function AppLayout({ children }: { children: ReactNode }): React.
         Skip to content
       </a>
 
-      <Navbar />
+      <Sidebar />
 
+      <div className="flex min-h-dvh flex-col md:min-h-dvh">
       <main id="main" className="edge-safe mx-auto w-full max-w-5xl flex-1 py-10">
         {typeof message === "string" && (
           <p
@@ -61,6 +60,7 @@ export default function AppLayout({ children }: { children: ReactNode }): React.
           </a>
         </div>
       </footer>
+      </div>
     </div>
   );
 }

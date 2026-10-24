@@ -100,6 +100,13 @@ func PDF(c *services.Conversions) func(r *router.Router, app *vukem.App) error {
 				api.Register(p, "POST /tools/pdf-watermark", pdfOp("pdf-watermark"), h.PDFWatermark).Use(submit)
 				api.Register(p, "POST /tools/pdf-page-numbers",
 					pdfOp("pdf-page-numbers"), h.PDFPageNumbers).Use(submit)
+				api.Register(p, "POST /tools/word-to-pdf", pdfOp("word-to-pdf"), h.WordToPDF).Use(submit)
+				api.Register(p, "POST /tools/powerpoint-to-pdf",
+					pdfOp("powerpoint-to-pdf"), h.PowerPointToPDF).Use(submit)
+				api.Register(p, "POST /tools/excel-to-pdf", pdfOp("excel-to-pdf"), h.ExcelToPDF).Use(submit)
+				api.Register(p, "POST /tools/pdf-ocr", pdfOp("pdf-ocr"), h.PDFOCR).Use(submit)
+				api.Register(p, "POST /tools/pdf-forms", pdfOp("pdf-forms"), h.PDFForms).Use(submit)
+				api.Register(p, "POST /tools/pdf-sign", pdfOp("pdf-sign"), h.PDFSign).Use(submit)
 			})
 		}).Name("api.v1.")
 
@@ -286,6 +293,53 @@ func pdfOperations() []pdfRoute {
 				"\"Page {n} of {total}\" and \"- {n} -\" both work. Numbering can start at any " +
 				"number and cover a page range, which is what a document with a cover page " +
 				"needs.",
+		},
+		{
+			path:        "word-to-pdf",
+			summary:     "Convert a Word or OpenDocument text file to PDF",
+			description: "Converted with LibreOffice from the document's own page setup. A font the server does not have is replaced by a similar one, so line breaks can differ from the original application, and macros never run. Linked images that need the network are left out.",
+		},
+		{
+			path:        "powerpoint-to-pdf",
+			summary:     "Convert a presentation to PDF",
+			description: "Converted with LibreOffice from the document's own page setup. A font the server does not have is replaced by a similar one, so line breaks can differ from the original application, and macros never run. Linked images that need the network are left out. One slide is one page.",
+		},
+		{
+			path:        "excel-to-pdf",
+			summary:     "Convert a spreadsheet to PDF",
+			description: "Converted with LibreOffice from the document's own page setup. A font the server does not have is replaced by a similar one, so line breaks can differ from the original application, and macros never run. Linked images that need the network are left out. Each sheet is paginated by its own print settings.",
+		},
+		{
+			path:        "pdf-ocr",
+			summary:     "Make a scanned PDF searchable",
+			description: "Recognises the text of scanned pages with Tesseract and adds it as an invisible layer, so the document can be searched and copied from. Pages that already have text are left as they are. English and Portuguese are installed; name both for a mixed document. At most 100 pages. Recognition makes mistakes: check names and numbers.",
+		},
+		{
+			path:    "pdf-forms",
+			summary: "List, fill or flatten a PDF form",
+			description: "The list action returns every field as JSON: its full name, type " +
+				"(text, checkbox, radio, choice), current value, options and whether it is " +
+				"read-only. The fill action sets the values you give, by field name; a checkbox " +
+				"takes true or false, and a radio group or a choice takes one of its listed " +
+				"options. A field that does not exist, is read-only, or is given a value it " +
+				"cannot hold is refused rather than skipped. The flatten action, or flatten on " +
+				"a fill, turns the form into plain page content. Scripts in the form do not run, " +
+				"so calculated fields are not recalculated.",
+		},
+		{
+			path:    "pdf-sign",
+			summary: "Sign a PDF with your own certificate",
+			description: "Exactly two uploads: the PDF and a .p12 (or .pfx) bundle holding your " +
+				"certificate and private key, with the bundle's password in the options. The " +
+				"signature is an invisible, detached CMS signature (adbe.pkcs7.detached) with " +
+				"SHA-256, RSA or ECDSA, and any PDF reader can verify it. The key is used for " +
+				"this one signature and is not kept: the bundle is deleted with the other " +
+				"uploads when they expire. A self-signed certificate proves the document has " +
+				"not changed since signing, but a reader will not vouch for who signed it until " +
+				"it trusts that certificate; this is not a qualified electronic signature. An " +
+				"expired certificate, an encrypted document, and a document that is already " +
+				"signed are refused, because signing again would invalidate the first " +
+				"signature.",
 		},
 	}
 }

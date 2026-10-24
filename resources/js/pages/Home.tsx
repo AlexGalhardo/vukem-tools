@@ -88,7 +88,8 @@ export default function Home({ groups, counts }: Props): React.ReactElement {
         </h1>
         <p className="mt-4 text-lg text-ink-soft">
           Self-hosted and open source, running on its own Go framework. {counts.live} tool
-          {counts.live === 1 ? "" : "s"} work today; {counts.planned} more are on the way. Results
+          {counts.live === 1 ? "" : "s"} work today
+          {counts.planned > 0 ? `; ${counts.planned} more are on the way` : ""}. Results
           are deleted <strong className="font-semibold text-ink">5 minutes</strong> after they are
           made, so download yours before you walk away.
         </p>

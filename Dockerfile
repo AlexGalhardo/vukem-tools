@@ -24,7 +24,7 @@ RUN bun install --frozen-lockfile
 COPY . .
 RUN bun run build
 
-FROM golang:1.27.2-alpine3.24 AS build
+FROM golang:1.27.3-alpine3.24 AS build
 WORKDIR /src
 ENV CGO_ENABLED=0
 COPY go.mod go.sum ./
@@ -70,7 +70,9 @@ FROM debian:trixie-slim@sha256:a29215f6a35e51e22adffa17f89e9d2ef06214e64a2bad10d
 #   libvips-tools  raster images, the primary image engine
 #   ghostscript    PDF, AGPL-3.0-or-later
 #   poppler-utils  PDF text and page extraction
-#   qpdf           PDF structure: split, merge, rotate, encrypt
+#   qpdf           PDF structure: split, merge, rotate, encrypt, forms
+#   libreoffice    Word, Excel and PowerPoint to PDF, MPL-2.0 with LGPL parts
+#   ocrmypdf       scans to searchable PDF, MPL-2.0, driving Tesseract (Apache-2.0)
 #   clamav         uploaded-file scanning
 #   util-linux     prlimit, which applies every engine's resource limits
 ARG FFMPEG_VERSION=7:7.1.5-0+deb13u1
@@ -78,6 +80,12 @@ ARG LIBVIPS_VERSION=8.16.1-1+deb13u2
 ARG GHOSTSCRIPT_VERSION=10.05.1~dfsg-1+deb13u3
 ARG POPPLER_VERSION=25.03.0-5+deb13u4
 ARG QPDF_VERSION=12.2.0-1
+ARG LIBREOFFICE_VERSION=4:25.2.3-2+deb13u8
+ARG FONTS_LIBERATION_VERSION=1:2.1.5-3
+ARG FONTS_DEJAVU_VERSION=2.37-8
+ARG OCRMYPDF_VERSION=16.7.0+dfsg1-3
+ARG TESSERACT_VERSION=5.5.0-1+b1
+ARG TESSERACT_LANG_VERSION=1:4.1.0-2
 ARG CLAMAV_VERSION=1.4.3+dfsg-1
 ARG UTIL_LINUX_VERSION=2.41.5-0+deb13u1
 # A security update Debian published after the pinned base image was built, so
@@ -94,7 +102,7 @@ RUN apt-get update \
 		"libvips-tools=${LIBVIPS_VERSION}" \
 		"ghostscript=${GHOSTSCRIPT_VERSION}" \
 		"poppler-utils=${POPPLER_VERSION}" \
-		"qpdf=${QPDF_VERSION}" \
+		"qpdf=${QPDF_VERSION}" 		"libreoffice-writer=${LIBREOFFICE_VERSION}" 		"libreoffice-calc=${LIBREOFFICE_VERSION}" 		"libreoffice-impress=${LIBREOFFICE_VERSION}" 		"fonts-liberation=${FONTS_LIBERATION_VERSION}" 		"fonts-dejavu-core=${FONTS_DEJAVU_VERSION}" 		"ocrmypdf=${OCRMYPDF_VERSION}" 		"tesseract-ocr=${TESSERACT_VERSION}" 		"tesseract-ocr-eng=${TESSERACT_LANG_VERSION}" 		"tesseract-ocr-por=${TESSERACT_LANG_VERSION}" \
 		"clamav=${CLAMAV_VERSION}" \
 		"util-linux=${UTIL_LINUX_VERSION}" \
 		"liblzma5=${LIBLZMA_VERSION}" \

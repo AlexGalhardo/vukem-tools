@@ -58,17 +58,17 @@ Regenerate the API clients after any change to `/api/v1` ([docs/api.md](docs/api
 | Path | What |
 | --- | --- |
 | `ROADMAP.md` | Every task and its quality asserts, by phase |
-| `app/` | Controllers, models, requests, jobs, listeners, mailables |
+| `app/` | Controllers, models, requests, jobs, listeners, mailables; `catalog/` entries with `Client: true` run in the browser and need no pipeline tool |
 | `bootstrap/` | App wiring: providers, commands |
 | `cmd/app/` | The binary |
 | `database/` | Migrations, factories, seeders |
 | `internal/` | Conversion packages (`pixelsvg`, `image`, `video`, `downloader`, ...) |
-| `resources/js/` | Inertia pages and components |
+| `resources/js/` | Inertia pages and components; `lib/dev/` holds the browser tools' logic (pure TypeScript, `bun test`) |
 | `routes/` | Route registry: web, auth, api, schedule |
 | `tests/` | HTTP and feature tests through `vukemtest` |
 | `clients/` | Generated API clients (Go and TypeScript); never hand-edited, see `docs/api.md` |
 | `docs/` | `brainstorming.md`, `web-research.md`, `benchmarks.md`, `api.md` |
-| `.claude/rules/` | Path-scoped rules that load automatically |
+| `.claude/rules/` | Path-scoped rules that load automatically (`bot.md` for the Telegram bot and device links) |
 | `.claude/skills/` | Go skills, workflow skills and the project's own three |
 
 ## When stuck

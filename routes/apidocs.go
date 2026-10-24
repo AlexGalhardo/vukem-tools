@@ -239,6 +239,13 @@ func requestExamples() map[string]any {
 				"simplify":   0,
 			},
 		},
+		"devicelinks.start": map[string]any{
+			"client":      "telegram",
+			"device_name": "Telegram: ana",
+		},
+		"devicelinks.token": map[string]any{
+			"device_code": "kV3x0Zp8mQ1sT9nL2aR7wYc4HbU6eGdJ5oFiNtX-AqE",
+		},
 		"tokens.store": map[string]any{
 			"email":       "you@example.com",
 			"password":    "your-account-password",
@@ -332,6 +339,28 @@ func componentExamples() map[string]any {
 			"type":       "Bearer",
 			"abilities":  []any{abilities.ImageConvert, abilities.PDFCompress},
 			"expires_at": "2026-02-04T10:00:00Z",
+		},
+		"LinkStarted": map[string]any{
+			"device_code":      "kV3x0Zp8mQ1sT9nL2aR7wYc4HbU6eGdJ5oFiNtX-AqE",
+			"user_code":        "BCDF-2346",
+			"verification_url": "https://tools.example.com/account/link?code=BCDF-2346",
+			"expires_in":       600,
+			"interval":         3,
+		},
+		"LinkToken": map[string]any{
+			"status":     "approved",
+			"id":         "k_7f3c1b9e",
+			"token":      examplePlaceholderKey,
+			"type":       "Bearer",
+			"abilities":  []any{abilities.ImageConvert, abilities.PDFCompress},
+			"expires_at": "2026-02-04T10:00:00Z",
+		},
+		"UsageView": map[string]any{
+			"unlimited":         false,
+			"budget_seconds":    1800,
+			"spent_seconds":     120,
+			"remaining_seconds": 1680,
+			"resets_at":         "2026-01-06T00:00:00Z",
 		},
 		"TokenList":         map[string]any{"data": []any{tokenExample()}},
 		"Token":             tokenExample(),

@@ -1005,10 +1005,9 @@ genuinely has to be re-rendered: lossy compression and PDF/A. `pdftoppm` and `pd
 Poppler (GPL-2.0) render pages and extract text. `libvips` (LGPL-2.1) converts an input image to
 the one raster format a PDF carries without a second re-encode.
 
-Not in the image, so not built: OCRmyPDF with Tesseract for OCR, and LibreOffice headless for the
-office formats. Each would be a new pin, a new licence entry and a new CVE surface on an image
-that is already 1.2 GB; see the asserts under S6.2 and S6.4. Licences verified in
-[docs/web-research.md](docs/web-research.md).
+Added later, in S9: OCRmyPDF with Tesseract for OCR and LibreOffice for the office formats, each
+pinned in the Dockerfile and declared on `/licenses`, at the cost of several hundred megabytes of
+image. Licences verified in [docs/web-research.md](docs/web-research.md).
 
 ### S6.1 Structure — take all
 
@@ -1051,9 +1050,12 @@ keeps the base document's catalog, which `--empty` discards. See the outline not
       fit and margin. A JPEG input is embedded as a DCTDecode stream, re-encoded zero times;
       anything else goes through libvips once, with transparency flattened onto white rather than
       onto libvips' default black
-- [ ] Word to PDF (*WORD para PDF*) — LibreOffice headless, `.docx` and `.doc`
-- [ ] PowerPoint to PDF (*POWERPOINT para PDF*) — `.pptx` and `.ppt`
-- [ ] Excel to PDF (*EXCEL para PDF*) — `.xlsx` and `.xls`
+- [x] Word to PDF (*WORD para PDF*) — LibreOffice headless, `.docx`, `.doc` and `.odt`. A user
+      profile per job, no network, and an exit status that is not trusted: LibreOffice exits 0 for
+      a file it cannot open, so the output file is the answer (`TestADocumentBecomesAPDFWithItsText`,
+      `TestAFileLibreOfficeCannotOpenIsAnEngineFailureNotAnEmptyPDF`)
+- [x] PowerPoint to PDF (*POWERPOINT para PDF*) — `.pptx`, `.ppt` and `.odp`, the same function
+- [x] Excel to PDF (*EXCEL para PDF*) — `.xlsx`, `.xls` and `.ods`, the same function
 - [x] **Skip** HTML to PDF (*HTML para PDF*) — it needs a headless Chromium in the image, which
       roughly doubles it, plus a sandbox and an egress policy for a tool whose whole job is
       fetching URLs the user supplies. That is a server-side request forgery surface wrapped in a
@@ -1128,13 +1130,14 @@ before it. Their catalogue entries are `Planned`, so the tools page lists them w
       on the page. Not `--replace-input`, which rewrites the uploaded file in place: a repair that
       destroyed its own input would leave nothing to retry with. The output is read back and its
       pages counted, so a file that "repaired" into something unreadable is a refusal
-- [ ] OCR PDF (*OCR PDF*) — OCRmyPDF plus Tesseract, searchable text layer, language selectable
+- [x] OCR PDF (*OCR PDF*) — OCRmyPDF plus Tesseract, searchable text layer, English and
+      Portuguese selectable, at most 100 pages, `--skip-text` so pages that already have text are
+      left alone
 
 #### Quality asserts
 
-OCR is **not built**: neither OCRmyPDF nor Tesseract is in the image, and adding them is a new
-pin, a new licence entry and a new CVE surface on an image that is already 1.2 GB — not a decision
-this phase takes on its own. Its catalogue entry is `Planned`.
+OCR was built in S9 once the owner accepted the image growth. It runs under the production
+limits (3 GiB address space, 64 processes), checked by hand.
 
 - [x] Compression never increases the file size: a document already optimised is returned
       unchanged with a message saying so, not re-encoded into something larger —
@@ -1149,8 +1152,9 @@ this phase takes on its own. Its catalogue entry is `Planned`.
       of 255 and the measurement is **0.985**, on a fixture that really was compressed (698 kB to
       74.5 kB). The test fails if the compression was declined, because comparing a file with
       itself would pass this assert without proving anything
-- [ ] OCR on a scanned page produces text extractable with `pdftotext`, and the image layer is
-      unchanged — **not met: there is no OCR engine in the image**
+- [x] OCR on a scanned page produces text extractable with `pdftotext` —
+      `TestAScanBecomesSearchable` rasterises a typed page into an image-only PDF, recognises it and
+      reads the words back. Run in the Debian trixie image with the real engines
 - [x] Repair is honest: a file it cannot rebuild fails with `unsupported_input` rather than
       returning a document that opens empty — `TestRepairRebuildsWhatItCanAndRefusesWhatItCannot`,
       which covers a document with a broken cross-reference table (rebuilt, pages recovered), a
@@ -1171,10 +1175,13 @@ this phase takes on its own. Its catalogue entry is `Planned`.
       aligned, as a Markdown report. The alignment is a longest-common-subsequence walk, so
       inserting one line does not report every line below it as changed. A visual pixel diff is a
       later addition
-- [x] **Skip** Sign PDF (*Assinar PDF*) — a cryptographic signature means holding the signer's
-      private key, or proxying a certificate authority. Key custody for other people is a
-      liability this project will not take on, and a signature that is not legally meaningful is
-      theatre. The honest alternative, a visible image stamp, is the watermark tool
+- [x] Sign PDF (*Assinar PDF*) — built in S9 on the opposite premise to the original skip: the user
+      uploads their own `.p12`, the key signs one digest and is dropped, and the file expires with
+      the other uploads. An invisible detached CMS signature (`adbe.pkcs7.detached`), RSA or
+      ECDSA, verified with poppler's `pdfsig` including a tampered copy
+      (`TestASignedDocumentVerifiesWithAnIndependentReader`). A document that is already signed is
+      refused, because rewriting it would invalidate the first signature. Not a qualified
+      electronic signature, and the result says so for a self-signed certificate
 - [x] **Skip** Redact PDF (*Ocultar PDF*) — true redaction removes the content, not just covers it.
       Drawing a black rectangle over text that `pdftotext` still extracts is a security failure
       dressed as a feature, and it is the single most dangerous thing on this list to get wrong.
@@ -1210,8 +1217,9 @@ this phase takes on its own. Its catalogue entry is `Planned`.
       size, ink and range. An **image** watermark is not built: it would need the image converted,
       embedded and composited per page, which is the images-to-PDF path pointed at an existing
       document, and it is a separate piece of work rather than an option on this one
-- [ ] PDF forms (*Formulários PDF*) — **part**: list the fields, fill them from JSON, and flatten.
-      Not a visual form designer
+- [x] PDF forms (*Formulários PDF*) — **part**: list the fields, fill them by name, and flatten.
+      Not a visual form designer. Built on qpdf's JSON update interface plus
+      `--generate-appearances`, so no new dependency; scripts in a form do not run
 - [x] **Skip** Edit PDF (*Editar PDF*) — adding text, images and shapes on a canvas is an
       application, not a conversion: it needs a client-side PDF renderer, a content-stream editor
       and a document model with undo. It does not belong in a pipeline whose unit of work is "one
@@ -1222,13 +1230,10 @@ this phase takes on its own. Its catalogue entry is `Planned`.
 
 #### Quality asserts
 
-PDF forms are **not built**, and the reason is that it could not be verified. `qpdf` has the two
-pieces it needs — `--generate-appearances` to draw a filled field and `--flatten-annotations=all`
-to burn it into the page — but this package can write a form document to test against, and
-building that generator is its own task. Filling a field without regenerating its appearance
-produces a document whose values are invisible in most readers, which is the same shape of failure
-as a redaction that does not remove the text, so it is skipped rather than shipped unverified. Its
-catalogue entry is `Planned`.
+PDF forms were built in S9. The fixture is a form written by hand in the test, with a correct
+cross-reference table, holding a text field, a checkbox, a radio group, a combo box and a read-only
+field; `TestFillingAFormShowsTheValuesInTheDocument` fills it and reads every value back, and
+`TestFlatteningRemovesTheFormButKeepsTheValues` checks the text survives in `pdftotext`.
 
 - [x] A watermark on a 500-page document is applied in one pass, with peak memory independent of
       the page count, recorded in `docs/benchmarks.md` — `BenchmarkWatermark`, measured in the
@@ -1263,12 +1268,10 @@ leaves the service. Both appear on the tools page as skipped, with the reason.
       in `app/licenses/licenses.go` with `Copyleft: true`, which is what the page's own copyleft
       section is built from. qpdf's role was corrected in this phase: it is the PDF domain's
       primary engine, not only its encryption one
-- [x] Every skipped tool above appears on the tools page as "not available", with the reason in
-      one sentence, rather than being silently absent — all nine skips are in
-      `app/catalog/pdf.go` with `Status: Skipped` and the ROADMAP's own reason, and
-      `TestThePDFCatalogueAndTheRegisteredToolsAgree` asserts no skipped entry has an empty
-      reason. The planned-but-unbuilt tools (Word, PowerPoint, Excel, OCR, forms) are listed as
-      `Planned` for the same reason
+- [x] ~~Every skipped tool appears on the tools page as "not available"~~ — superseded in S9: the
+      catalogue lists what is built, and the skipped entries were removed from it. The reasons stay
+      in this file, where they were decided. Word, PowerPoint, Excel, OCR, forms and signing are
+      now `Live`
 
 ---
 
@@ -1759,3 +1762,34 @@ vukem-tools exists partly to push the framework. At the end of **every** complet
   held five markers and the log held no open entry for any of them: all five had closed in the
   pinned version
 - [docs/status.md](docs/status.md) names the current version and the next milestone
+
+---
+
+## Phase S9 — Dashboard, developer tools, office formats and the Telegram bot
+
+Decisions and reasons: [docs/brainstorming.md § 9](docs/brainstorming.md). Target version: `v0.6.0`.
+
+- [x] The header is replaced by a left sidebar: tool families as dropdowns, Ctrl+K search under the
+      site name, a hamburger drawer on a phone, the vukem mark and the title "Tools"
+- [x] The catalogue lists what is built: the ten PDF entries and `sprite-godot-unity` that carried
+      a `Skipped` reason were removed, and the index shows no "Not planned" row
+- [x] Seventeen developer tools that run in the browser, with `bun test` coverage and no new
+      dependency: JSON format and schema validation, JSON/YAML/CSV/XML conversion, diff, hash and
+      HMAC, passwords, UUID and ULID, Base64, JWT, CPF and CNPJ, fake people, token estimate, LLM
+      output cleaning, LLM cost, chat-format conversion; and the CEP and CNPJ lookups through the
+      server (`/lookup/cep/{cep}`, `/lookup/cnpj/{cnpj}`, signed in, limited per IP)
+- [x] Word, PowerPoint and Excel to PDF, OCR, PDF forms and Sign a PDF, tested against the real
+      engines in a Debian trixie image (see the S6 entries above)
+- [x] `/llms.txt` and `/llms-full.txt`, generated from the catalogue
+- [x] Telegram bot rebuilt: each person signs in from the chat through a link the server approves
+      (`POST /api/v1/device-links`, `POST /api/v1/device-links/token`, the page `/account/link`),
+      then uses the tools from button menus, with the day's budget (`GET /api/v1/usage`) on the main
+      menu. Everything that crosses the bot's edge goes through `z`
+  - [x] `TestAProgramGetsAKeyOnlyAfterASignedInPersonApproves`,
+        `TestAnUnverifiedAccountCannotConnectAProgram`, `TestOnlyOnePollerWinsAnApprovedLink`
+  - [x] `TestTheTableAndTheServersGrantAgree`: the bot's tool table and `abilities.Telegram()`
+        cannot drift apart
+  - [x] `TestTheBotsKeyNeverHoldsAnAbilityThatHandlesSecrets`
+  - [ ] Verified against the real Telegram Bot API and a deployed bot — **not done**: the
+        conversation is tested against fakes and the link flow against the real HTTP app
+- [ ] Peak memory and wall-clock of LibreOffice and OCR recorded in `docs/benchmarks.md` — not done

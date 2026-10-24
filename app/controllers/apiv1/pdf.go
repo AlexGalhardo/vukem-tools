@@ -443,3 +443,75 @@ type SubmitPDFPageNumbers struct {
 func (h *Conversions) PDFPageNumbers(c *web.Ctx, in SubmitPDFPageNumbers) (ConversionView, error) {
 	return submitOne(h, c, tools.NamePDFPageNumbers, in.FileID, in.IdempotencyKey, in.Options)
 }
+
+// SubmitWordToPDF is the body of POST /api/v1/tools/word-to-pdf.
+type SubmitWordToPDF struct {
+	FileID         string                 `json:"file_id"         validate:"required,trim" doc:"The id of an upload of yours."`
+	IdempotencyKey string                 `json:"idempotency_key" validate:"trim,max=128"  doc:"Repeat a submission safely."`
+	Options        tools.PDFOfficeOptions `json:"options"                                  doc:"No options."`
+}
+
+// WordToPDF converts a Word document: POST /api/v1/tools/word-to-pdf.
+func (h *Conversions) WordToPDF(c *web.Ctx, in SubmitWordToPDF) (ConversionView, error) {
+	return submitOne(h, c, tools.NameWordToPDF, in.FileID, in.IdempotencyKey, in.Options)
+}
+
+// SubmitPowerPointToPDF is the body of POST /api/v1/tools/powerpoint-to-pdf.
+type SubmitPowerPointToPDF struct {
+	FileID         string                 `json:"file_id"         validate:"required,trim" doc:"The id of an upload of yours."`
+	IdempotencyKey string                 `json:"idempotency_key" validate:"trim,max=128"  doc:"Repeat a submission safely."`
+	Options        tools.PDFOfficeOptions `json:"options"                                  doc:"No options."`
+}
+
+// PowerPointToPDF converts a presentation: POST /api/v1/tools/powerpoint-to-pdf.
+func (h *Conversions) PowerPointToPDF(c *web.Ctx, in SubmitPowerPointToPDF) (ConversionView, error) {
+	return submitOne(h, c, tools.NamePowerPointToPDF, in.FileID, in.IdempotencyKey, in.Options)
+}
+
+// SubmitExcelToPDF is the body of POST /api/v1/tools/excel-to-pdf.
+type SubmitExcelToPDF struct {
+	FileID         string                 `json:"file_id"         validate:"required,trim" doc:"The id of an upload of yours."`
+	IdempotencyKey string                 `json:"idempotency_key" validate:"trim,max=128"  doc:"Repeat a submission safely."`
+	Options        tools.PDFOfficeOptions `json:"options"                                  doc:"No options."`
+}
+
+// ExcelToPDF converts a spreadsheet: POST /api/v1/tools/excel-to-pdf.
+func (h *Conversions) ExcelToPDF(c *web.Ctx, in SubmitExcelToPDF) (ConversionView, error) {
+	return submitOne(h, c, tools.NameExcelToPDF, in.FileID, in.IdempotencyKey, in.Options)
+}
+
+// SubmitPDFOCR is the body of POST /api/v1/tools/pdf-ocr.
+type SubmitPDFOCR struct {
+	FileID         string              `json:"file_id"         validate:"required,trim" doc:"The id of an upload of yours."`
+	IdempotencyKey string              `json:"idempotency_key" validate:"trim,max=128"  doc:"Repeat a submission safely."`
+	Options        tools.PDFOCROptions `json:"options"                                  doc:"The languages in the scan."`
+}
+
+// PDFOCR makes a scanned PDF searchable: POST /api/v1/tools/pdf-ocr.
+func (h *Conversions) PDFOCR(c *web.Ctx, in SubmitPDFOCR) (ConversionView, error) {
+	return submitOne(h, c, tools.NamePDFOCR, in.FileID, in.IdempotencyKey, in.Options)
+}
+
+// SubmitPDFForms is the body of POST /api/v1/tools/pdf-forms.
+type SubmitPDFForms struct {
+	FileID         string                `json:"file_id"         validate:"required,trim" doc:"The id of an upload of yours."`
+	IdempotencyKey string                `json:"idempotency_key" validate:"trim,max=128"  doc:"Repeat a submission safely."`
+	Options        tools.PDFFormsOptions `json:"options"                                  doc:"What to do with the form, and the values to fill."`
+}
+
+// PDFForms lists, fills or flattens a form: POST /api/v1/tools/pdf-forms.
+func (h *Conversions) PDFForms(c *web.Ctx, in SubmitPDFForms) (ConversionView, error) {
+	return submitOne(h, c, tools.NamePDFForms, in.FileID, in.IdempotencyKey, in.Options)
+}
+
+// SubmitPDFSign is the body of POST /api/v1/tools/pdf-sign.
+type SubmitPDFSign struct {
+	FileIDs        []string             `json:"file_ids"        validate:"required,min=2,max=2,dive,required,trim" doc:"Exactly two uploads: the PDF and your .p12 certificate bundle, in either order."`
+	IdempotencyKey string               `json:"idempotency_key" validate:"trim,max=128"                            doc:"Repeat a submission safely: the same key returns the same conversion."`
+	Options        tools.PDFSignOptions `json:"options"         validate:"required"                                doc:"The bundle's password and what to show beside the signature."`
+}
+
+// PDFSign signs a PDF: POST /api/v1/tools/pdf-sign.
+func (h *Conversions) PDFSign(c *web.Ctx, in SubmitPDFSign) (ConversionView, error) {
+	return submitMany(h, c, tools.NamePDFSign, in.FileIDs, in.IdempotencyKey, in.Options)
+}

@@ -1,10 +1,19 @@
 package detect_test
 
 import (
+	"archive/zip"
 	"bytes"
+	"crypto/rand"
+	"crypto/rsa"
+	"crypto/x509"
+	"crypto/x509/pkix"
 	"errors"
+	"math/big"
 	"strings"
 	"testing"
+	"time"
+
+	pkcs12 "software.sslmate.com/src/go-pkcs12"
 
 	"github.com/AlexGalhardo/vukem-tools/internal/detect"
 )
@@ -266,3 +275,164 @@ func TestEXRIsNotARecognisedType(t *testing.T) {
 
 // exrMagic is the OpenEXR file signature.
 var exrMagic = []byte{0x76, 0x2f, 0x31, 0x01, 0x02, 0x00, 0x00, 0x00}
+
+// office builds the smallest ZIP mimetype recognises as an Office document: the
+// entries it looks at, in the order it looks, with ODF's stored mimetype first.
+func office(t *testing.T, entries ...[2]string) []byte {
+	t.Helper()
+
+	var buf bytes.Buffer
+
+	zw := zip.NewWriter(&buf)
+
+	for _, e := range entries {
+		w, err := zw.CreateHeader(&zip.FileHeader{Name: e[0], Method: zip.Store})
+		if err != nil {
+			t.Fatalf("zip entry %s: %v", e[0], err)
+		}
+
+		if _, err := w.Write([]byte(e[1])); err != nil {
+			t.Fatalf("write %s: %v", e[0], err)
+		}
+	}
+
+	if err := zw.Close(); err != nil {
+		t.Fatalf("close zip: %v", err)
+	}
+
+	return buf.Bytes()
+}
+
+func TestOfficeDocumentsAreNotMistakenForZIPArchives(t *testing.T) {
+	t.Parallel()
+
+	cases := []struct {
+		name string
+		file []byte
+		want string
+	}{
+		{
+			"docx",
+			office(t, [2]string{"[Content_Types].xml", "<Types/>"}, [2]string{"word/document.xml", "<w/>"}),
+			".docx",
+		},
+		{
+			"xlsx",
+			office(t, [2]string{"[Content_Types].xml", "<Types/>"}, [2]string{"xl/workbook.xml", "<w/>"}),
+			".xlsx",
+		},
+		{
+			"pptx",
+			office(t, [2]string{"[Content_Types].xml", "<Types/>"}, [2]string{"ppt/presentation.xml", "<p/>"}),
+			".pptx",
+		},
+		{"odt", office(t, [2]string{"mimetype", "application/vnd.oasis.opendocument.text"}), ".odt"},
+		{"ods", office(t, [2]string{"mimetype", "application/vnd.oasis.opendocument.spreadsheet"}), ".ods"},
+		{"odp", office(t, [2]string{"mimetype", "application/vnd.oasis.opendocument.presentation"}), ".odp"},
+		{"zip", office(t, [2]string{"a.txt", "hello"}), ".zip"},
+	}
+
+	for _, c := range cases {
+		kind, err := detect.Of(bytes.NewReader(c.file))
+		if err != nil {
+			t.Errorf("%s: %v", c.name, err)
+
+			continue
+		}
+
+		if kind.Extension != c.want {
+			t.Errorf("%s detected as %s, want %s", c.name, kind.Extension, c.want)
+		}
+	}
+}
+
+func TestEachOfficeConverterReadsOnlyItsOwnFamily(t *testing.T) {
+	t.Parallel()
+
+	for _, list := range [][]string{detect.WordTypes(), detect.SpreadsheetTypes(), detect.PresentationTypes()} {
+		for _, mime := range list {
+			if !detect.Known(mime) {
+				t.Errorf("%s is listed for a converter but detect does not know it", mime)
+			}
+		}
+	}
+}
+
+// A real bundle, made by the encoder the signing tool's tests use, so the
+// recogniser is checked against what a library writes rather than against
+// bytes the test author typed.
+func TestAPKCS12BundleIsRecognisedByItsHeader(t *testing.T) {
+	t.Parallel()
+
+	key, err := rsa.GenerateKey(rand.Reader, 2048)
+	if err != nil {
+		t.Fatalf("key: %v", err)
+	}
+
+	template := &x509.Certificate{
+		SerialNumber: big.NewInt(1),
+		Subject:      pkix.Name{CommonName: "test"},
+		NotBefore:    time.Now().Add(-time.Hour),
+		NotAfter:     time.Now().Add(time.Hour),
+	}
+
+	der, err := x509.CreateCertificate(rand.Reader, template, template, &key.PublicKey, key)
+	if err != nil {
+		t.Fatalf("certificate: %v", err)
+	}
+
+	cert, err := x509.ParseCertificate(der)
+	if err != nil {
+		t.Fatalf("parse: %v", err)
+	}
+
+	for name, enc := range map[string]*pkcs12.Encoder{"modern": pkcs12.Modern, "legacy": pkcs12.LegacyRC2} {
+		body, err := enc.Encode(key, cert, nil, "pw")
+		if err != nil {
+			t.Fatalf("%s encode: %v", name, err)
+		}
+
+		kind, err := detect.OfBytes(body[:min(len(body), detect.HeaderBytes)])
+		if err != nil || kind.MIME != detect.MIMEPKCS12 {
+			t.Errorf("%s bundle detected as %+v, %v; want a PKCS#12 bundle", name, kind, err)
+		}
+
+		if _, err := detect.Check(bytes.NewReader(body), "cert.pfx", []string{detect.MIMEPKCS12}); err != nil {
+			t.Errorf("%s bundle named .pfx: %v", name, err)
+		}
+	}
+
+	if _, err := detect.OfBytes(
+		[]byte{
+			0x30,
+			0x82,
+			0x01,
+			0x00,
+			0x02,
+			0x01,
+			0x01,
+			0x30,
+			0x00,
+			0x00,
+			0x00,
+			0x00,
+			0x00,
+			0x00,
+			0x00,
+			0x00,
+			0x00,
+			0x00,
+			0x00,
+			0x00,
+			0x00,
+			0x00,
+			0x00,
+			0x00,
+		},
+	); !errors.Is(
+		err,
+		detect.ErrUnknown,
+	) {
+		t.Errorf("a DER sequence that is not a PFX was classified: %v", err)
+	}
+}

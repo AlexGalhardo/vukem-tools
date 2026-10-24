@@ -38,6 +38,13 @@ const (
 	NamePDFCompare      = "pdf-compare"
 	NamePDFWatermark    = "pdf-watermark"
 	NamePDFPageNumbers  = "pdf-page-numbers"
+
+	NameWordToPDF       = "word-to-pdf"
+	NamePowerPointToPDF = "powerpoint-to-pdf"
+	NameExcelToPDF      = "excel-to-pdf"
+	NamePDFOCR          = "pdf-ocr"
+	NamePDFForms        = "pdf-forms"
+	NamePDFSign         = "pdf-sign"
 )
 
 // The media types the PDF domain reads.
@@ -94,6 +101,9 @@ func pdfTools(f *files.Store) []jobs.Tool {
 		pdfOptimiseTools(deps),
 		pdfSecurityTools(deps),
 		pdfStampTools(deps),
+		pdfOfficeTools(deps),
+		pdfFormTools(deps),
+		pdfSignTools(deps),
 	)
 }
 

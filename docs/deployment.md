@@ -44,7 +44,11 @@ of the runtime stage.
 | libvips-tools | `8.16.1-1+deb13u2` | LGPL-2.1-or-later | raster images |
 | ghostscript | `10.05.1~dfsg-1+deb13u3` | AGPL-3.0-or-later | PDF |
 | poppler-utils | `25.03.0-5+deb13u4` | GPL-2.0-or-later | PDF text and pages |
-| qpdf | `12.2.0-1` | Apache-2.0 | PDF structure |
+| qpdf | `12.2.0-1` | Apache-2.0 | PDF structure, forms |
+| libreoffice-writer, -calc, -impress | `4:25.2.3-2+deb13u8` | MPL-2.0 with LGPL parts | Word, Excel, PowerPoint to PDF |
+| ocrmypdf | `16.7.0+dfsg1-3` | MPL-2.0 | scans to searchable PDF |
+| tesseract-ocr, -eng, -por | `5.5.0-1+b1`, `1:4.1.0-2` | Apache-2.0 | recognition |
+| fonts-liberation, fonts-dejavu-core | `1:2.1.5-3`, `2.37-8` | OFL-1.1 / Bitstream Vera | fonts for Office documents |
 | clamav | `1.4.3+dfsg-1` | GPL-2.0 | upload scanning |
 | util-linux | `2.41.5-0+deb13u1` | GPL-2.0-or-later | `prlimit` |
 | yt-dlp | `2026.08.19`, SHA-256 checked | Unlicense | downloads |

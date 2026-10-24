@@ -9,6 +9,7 @@
 package detect
 
 import (
+	"bytes"
 	"errors"
 	"fmt"
 	"io"
@@ -126,7 +127,74 @@ var known = map[string]Kind{
 	// standard library rather than by a C library, so the widening carries no
 	// new attack surface of the kind docs/deployment.md tracks.
 	"application/x-tar": {"application/x-tar", ".tar", "a TAR archive"},
+
+	// Office documents. They are ZIP containers (or OLE files for the old
+	// formats) that mimetype tells apart by their contents, and each is
+	// listed so detection stops at the document type instead of falling
+	// through to "a ZIP archive".
+	mimeDocx: {mimeDocx, ".docx", "a Word document"},
+	mimeDoc:  {mimeDoc, ".doc", "a Word document"},
+	mimeOdt:  {mimeOdt, ".odt", "an OpenDocument text document"},
+	mimeXlsx: {mimeXlsx, ".xlsx", "an Excel workbook"},
+	mimeXls:  {mimeXls, ".xls", "an Excel workbook"},
+	mimeOds:  {mimeOds, ".ods", "an OpenDocument spreadsheet"},
+	mimePptx: {mimePptx, ".pptx", "a PowerPoint presentation"},
+	mimePpt:  {mimePpt, ".ppt", "a PowerPoint presentation"},
+	mimeOdp:  {mimeOdp, ".odp", "an OpenDocument presentation"},
+
+	// A PKCS#12 bundle is the certificate and private key a signature needs.
+	// mimetype has no signature for it, so OfBytes recognises it by its ASN.1
+	// header instead.
+	MIMEPKCS12: {MIMEPKCS12, ".p12", "a PKCS#12 certificate bundle"},
 }
+
+// MIMEPKCS12 is the media type of a .p12 or .pfx certificate bundle.
+const MIMEPKCS12 = "application/x-pkcs12"
+
+// pkcs12Header recognises the start of a PFX file: a DER or BER SEQUENCE
+// holding version 3 and then the authSafe, a ContentInfo whose type is
+// pkcs7-data (1.2.840.113549.1.7.1). Both are fixed by RFC 7292, so the bytes
+// below are not a guess about one implementation.
+var pkcs12Version = []byte{0x02, 0x01, 0x03}
+
+var pkcs7Data = []byte{0x06, 0x09, 0x2a, 0x86, 0x48, 0x86, 0xf7, 0x0d, 0x01, 0x07}
+
+func isPKCS12(head []byte) bool {
+	if len(head) < 24 || head[0] != 0x30 {
+		return false
+	}
+
+	window := head[:min(len(head), 32)]
+
+	i := bytes.Index(window, pkcs12Version)
+	if i < 0 || i > 6 {
+		return false
+	}
+
+	return bytes.Contains(window[i:], pkcs7Data)
+}
+
+// The Office media types, named so a tool can list the ones it reads.
+const (
+	mimeDocx = "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+	mimeDoc  = "application/msword"
+	mimeOdt  = "application/vnd.oasis.opendocument.text"
+	mimeXlsx = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+	mimeXls  = "application/vnd.ms-excel"
+	mimeOds  = "application/vnd.oasis.opendocument.spreadsheet"
+	mimePptx = "application/vnd.openxmlformats-officedocument.presentationml.presentation"
+	mimePpt  = "application/vnd.ms-powerpoint"
+	mimeOdp  = "application/vnd.oasis.opendocument.presentation"
+)
+
+// WordTypes is what the Word converter reads.
+func WordTypes() []string { return []string{mimeDocx, mimeDoc, mimeOdt} }
+
+// SpreadsheetTypes is what the Excel converter reads.
+func SpreadsheetTypes() []string { return []string{mimeXlsx, mimeXls, mimeOds} }
+
+// PresentationTypes is what the PowerPoint converter reads.
+func PresentationTypes() []string { return []string{mimePptx, mimePpt, mimeOdp} }
 
 // extensions maps every accepted extension to its MIME type, built from
 // known plus the aliases people actually type. Built once at load, so an
@@ -144,6 +212,7 @@ var extensions = func() map[string]string {
 	m[".gzip"] = "application/gzip"
 	// A gzipped tar, which is one stream and two conventional spellings.
 	m[".tgz"] = "application/gzip"
+	m[".pfx"] = MIMEPKCS12
 
 	return m
 }()
@@ -179,6 +248,10 @@ func OfBytes(head []byte) (Kind, error) {
 		if k, ok := known[cleanMIME(t.String())]; ok {
 			return k, nil
 		}
+	}
+
+	if isPKCS12(head) {
+		return known[MIMEPKCS12], nil
 	}
 
 	return Kind{}, ErrUnknown

@@ -35,7 +35,7 @@ func TestEveryPDFToolIsCoherentlyDeclared(t *testing.T) {
 
 		seen[name] = true
 
-		if !strings.HasPrefix(name, "pdf-") && name != NameImagesToPDF {
+		if !strings.HasPrefix(name, "pdf-") && !strings.HasSuffix(name, "-to-pdf") {
 			t.Errorf("%q does not read as a PDF tool's name", name)
 		}
 

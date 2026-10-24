@@ -43,21 +43,4 @@ var spriteCatalog = []Tool{
 			"libgdx", "starling", "game", "tileset",
 		},
 	},
-	{
-		Name:    "sprite-godot-unity",
-		Title:   "Sprite sheets for Godot and Unity",
-		Summary: "Build a sheet in grid layout and import it with the frame size; neither engine needs a metadata file.",
-		In:      []string{"ZIP"},
-		Out:     []string{"PNG"},
-		Group:   GroupImages,
-		Icon:    "grid",
-		Status:  Skipped,
-		Reason: "Neither engine needs a file this service could write. Godot 4 slices a uniform " +
-			"grid from AtlasTexture.region or from the frame counts on an AnimatedSprite2D, and " +
-			"Unity's slicing is editor-only — SpriteMetaData has no documented text form. A " +
-			"hand-written .tres would be undocumented and version-fragile, and .tpsheet is a " +
-			"third-party plugin's format rather than Godot's. Use Build a sprite sheet in grid " +
-			"layout and give the importer the frame size.",
-		Keywords: []string{"godot", "unity", "tres", "atlastexture", "animatedsprite", "tpsheet"},
-	},
 }

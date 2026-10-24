@@ -88,6 +88,12 @@ var components = []Component{
 		Role: "Identifying an uploaded file from its bytes rather than its name",
 	},
 	{
+		Name: "go-pkcs12",
+		SPDX: "BSD-3-Clause",
+		URL:  "https://github.com/SSLMate/go-pkcs12",
+		Role: "Reading the certificate and key in a .p12 file to sign a PDF",
+	},
+	{
 		Name: "pgx",
 		SPDX: "MIT",
 		URL:  "https://github.com/jackc/pgx",

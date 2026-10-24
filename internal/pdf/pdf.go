@@ -58,6 +58,11 @@ const (
 	// EngineVips is libvips: converting an input image to the one raster
 	// format a PDF can carry without re-encoding it a second time.
 	EngineVips = "vips"
+	// EngineLibreOffice is soffice: Word, Excel and PowerPoint to PDF.
+	EngineLibreOffice = "soffice"
+	// EngineOCRmyPDF is ocrmypdf, which drives Tesseract: scans to searchable
+	// PDF.
+	EngineOCRmyPDF = "ocrmypdf"
 )
 
 // Registry resolves an engine's path. engine.Registry satisfies it, and a

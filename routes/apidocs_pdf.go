@@ -105,6 +105,33 @@ func pdfRequestExamples() map[string]any {
 			"position": "bottom-center",
 			"size":     10,
 		}),
+		"tools.word-to-pdf":       withFile(map[string]any{}),
+		"tools.powerpoint-to-pdf": withFile(map[string]any{}),
+		"tools.excel-to-pdf":      withFile(map[string]any{}),
+		"tools.pdf-sign": map[string]any{
+			"file_ids": []any{
+				"01JQ8Z5X0K7M3N9P2R4T6V8W0Y",
+				"01JQ8Z6A1M8N4P0R3T5V7X9Z1B",
+			},
+			"idempotency_key": "contract-signature",
+			"options": map[string]any{
+				"password": "example-bundle-password",
+				"reason":   "I approve this contract",
+				"location": "Sao Paulo",
+			},
+		},
+		"tools.pdf-forms": withFile(map[string]any{
+			"action": "fill",
+			"values": []any{
+				map[string]any{"name": "full_name", "value": "Ana Souza"},
+				map[string]any{"name": "newsletter", "value": "true"},
+			},
+			"flatten": false,
+		}),
+		"tools.pdf-ocr": withFile(map[string]any{
+			"languages": []any{"eng", "por"},
+			"deskew":    true,
+		}),
 	}
 
 	return examples

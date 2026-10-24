@@ -28,6 +28,8 @@ var testBinaries = []engine.Binary{
 	{Name: pdf.EnginePDFToPPM, EnvVar: "PDFTOPPM_PATH", VersionArgs: []string{"-v"}},
 	{Name: pdf.EnginePDFToText, EnvVar: "PDFTOTEXT_PATH", VersionArgs: []string{"-v"}},
 	{Name: pdf.EngineVips, EnvVar: "VIPS_PATH", VersionArgs: []string{"--version"}},
+	{Name: pdf.EngineLibreOffice, EnvVar: "SOFFICE_PATH", VersionArgs: []string{"--version"}},
+	{Name: pdf.EngineOCRmyPDF, EnvVar: "OCRMYPDF_PATH", VersionArgs: []string{"--version"}},
 }
 
 // testEngines returns an engine set, skipping the test when one of the

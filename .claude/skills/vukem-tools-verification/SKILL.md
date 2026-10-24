@@ -80,7 +80,7 @@ recorded figure is a failure, not a note.
   ```bash
   docker run --rm --network <net> -v "$PWD:/src" -w /src \
     -e TEST_DATABASE_URL="postgres://pg:pg@<pg-host>:5432/postgres?sslmode=disable" \
-    golang:1.27.2 go test -race -count=1 ./...
+    golang:1.27.3 go test -race -count=1 ./...
   ```
 
 - **PDF, Office and OCR engines.** `soffice`, `ocrmypdf`, `qpdf`, `gs` and `pdftotext` are not on a

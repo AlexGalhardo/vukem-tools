@@ -1,6 +1,6 @@
 module github.com/AlexGalhardo/vukem-tools
 
-go 1.27.2
+go 1.27.3
 
 require (
 	github.com/AlexGalhardo/vukem v0.30.0

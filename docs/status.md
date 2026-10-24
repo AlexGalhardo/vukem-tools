@@ -5,16 +5,17 @@ Where the project is, and what is next. Updated at the end of every completed ta
 
 ## Now
 
-**Version:** `v0.5.0` released. `v0.2.0` to `v0.4.0` exist as local tags on the commits that finished
-archives, image compression and sprite sheets; they are not pushed yet, see
-[brainstorming.md § 9.7](brainstorming.md). `main` is ahead of all of them.
-**Next:** push the back-filled tags, review and commit the work below, cut the next release.
+**Version:** `v0.6.0` released, with `v0.2.0` to `v0.4.0` added as tags on the commits that finished
+archives, image compression and sprite sheets (see [brainstorming.md § 9.7](brainstorming.md)).
+**Next:** record peak memory and wall-clock for LibreOffice and OCR in
+[benchmarks.md](benchmarks.md), rebuild and check the production image, and try the bot against the
+real Telegram Bot API.
 
 **54 tools live** in the catalogue and none planned: the conversion pipeline's tools plus seventeen that run in the browser.
 
 ## Shipped on 2026-10-24
 
-Not committed yet. Decisions and reasons are in [brainstorming.md § 9](brainstorming.md).
+Released as `v0.6.0`. Decisions and reasons are in [brainstorming.md § 9](brainstorming.md).
 
 - **Left sidebar.** The header is gone; a fixed column on the left with the hamburger drawer on a
   phone. The catalogue no longer shows "Not planned" rows.

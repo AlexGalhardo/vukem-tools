@@ -57,8 +57,14 @@ func (p *Pages) Tool(c *web.Ctx) error {
 	name := c.Request().PathValue("name")
 
 	entry, ok := catalog.Find(name)
-	if !ok || !slices.Contains(p.live, name) {
+	if !ok || (!entry.Client && !slices.Contains(p.live, name)) {
 		return orm.ErrNotFound
+	}
+
+	// A client tool has no pipeline entry and no options of its own: one
+	// component picks the tool's interface from its name.
+	if entry.Client {
+		return inertia.Render(c, "Tools/Dev", inertia.Props{"tool": entry})
 	}
 
 	page, ok := pages[name]
@@ -181,6 +187,12 @@ var pages = map[string]toolPage{ //nolint:gochecknoglobals // read-only table
 	"pdf-compare":       {component: "Tools/ToolForm"},
 	"pdf-page-numbers":  {component: "Tools/ToolForm"},
 	"pdf-watermark":     {component: "Tools/ToolForm"},
+	"word-to-pdf":       {component: "Tools/ToolForm"},
+	"powerpoint-to-pdf": {component: "Tools/ToolForm"},
+	"excel-to-pdf":      {component: "Tools/ToolForm"},
+	"pdf-ocr":           {component: "Tools/ToolForm"},
+	"pdf-forms":         {component: "Tools/ToolForm"},
+	"pdf-sign":          {component: "Tools/ToolForm"},
 
 	// The sprite tools get pages of their own rather than the generic form
 	// page: both draw the sheet, one with a grid overlay the controls redraw

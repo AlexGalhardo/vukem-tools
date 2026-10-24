@@ -1,7 +1,6 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none"
-     stroke="#2f7fd0" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-  <!-- The project mark: a trace stepping up, as on an instrument. The stroke
-       colour is the light-theme signal; a favicon cannot follow a CSS theme,
-       so it is picked to hold up on both a light and a dark tab strip. -->
-  <path d="M3 17.5 8 17.5 8 11 13 11 13 6.5 21 6.5"/>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" fill="none">
+  <rect width="32" height="32" rx="8" fill="#00ADD8"/>
+  <path d="M6.5 8h5.25l5.5 16h-5.25z" fill="#fff"/>
+  <path d="M20.25 8h5.25l-5.5 16h-5.25z" fill="#fff" fill-opacity=".72"/>
+  <path d="M15.25 24h1.75l1.2-3.5-.88-2.55z" fill="#007D9C"/>
 </svg>

@@ -55,14 +55,21 @@ type Tool struct {
 	// Keywords are extra search terms a person might type instead of the
 	// title: the format they have, or the word another service uses.
 	Keywords []string `json:"keywords,omitempty"`
+	// Client marks a tool that runs in the visitor's browser (or needs only a
+	// small server lookup) and so is never registered in the conversion
+	// pipeline. It is live whenever its status says so.
+	Client bool `json:"client,omitempty"`
 }
 
 // Groups, in the order the index shows them.
 const (
 	GroupImages    = "Images"
 	GroupVideo     = "Video and audio"
-	GroupDocuments = "Documents"
+	GroupDocuments = "PDF tools"
 	GroupArchives  = "Archives and data"
+	GroupDeveloper = "Developer tools"
+	GroupBrazil    = "Brazil"
+	GroupLLM       = "LLM and agents"
 )
 
 // tools is the catalogue. Order within a group is the order shown.
@@ -85,6 +92,7 @@ var tools = slices.Concat(
 	pdfCatalog,
 	spriteCatalog,
 	archiveCatalog,
+	devCatalog,
 )
 
 // pixelCatalog is the pixel-art domain (S2).
@@ -103,7 +111,9 @@ var pixelCatalog = []Tool{
 }
 
 // groupOrder is the order the index shows the groups in.
-var groupOrder = []string{GroupImages, GroupVideo, GroupDocuments, GroupArchives}
+var groupOrder = []string{
+	GroupImages, GroupVideo, GroupDocuments, GroupArchives, GroupDeveloper, GroupBrazil, GroupLLM,
+}
 
 // Group is a heading with its tools.
 type Group struct {
@@ -130,7 +140,7 @@ func Grouped(live []string) []Group {
 				continue
 			}
 
-			if t.Status == Live && !slices.Contains(live, t.Name) {
+			if t.Status == Live && !t.Client && !slices.Contains(live, t.Name) {
 				// Registered nowhere, so it is not usable, whatever this file
 				// claims. Planned is the honest status.
 				t.Status = Planned
@@ -198,4 +208,56 @@ func Count(live []string) (liveN, planned, skipped int) {
 	}
 
 	return liveN, planned, skipped
+}
+
+// NavTool is a usable tool as the sidebar shows it.
+type NavTool struct {
+	Name  string `json:"name"`
+	Title string `json:"title"`
+	Icon  string `json:"icon"`
+	// Search is what the palette matches besides the title: formats and
+	// keywords, without the summary, because this ships on every page.
+	Search string `json:"search"`
+}
+
+// NavGroup is one dropdown of the sidebar.
+type NavGroup struct {
+	Name  string    `json:"name"`
+	Tools []NavTool `json:"tools"`
+}
+
+// NavGroups returns the live tools by group, in display order, for the
+// navigation that is on every page. Planned entries are left out: a link in
+// a menu that leads nowhere is worse than no link, and the index page is where
+// the full list lives.
+func NavGroups(live []string) []NavGroup {
+	var out []NavGroup
+
+	for _, g := range Grouped(live) {
+		nav := NavGroup{Name: g.Name}
+
+		for i := range g.Tools {
+			if t := g.Tools[i]; t.Status == Live {
+				nav.Tools = append(
+					nav.Tools,
+					NavTool{Name: t.Name, Title: t.Title, Icon: t.Icon, Search: t.navSearch()},
+				)
+			}
+		}
+
+		if len(nav.Tools) > 0 {
+			out = append(out, nav)
+		}
+	}
+
+	return out
+}
+
+func (t Tool) navSearch() string {
+	parts := []string{t.Name, t.Group}
+	parts = append(parts, t.In...)
+	parts = append(parts, t.Out...)
+	parts = append(parts, t.Keywords...)
+
+	return strings.ToLower(strings.Join(parts, " "))
 }

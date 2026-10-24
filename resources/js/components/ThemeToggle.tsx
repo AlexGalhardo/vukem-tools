@@ -22,13 +22,11 @@ const options: { value: "light" | "dark"; icon: IconName; label: string }[] = [
  * never tells you which state you are in. Each option is a labelled radio, so
  * a screen reader announces the group, the current theme and the alternative.
  *
- * `roomy` is for the navigation panel on a phone. The compact form's 28px
- * squares are fine beside a mouse and under the 44px a thumb needs, and icons
- * with no words are also the hardest version to read on a small screen — so
- * the roomy form names each option instead of relying on a title attribute
- * that a touch device never shows.
+ * The two options are stacked, icon on the left and its name on the right: an
+ * icon alone is hard to read, and a touch device never shows a title
+ * attribute. Each row is 44px tall, which is what a thumb needs.
  */
-export default function ThemeToggle({ roomy = false }: { roomy?: boolean } = {}): React.ReactElement {
+export default function ThemeToggle(): React.ReactElement {
   // Both start empty, which is what the markup must say for hydration to
   // match: the stored choice and the system preference are client-only. The
   // effect below reads them immediately afterwards, and the document class is
@@ -70,53 +68,19 @@ export default function ThemeToggle({ roomy = false }: { roomy?: boolean } = {})
     return dark !== null && dark === (value === "dark");
   }
 
-  if (roomy) {
-    return (
-      <fieldset>
-        <legend className="px-3 pb-1 text-xs text-ink-faint">Theme</legend>
-        <div className="flex flex-col">
-          {options.map((option) => {
-            const active = on(option.value);
-
-            return (
-              <label
-                key={option.value}
-                className={`flex min-h-11 cursor-pointer items-center gap-3 rounded-field px-3 text-sm
-                  transition-colors duration-100 ${
-                    active ? "bg-signal-soft text-signal" : "text-ink-soft active:bg-sunken"
-                  }`}
-              >
-                <input
-                  type="radio"
-                  name="theme"
-                  value={option.value}
-                  checked={active}
-                  onChange={() => pick(option.value)}
-                  className="sr-only"
-                />
-                <Icon name={option.icon} className="size-5 shrink-0" />
-                {option.label}
-              </label>
-            );
-          })}
-        </div>
-      </fieldset>
-    );
-  }
-
   return (
-    <fieldset className="flex items-center rounded-field border border-edge p-0.5">
-      <legend className="sr-only">Theme</legend>
+    <fieldset className="flex flex-col">
+      <legend className="px-3 pb-1 text-xs text-ink-faint">Theme</legend>
       {options.map((option) => {
         const active = on(option.value);
 
         return (
           <label
             key={option.value}
-            title={option.label}
-            className={`flex size-7 cursor-pointer items-center justify-center rounded-[0.3rem] transition-colors duration-100 ${
-              active ? "bg-signal-soft text-signal" : "text-ink-faint hover:text-ink"
-            }`}
+            className={`flex min-h-11 cursor-pointer items-center gap-3 rounded-field px-3 text-sm
+              transition-colors duration-100 ${
+                active ? "bg-signal-soft text-signal" : "text-ink-soft hover:bg-sunken hover:text-ink"
+              }`}
           >
             <input
               type="radio"
@@ -126,7 +90,8 @@ export default function ThemeToggle({ roomy = false }: { roomy?: boolean } = {})
               onChange={() => pick(option.value)}
               className="sr-only"
             />
-            <Icon name={option.icon} className="size-4" label={option.label} />
+            <Icon name={option.icon} className="size-5 shrink-0" />
+            {option.label}
           </label>
         );
       })}

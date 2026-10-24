@@ -162,13 +162,7 @@ export default function Sidebar(): React.ReactElement {
             <NavLink key={item.href} item={item} path={path} compact />
           ))}
 
-          {/* Words on a phone, where a 28px icon is too small to hit; icons on
-              a wide screen, where the column's height is better spent on the
-              tools. */}
-          <div className="px-1 pt-2 md:hidden">
-            <ThemeToggle roomy />
-          </div>
-          <div className="hidden px-3 pt-1 md:block">
+          <div className="px-1 pt-2">
             <ThemeToggle />
           </div>
 

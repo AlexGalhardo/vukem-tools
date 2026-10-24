@@ -11,6 +11,7 @@ import (
 
 	"github.com/AlexGalhardo/vukem-tools/app/accounts"
 	"github.com/AlexGalhardo/vukem-tools/app/controllers/account"
+	"github.com/AlexGalhardo/vukem-tools/app/devicelink"
 	"github.com/AlexGalhardo/vukem-tools/app/models"
 	"github.com/AlexGalhardo/vukem-tools/app/services"
 )
@@ -43,6 +44,13 @@ func registerAccount(conversions *services.Conversions, r *router.Router, app *v
 
 	settings := account.NewSettings(account.New(acc), conversions.Quota())
 
+	appCache, err := app.Cache()
+	if err != nil {
+		return err
+	}
+
+	link := account.NewLink(devicelink.New(appCache.Store(), nil))
+
 	required := auth.Required(acc.Web)
 
 	// Issuing a key is rate limited per account. It is cheap for the server
@@ -58,6 +66,12 @@ func registerAccount(conversions *services.Conversions, r *router.Router, app *v
 	if PasswordAuthEnabled(app) {
 		r.Put("/account/password", settings.UpdatePassword).Name("account.password").Use(required)
 	}
+
+	// Where a signed-in person approves a program that asked for a key. The
+	// code in the query is the program's, so the page is read-only until the
+	// person presses a button, and the decision itself is a POST.
+	r.Get("/account/link", link.Show).Name("account.link").Use(required)
+	r.Post("/account/link", link.Decide).Name("account.link.decide").Use(required, minting)
 
 	r.Post("/account/keys", settings.CreateKey).Name("account.keys.store").Use(required, minting)
 	r.Delete("/account/keys/{id}", settings.RevokeKey).Name("account.keys.revoke").Use(required)

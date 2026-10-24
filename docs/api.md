@@ -60,6 +60,25 @@ script needs.
 `GET /api/v1/abilities` publishes the closed set, so a client does not hardcode it. An ability the
 server does not define is a `422` on the `abilities` field naming what was wrong.
 
+## Linking a program to an account
+
+A program that cannot show a login form, such as the Telegram bot, gets a key without handling a
+password. Both calls are public and rate limited per IP; the codes are the credential.
+
+1. `POST /api/v1/device-links` with `{"client": "telegram"}` returns a secret `device_code`, a short
+   `user_code` (`XXXX-XXXX`), the `verification_url`, `expires_in` (ten minutes) and `interval`.
+2. The person opens the URL, signs in as usual, checks that the code matches the one the program
+   showed, and presses Connect. Only an account with a verified email can approve.
+3. The program polls `POST /api/v1/device-links/token` with the `device_code` every `interval`
+   seconds. `status` is `pending`, then `approved` with the key (shown once, made at that moment),
+   or `denied` or `expired`. A link that never existed reads as `expired`.
+
+The server fixes what the key may do for the client kind; the program cannot ask for abilities. The
+key appears in the account's key list as `Telegram: <name>` and can be revoked there.
+
+`GET /api/v1/usage` reports today's processing budget: seconds spent, seconds left, when it
+resets, and `unlimited` when no daily budget applies.
+
 ## Job lifecycle
 
 Planned, not built yet (ROADMAP S1.6 and S1.7): this section says what clients should expect, and

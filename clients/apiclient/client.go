@@ -394,6 +394,34 @@ type ImagesToPDFOptions struct {
 	Quality *int64 `json:"quality,omitempty"`
 }
 
+type LinkStarted struct {
+	// Secret to poll with. Never show it to the person.
+	DeviceCode *string `json:"device_code,omitempty"`
+	// Seconds until the link can no longer be approved.
+	ExpiresIn *int64 `json:"expires_in,omitempty"`
+	// Seconds to wait between polls.
+	Interval *int64 `json:"interval,omitempty"`
+	// The short code to show the person, formatted XXXX-XXXX.
+	UserCode *string `json:"user_code,omitempty"`
+	// Where the person approves. It already contains the user code.
+	VerificationURL *string `json:"verification_url,omitempty"`
+}
+
+type LinkToken struct {
+	// What the key may do. Only when approved.
+	Abilities []string `json:"abilities,omitempty"`
+	// When the key stops working. Only when approved.
+	ExpiresAt *time.Time `json:"expires_at,omitempty"`
+	// The key id, used to revoke it. Only when approved.
+	ID *string `json:"id,omitempty"`
+	// pending, approved, denied or expired. A link that never existed reads as expired.
+	Status *string `json:"status,omitempty"`
+	// The secret key, shown once. Only when approved.
+	Token *string `json:"token,omitempty"`
+	// The authorization scheme, always Bearer. Only when approved.
+	Type *string `json:"type,omitempty"`
+}
+
 type MediaCapabilities struct {
 	// horizontal or vertical.
 	Flips []string `json:"flips,omitempty"`
@@ -474,7 +502,32 @@ type PDFCropOptions struct {
 	Top *float64 `json:"top,omitempty"`
 }
 
+type PDFFormValue struct {
+	// The field's full name, as the list action reports it.
+	Name string `json:"name"`
+	// The value. A checkbox takes true or false; a radio group or a choice takes one of its options.
+	Value *string `json:"value,omitempty"`
+}
+
+type PDFFormsOptions struct {
+	// list reports the fields as JSON; fill sets the values given; flatten turns the form into plain page content. Default list.
+	Action *string `json:"action,omitempty"`
+	// Flatten the form after filling it, so the values can no longer be edited.
+	Flatten *bool `json:"flatten,omitempty"`
+	// The fields to fill, for the fill action.
+	Values []PDFFormValue `json:"values,omitempty"`
+}
+
 type PDFMergeOptions map[string]any
+
+type PDFOCROptions struct {
+	// Straighten pages that were scanned at a slight angle.
+	Deskew *bool `json:"deskew,omitempty"`
+	// Languages in the scan: eng, por. Several may be combined. Default eng.
+	Languages []string `json:"languages,omitempty"`
+}
+
+type PDFOfficeOptions map[string]any
 
 type PDFPageNumberOptions struct {
 	// The label, with {n} for the number and {total} for the count. Default {n}.
@@ -516,6 +569,17 @@ type PDFRotateOptions struct {
 	Degrees *int64 `json:"degrees,omitempty"`
 	// Pages to rotate, as 1-3,5. Empty rotates every page.
 	Pages *string `json:"pages,omitempty"`
+}
+
+type PDFSignOptions struct {
+	// How to reach the signer. Optional.
+	Contact *string `json:"contact,omitempty"`
+	// Where you are signing. Optional.
+	Location *string `json:"location,omitempty"`
+	// The password of the .p12 certificate bundle. The key is used for this one signature and is not kept.
+	Password string `json:"password"`
+	// Why you are signing. Shown beside the signature. Optional.
+	Reason *string `json:"reason,omitempty"`
 }
 
 type PDFSplitOptions struct {
@@ -765,6 +829,19 @@ type UploadList struct {
 	Data []UploadView `json:"data,omitempty"`
 }
 
+type UsageView struct {
+	// Today's budget in seconds of processing time. 0 when unlimited.
+	BudgetSeconds *int64 `json:"budget_seconds,omitempty"`
+	// What is left today, in seconds. 0 when unlimited or spent: read unlimited to tell them apart.
+	RemainingSeconds *int64 `json:"remaining_seconds,omitempty"`
+	// When the next day's budget starts (midnight UTC).
+	ResetsAt *time.Time `json:"resets_at,omitempty"`
+	// Processing time spent today, in seconds.
+	SpentSeconds *int64 `json:"spent_seconds,omitempty"`
+	// True when no daily budget applies to this account.
+	Unlimited *bool `json:"unlimited,omitempty"`
+}
+
 type User struct {
 	CreatedAt       *time.Time `json:"created_at,omitempty"`
 	Email           *string    `json:"email,omitempty"`
@@ -844,6 +921,26 @@ func (q ConversionsIndexQuery) values() url.Values {
 	return v
 }
 
+// DevicelinksStartBodyClient: The kind of program asking. It decides what the key may do: the server fixes the abilities, the program cannot choose them.
+type DevicelinksStartBodyClient string
+
+// DevicelinksStartBodyClient values.
+const (
+	DevicelinksStartBodyClientTelegram DevicelinksStartBodyClient = "telegram"
+)
+
+type DevicelinksStartBody struct {
+	// The kind of program asking. It decides what the key may do: the server fixes the abilities, the program cannot choose them.
+	Client DevicelinksStartBodyClient `json:"client"`
+	// A label for the key in the account's key list, such as the Telegram name of the person. Optional.
+	DeviceName *string `json:"device_name,omitempty"`
+}
+
+type DevicelinksTokenBody struct {
+	// The device_code from the call that started the link.
+	DeviceCode string `json:"device_code"`
+}
+
 type TokensStoreBody struct {
 	// What the key may do; GET /api/v1/abilities lists the accepted values.
 	Abilities []string `json:"abilities"`
@@ -884,6 +981,15 @@ type ToolsAudioConvertBody struct {
 	IdempotencyKey *string `json:"idempotency_key,omitempty"`
 	// How to convert. Only the output format is required. A video input has its soundtrack extracted.
 	Options *AudioConvertOptions `json:"options,omitempty"`
+}
+
+type ToolsExcelToPdfBody struct {
+	// The id of an upload of yours.
+	FileID string `json:"file_id"`
+	// Repeat a submission safely.
+	IdempotencyKey *string `json:"idempotency_key,omitempty"`
+	// No options.
+	Options PDFOfficeOptions `json:"options,omitempty"`
 }
 
 type ToolsImageCompressBody struct {
@@ -949,6 +1055,15 @@ type ToolsPdfExtractPagesBody struct {
 	Options PDFPagesOptions `json:"options"`
 }
 
+type ToolsPdfFormsBody struct {
+	// The id of an upload of yours.
+	FileID string `json:"file_id"`
+	// Repeat a submission safely.
+	IdempotencyKey *string `json:"idempotency_key,omitempty"`
+	// What to do with the form, and the values to fill.
+	Options *PDFFormsOptions `json:"options,omitempty"`
+}
+
 type ToolsPdfMergeBody struct {
 	// The uploads to join, in order. Two to fifty.
 	FileIds []string `json:"file_ids"`
@@ -956,6 +1071,15 @@ type ToolsPdfMergeBody struct {
 	IdempotencyKey *string `json:"idempotency_key,omitempty"`
 	// Merging has no options; the order of file_ids is the order of the pages.
 	Options PDFMergeOptions `json:"options,omitempty"`
+}
+
+type ToolsPdfOcrBody struct {
+	// The id of an upload of yours.
+	FileID string `json:"file_id"`
+	// Repeat a submission safely.
+	IdempotencyKey *string `json:"idempotency_key,omitempty"`
+	// The languages in the scan.
+	Options *PDFOCROptions `json:"options,omitempty"`
 }
 
 type ToolsPdfOrganiseBody struct {
@@ -1010,6 +1134,15 @@ type ToolsPdfRotateBody struct {
 	IdempotencyKey *string `json:"idempotency_key,omitempty"`
 	// How far to rotate, and which pages.
 	Options *PDFRotateOptions `json:"options,omitempty"`
+}
+
+type ToolsPdfSignBody struct {
+	// Exactly two uploads: the PDF and your .p12 certificate bundle, in either order.
+	FileIds []string `json:"file_ids"`
+	// Repeat a submission safely: the same key returns the same conversion.
+	IdempotencyKey *string `json:"idempotency_key,omitempty"`
+	// The bundle's password and what to show beside the signature.
+	Options PDFSignOptions `json:"options"`
 }
 
 type ToolsPdfSplitBody struct {
@@ -1073,6 +1206,15 @@ type ToolsPixelsToSvgBody struct {
 	IdempotencyKey *string `json:"idempotency_key,omitempty"`
 	// How to convert. Every field is optional.
 	Options *PixelSVGOptions `json:"options,omitempty"`
+}
+
+type ToolsPowerpointToPdfBody struct {
+	// The id of an upload of yours.
+	FileID string `json:"file_id"`
+	// Repeat a submission safely.
+	IdempotencyKey *string `json:"idempotency_key,omitempty"`
+	// No options.
+	Options PDFOfficeOptions `json:"options,omitempty"`
 }
 
 type ToolsSpriteBuildBody struct {
@@ -1139,6 +1281,15 @@ type ToolsVideoToGifBody struct {
 	Options *VideoToGIFOptions `json:"options,omitempty"`
 }
 
+type ToolsWordToPdfBody struct {
+	// The id of an upload of yours.
+	FileID string `json:"file_id"`
+	// Repeat a submission safely.
+	IdempotencyKey *string `json:"idempotency_key,omitempty"`
+	// No options.
+	Options PDFOfficeOptions `json:"options,omitempty"`
+}
+
 // Abilities calls GET /api/v1/abilities: List the abilities a key may be granted.
 func (c *Client) Abilities(ctx context.Context) (AbilityList, error) {
 	var out AbilityList
@@ -1191,6 +1342,22 @@ func (c *Client) ConversionsResult(ctx context.Context, id string) (ResultList, 
 func (c *Client) ConversionsShow(ctx context.Context, id string) (ConversionView, error) {
 	var out ConversionView
 	err := c.do(ctx, "GET", "/api/v1/conversions/"+url.PathEscape(queryString(id)), nil, nil, &out)
+
+	return out, err
+}
+
+// DevicelinksStart calls POST /api/v1/device-links: Start linking a program to an account.
+func (c *Client) DevicelinksStart(ctx context.Context, body DevicelinksStartBody) (LinkStarted, error) {
+	var out LinkStarted
+	err := c.do(ctx, "POST", "/api/v1/device-links", nil, body, &out)
+
+	return out, err
+}
+
+// DevicelinksToken calls POST /api/v1/device-links/token: Collect the key of an approved link.
+func (c *Client) DevicelinksToken(ctx context.Context, body DevicelinksTokenBody) (LinkToken, error) {
+	var out LinkToken
+	err := c.do(ctx, "POST", "/api/v1/device-links/token", nil, body, &out)
 
 	return out, err
 }
@@ -1277,6 +1444,14 @@ func (c *Client) ToolsAudioConvertFormats(ctx context.Context) (AudioCapabilitie
 	return out, err
 }
 
+// ToolsExcelToPdf calls POST /api/v1/tools/excel-to-pdf: Convert a spreadsheet to PDF.
+func (c *Client) ToolsExcelToPdf(ctx context.Context, body ToolsExcelToPdfBody) (ConversionView, error) {
+	var out ConversionView
+	err := c.do(ctx, "POST", "/api/v1/tools/excel-to-pdf", nil, body, &out)
+
+	return out, err
+}
+
 // ToolsImageCompress calls POST /api/v1/tools/image-compress: Make an image smaller without changing what it is.
 func (c *Client) ToolsImageCompress(ctx context.Context, body ToolsImageCompressBody) (ConversionView, error) {
 	var out ConversionView
@@ -1349,10 +1524,26 @@ func (c *Client) ToolsPdfExtractPages(ctx context.Context, body ToolsPdfExtractP
 	return out, err
 }
 
+// ToolsPdfForms calls POST /api/v1/tools/pdf-forms: List, fill or flatten a PDF form.
+func (c *Client) ToolsPdfForms(ctx context.Context, body ToolsPdfFormsBody) (ConversionView, error) {
+	var out ConversionView
+	err := c.do(ctx, "POST", "/api/v1/tools/pdf-forms", nil, body, &out)
+
+	return out, err
+}
+
 // ToolsPdfMerge calls POST /api/v1/tools/pdf-merge: Join several PDFs into one.
 func (c *Client) ToolsPdfMerge(ctx context.Context, body ToolsPdfMergeBody) (ConversionView, error) {
 	var out ConversionView
 	err := c.do(ctx, "POST", "/api/v1/tools/pdf-merge", nil, body, &out)
+
+	return out, err
+}
+
+// ToolsPdfOcr calls POST /api/v1/tools/pdf-ocr: Make a scanned PDF searchable.
+func (c *Client) ToolsPdfOcr(ctx context.Context, body ToolsPdfOcrBody) (ConversionView, error) {
+	var out ConversionView
+	err := c.do(ctx, "POST", "/api/v1/tools/pdf-ocr", nil, body, &out)
 
 	return out, err
 }
@@ -1401,6 +1592,14 @@ func (c *Client) ToolsPdfRepair(ctx context.Context, body ToolsPdfRepairBody) (C
 func (c *Client) ToolsPdfRotate(ctx context.Context, body ToolsPdfRotateBody) (ConversionView, error) {
 	var out ConversionView
 	err := c.do(ctx, "POST", "/api/v1/tools/pdf-rotate", nil, body, &out)
+
+	return out, err
+}
+
+// ToolsPdfSign calls POST /api/v1/tools/pdf-sign: Sign a PDF with your own certificate.
+func (c *Client) ToolsPdfSign(ctx context.Context, body ToolsPdfSignBody) (ConversionView, error) {
+	var out ConversionView
+	err := c.do(ctx, "POST", "/api/v1/tools/pdf-sign", nil, body, &out)
 
 	return out, err
 }
@@ -1457,6 +1656,14 @@ func (c *Client) ToolsPdfWatermark(ctx context.Context, body ToolsPdfWatermarkBo
 func (c *Client) ToolsPixelsToSvg(ctx context.Context, body ToolsPixelsToSvgBody) (ConversionView, error) {
 	var out ConversionView
 	err := c.do(ctx, "POST", "/api/v1/tools/pixels-to-svg", nil, body, &out)
+
+	return out, err
+}
+
+// ToolsPowerpointToPdf calls POST /api/v1/tools/powerpoint-to-pdf: Convert a presentation to PDF.
+func (c *Client) ToolsPowerpointToPdf(ctx context.Context, body ToolsPowerpointToPdfBody) (ConversionView, error) {
+	var out ConversionView
+	err := c.do(ctx, "POST", "/api/v1/tools/powerpoint-to-pdf", nil, body, &out)
 
 	return out, err
 }
@@ -1541,6 +1748,14 @@ func (c *Client) ToolsVideoToGif(ctx context.Context, body ToolsVideoToGifBody) 
 	return out, err
 }
 
+// ToolsWordToPdf calls POST /api/v1/tools/word-to-pdf: Convert a Word or OpenDocument text file to PDF.
+func (c *Client) ToolsWordToPdf(ctx context.Context, body ToolsWordToPdfBody) (ConversionView, error) {
+	var out ConversionView
+	err := c.do(ctx, "POST", "/api/v1/tools/word-to-pdf", nil, body, &out)
+
+	return out, err
+}
+
 // UploadsIndex calls GET /api/v1/uploads: List your unclaimed uploads.
 func (c *Client) UploadsIndex(ctx context.Context) (UploadList, error) {
 	var out UploadList
@@ -1553,6 +1768,14 @@ func (c *Client) UploadsIndex(ctx context.Context) (UploadList, error) {
 func (c *Client) UploadsTypes(ctx context.Context) (TypeList, error) {
 	var out TypeList
 	err := c.do(ctx, "GET", "/api/v1/upload-types", nil, nil, &out)
+
+	return out, err
+}
+
+// Usage calls GET /api/v1/usage: Show today's processing budget.
+func (c *Client) Usage(ctx context.Context) (UsageView, error) {
+	var out UsageView
+	err := c.do(ctx, "GET", "/api/v1/usage", nil, nil, &out)
 
 	return out, err
 }

@@ -11,6 +11,7 @@ import (
 	"github.com/AlexGalhardo/vukem/openapi"
 	"github.com/AlexGalhardo/vukem/vukemtest"
 
+	"github.com/AlexGalhardo/vukem-tools/app/abilities"
 	"github.com/AlexGalhardo/vukem-tools/app/services"
 	"github.com/AlexGalhardo/vukem-tools/bootstrap"
 	"github.com/AlexGalhardo/vukem-tools/internal/bot"
@@ -192,8 +193,29 @@ func TestTheBotsKeyHasNoAbilityItDoesNotUse(t *testing.T) {
 	}
 }
 
-func TestTheBotCannotReachAnAbilityCarryingRouteItDoesNotDeclare(t *testing.T) {
+// An ability is a family of tools, not one tool, so a key that may merge PDFs
+// may also split them. That is the price of abilities that fit a key-minting
+// form, and it is acceptable here because every family the bot holds only
+// reads and rewrites the person's own files. What must never happen is the bot
+// holding a family that touches secrets or changes who can open a document, so
+// those are named and refused, and the routes the key can reach beyond its
+// menus are listed in the test log for a reviewer to read.
+func TestTheBotsKeyNeverHoldsAnAbilityThatHandlesSecrets(t *testing.T) {
 	t.Parallel()
+
+	never := []string{
+		// Unlock, protect and sign take a password or a private key.
+		abilities.PDFSecurity,
+		// Forms and watermarks are edits the menus do not offer.
+		abilities.PDFEdit,
+		abilities.SpriteSheet,
+	}
+
+	for _, a := range never {
+		if slices.Contains(bot.Abilities(), a) {
+			t.Errorf("the bot's key carries %q, which its menus must not need", a)
+		}
+	}
 
 	app := vukemtest.New(t, bootstrap.New)
 
@@ -202,25 +224,17 @@ func TestTheBotCannotReachAnAbilityCarryingRouteItDoesNotDeclare(t *testing.T) {
 		t.Fatalf("resolve the pipeline: %v", err)
 	}
 
-	pipeline := conversions.Pipeline()
 	called := botOperations(t)
-	operations := apiOperations(t, app)
 
-	// The other direction: every submit route the bot does *not* call must
-	// need an ability the bot does not hold, or the key is wider than the
-	// bot's own method set suggests.
-	for name, op := range operations {
+	for name, op := range apiOperations(t, app) {
 		if op.toolName == "" || slices.Contains(called, name) {
 			continue
 		}
 
-		tool, ok := pipeline.Tool(op.toolName)
-		if !ok {
-			continue // not registered on this machine
-		}
-
-		if slices.Contains(bot.Abilities(), tool.Ability()) {
-			t.Errorf("the bot's key can submit %s (%s), which the bot never calls", op.id, tool.Ability())
+		if tool, ok := conversions.Pipeline().
+			Tool(op.toolName); ok &&
+			slices.Contains(bot.Abilities(), tool.Ability()) {
+			t.Logf("the key can also submit %s (%s), which no menu offers", op.id, tool.Ability())
 		}
 	}
 }

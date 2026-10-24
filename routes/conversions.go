@@ -105,6 +105,15 @@ func Conversions(c *services.Conversions) func(r *router.Router, app *vukem.App)
 					Security: []string{SchemeBearer},
 				}, h.PixelSVG).Use(submit)
 
+				api.Register(p, "GET /usage", api.Op{
+					Name:    "usage",
+					Summary: "Show today's processing budget",
+					Description: "What the account has spent today and what is left, in seconds of processing " +
+						"time, and when the budget resets. unlimited is true when no daily budget applies.",
+					Tags:     []string{tagConversions},
+					Security: []string{SchemeBearer},
+				}, h.Usage)
+
 				api.Register(p, "GET /conversions", api.Op{
 					Name:        "conversions.index",
 					Summary:     "List the caller's conversions",

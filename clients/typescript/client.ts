@@ -157,6 +157,23 @@ export type LimitsView = {
   max_output_seconds?: number;
 };
 
+export type LinkStarted = {
+  device_code?: string;
+  expires_in?: number;
+  interval?: number;
+  user_code?: string;
+  verification_url?: string;
+};
+
+export type LinkToken = {
+  abilities?: string[];
+  expires_at?: string | null;
+  id?: string;
+  status?: string;
+  token?: string;
+  type?: string;
+};
+
 export type MediaCapabilities = {
   flips?: string[];
   formats?: ImageFormat[];
@@ -207,7 +224,25 @@ export type PDFCropOptions = {
   top?: number;
 };
 
+export type PDFFormValue = {
+  name: string;
+  value?: string;
+};
+
+export type PDFFormsOptions = {
+  action?: string;
+  flatten?: boolean;
+  values?: PDFFormValue[];
+};
+
 export type PDFMergeOptions = Record<string, unknown>;
+
+export type PDFOCROptions = {
+  deskew?: boolean;
+  languages?: string[];
+};
+
+export type PDFOfficeOptions = Record<string, unknown>;
 
 export type PDFPageNumberOptions = {
   format?: string;
@@ -235,6 +270,13 @@ export type PDFRotateOptions = {
   absolute?: boolean;
   degrees?: number;
   pages?: string;
+};
+
+export type PDFSignOptions = {
+  contact?: string;
+  location?: string;
+  password: string;
+  reason?: string;
 };
 
 export type PDFSplitOptions = {
@@ -407,6 +449,14 @@ export type UploadView = {
   size_bytes?: number;
 };
 
+export type UsageView = {
+  budget_seconds?: number;
+  remaining_seconds?: number;
+  resets_at?: string;
+  spent_seconds?: number;
+  unlimited?: boolean;
+};
+
 export type User = {
   created_at?: string;
   email?: string;
@@ -469,6 +519,19 @@ export type ConversionsResultResponse = ResultList;
 
 export type ConversionsShowResponse = ConversionView;
 
+export type DevicelinksStartBody = {
+  client: "telegram";
+  device_name?: string;
+};
+
+export type DevicelinksStartResponse = LinkStarted;
+
+export type DevicelinksTokenBody = {
+  device_code: string;
+};
+
+export type DevicelinksTokenResponse = LinkToken;
+
 export type DownloadsClipModesResponse = NameList;
 
 export type DownloadsPlatformsResponse = PlatformList;
@@ -517,6 +580,14 @@ export type ToolsAudioConvertBody = {
 export type ToolsAudioConvertResponse = ConversionView;
 
 export type ToolsAudioConvertFormatsResponse = AudioCapabilities;
+
+export type ToolsExcelToPdfBody = {
+  file_id: string;
+  idempotency_key?: string;
+  options?: PDFOfficeOptions;
+};
+
+export type ToolsExcelToPdfResponse = ConversionView;
 
 export type ToolsImageCompressBody = {
   file_id: string;
@@ -578,6 +649,14 @@ export type ToolsPdfExtractPagesBody = {
 
 export type ToolsPdfExtractPagesResponse = ConversionView;
 
+export type ToolsPdfFormsBody = {
+  file_id: string;
+  idempotency_key?: string;
+  options?: PDFFormsOptions;
+};
+
+export type ToolsPdfFormsResponse = ConversionView;
+
 export type ToolsPdfMergeBody = {
   file_ids: string[];
   idempotency_key?: string;
@@ -585,6 +664,14 @@ export type ToolsPdfMergeBody = {
 };
 
 export type ToolsPdfMergeResponse = ConversionView;
+
+export type ToolsPdfOcrBody = {
+  file_id: string;
+  idempotency_key?: string;
+  options?: PDFOCROptions;
+};
+
+export type ToolsPdfOcrResponse = ConversionView;
 
 export type ToolsPdfOrganiseBody = {
   file_id: string;
@@ -633,6 +720,14 @@ export type ToolsPdfRotateBody = {
 };
 
 export type ToolsPdfRotateResponse = ConversionView;
+
+export type ToolsPdfSignBody = {
+  file_ids: string[];
+  idempotency_key?: string;
+  options: PDFSignOptions;
+};
+
+export type ToolsPdfSignResponse = ConversionView;
 
 export type ToolsPdfSplitBody = {
   file_id: string;
@@ -689,6 +784,14 @@ export type ToolsPixelsToSvgBody = {
 };
 
 export type ToolsPixelsToSvgResponse = ConversionView;
+
+export type ToolsPowerpointToPdfBody = {
+  file_id: string;
+  idempotency_key?: string;
+  options?: PDFOfficeOptions;
+};
+
+export type ToolsPowerpointToPdfResponse = ConversionView;
 
 export type ToolsSpriteBuildBody = {
   file_id: string;
@@ -754,9 +857,19 @@ export type ToolsVideoToGifBody = {
 
 export type ToolsVideoToGifResponse = ConversionView;
 
+export type ToolsWordToPdfBody = {
+  file_id: string;
+  idempotency_key?: string;
+  options?: PDFOfficeOptions;
+};
+
+export type ToolsWordToPdfResponse = ConversionView;
+
 export type UploadsIndexResponse = UploadList;
 
 export type UploadsTypesResponse = TypeList;
+
+export type UsageResponse = UsageView;
 
 export type ConversionsCancelParams = {
   id: string;
@@ -927,6 +1040,16 @@ export interface Client {
   conversionsShow(args: { params: ConversionsShowParams }): Promise<ConversionsShowResponse>;
 
   /**
+   * POST /api/v1/device-links: Start linking a program to an account
+   */
+  devicelinksStart(args: { body: DevicelinksStartBody }): Promise<DevicelinksStartResponse>;
+
+  /**
+   * POST /api/v1/device-links/token: Collect the key of an approved link
+   */
+  devicelinksToken(args: { body: DevicelinksTokenBody }): Promise<DevicelinksTokenResponse>;
+
+  /**
    * GET /api/v1/clip-modes: List the cut modes
    */
   downloadsClipModes(): Promise<DownloadsClipModesResponse>;
@@ -982,6 +1105,11 @@ export interface Client {
   toolsAudioConvertFormats(): Promise<ToolsAudioConvertFormatsResponse>;
 
   /**
+   * POST /api/v1/tools/excel-to-pdf: Convert a spreadsheet to PDF
+   */
+  toolsExcelToPdf(args: { body: ToolsExcelToPdfBody }): Promise<ToolsExcelToPdfResponse>;
+
+  /**
    * POST /api/v1/tools/image-compress: Make an image smaller without changing what it is
    */
   toolsImageCompress(args: { body: ToolsImageCompressBody }): Promise<ToolsImageCompressResponse>;
@@ -1027,9 +1155,19 @@ export interface Client {
   toolsPdfExtractPages(args: { body: ToolsPdfExtractPagesBody }): Promise<ToolsPdfExtractPagesResponse>;
 
   /**
+   * POST /api/v1/tools/pdf-forms: List, fill or flatten a PDF form
+   */
+  toolsPdfForms(args: { body: ToolsPdfFormsBody }): Promise<ToolsPdfFormsResponse>;
+
+  /**
    * POST /api/v1/tools/pdf-merge: Join several PDFs into one
    */
   toolsPdfMerge(args: { body: ToolsPdfMergeBody }): Promise<ToolsPdfMergeResponse>;
+
+  /**
+   * POST /api/v1/tools/pdf-ocr: Make a scanned PDF searchable
+   */
+  toolsPdfOcr(args: { body: ToolsPdfOcrBody }): Promise<ToolsPdfOcrResponse>;
 
   /**
    * POST /api/v1/tools/pdf-organise: Reorder or duplicate pages
@@ -1060,6 +1198,11 @@ export interface Client {
    * POST /api/v1/tools/pdf-rotate: Rotate pages by 90, 180 or 270 degrees
    */
   toolsPdfRotate(args: { body: ToolsPdfRotateBody }): Promise<ToolsPdfRotateResponse>;
+
+  /**
+   * POST /api/v1/tools/pdf-sign: Sign a PDF with your own certificate
+   */
+  toolsPdfSign(args: { body: ToolsPdfSignBody }): Promise<ToolsPdfSignResponse>;
 
   /**
    * POST /api/v1/tools/pdf-split: Split a PDF into several files
@@ -1095,6 +1238,11 @@ export interface Client {
    * POST /api/v1/tools/pixels-to-svg: Turn pixel art into SVG
    */
   toolsPixelsToSvg(args: { body: ToolsPixelsToSvgBody }): Promise<ToolsPixelsToSvgResponse>;
+
+  /**
+   * POST /api/v1/tools/powerpoint-to-pdf: Convert a presentation to PDF
+   */
+  toolsPowerpointToPdf(args: { body: ToolsPowerpointToPdfBody }): Promise<ToolsPowerpointToPdfResponse>;
 
   /**
    * POST /api/v1/tools/sprite-build: Pack frames into a sprite sheet
@@ -1147,6 +1295,11 @@ export interface Client {
   toolsVideoToGif(args: { body: ToolsVideoToGifBody }): Promise<ToolsVideoToGifResponse>;
 
   /**
+   * POST /api/v1/tools/word-to-pdf: Convert a Word or OpenDocument text file to PDF
+   */
+  toolsWordToPdf(args: { body: ToolsWordToPdfBody }): Promise<ToolsWordToPdfResponse>;
+
+  /**
    * GET /api/v1/uploads: List your unclaimed uploads
    */
   uploadsIndex(): Promise<UploadsIndexResponse>;
@@ -1155,6 +1308,11 @@ export interface Client {
    * GET /api/v1/upload-types: List the file types an upload may have
    */
   uploadsTypes(): Promise<UploadsTypesResponse>;
+
+  /**
+   * GET /api/v1/usage: Show today's processing budget
+   */
+  usage(): Promise<UsageResponse>;
 }
 
 /** createClient returns a typed client; methods throw ApiError on non-2xx responses. */
@@ -1169,6 +1327,8 @@ export function createClient(options: ClientOptions = {}): Client {
     conversionsIndex: (args) => request<ConversionsIndexResponse>("GET", "/api/v1/conversions", args),
     conversionsResult: (args) => request<ConversionsResultResponse>("GET", "/api/v1/conversions/{id}/result", args),
     conversionsShow: (args) => request<ConversionsShowResponse>("GET", "/api/v1/conversions/{id}", args),
+    devicelinksStart: (args) => request<DevicelinksStartResponse>("POST", "/api/v1/device-links", args),
+    devicelinksToken: (args) => request<DevicelinksTokenResponse>("POST", "/api/v1/device-links/token", args),
     downloadsClipModes: () => request<DownloadsClipModesResponse>("GET", "/api/v1/clip-modes"),
     downloadsPlatforms: () => request<DownloadsPlatformsResponse>("GET", "/api/v1/download-platforms"),
     me: () => request<MeResponse>("GET", "/api/v1/me"),
@@ -1180,6 +1340,7 @@ export function createClient(options: ClientOptions = {}): Client {
     toolsArchiveExtract: (args) => request<ToolsArchiveExtractResponse>("POST", "/api/v1/tools/archive-extract", args),
     toolsAudioConvert: (args) => request<ToolsAudioConvertResponse>("POST", "/api/v1/tools/audio-convert", args),
     toolsAudioConvertFormats: () => request<ToolsAudioConvertFormatsResponse>("GET", "/api/v1/tools/audio-convert/formats"),
+    toolsExcelToPdf: (args) => request<ToolsExcelToPdfResponse>("POST", "/api/v1/tools/excel-to-pdf", args),
     toolsImageCompress: (args) => request<ToolsImageCompressResponse>("POST", "/api/v1/tools/image-compress", args),
     toolsImageConvert: (args) => request<ToolsImageConvertResponse>("POST", "/api/v1/tools/image-convert", args),
     toolsImageConvertFormats: () => request<ToolsImageConvertFormatsResponse>("GET", "/api/v1/tools/image-convert/formats"),
@@ -1189,13 +1350,16 @@ export function createClient(options: ClientOptions = {}): Client {
     toolsPdfCompress: (args) => request<ToolsPdfCompressResponse>("POST", "/api/v1/tools/pdf-compress", args),
     toolsPdfCrop: (args) => request<ToolsPdfCropResponse>("POST", "/api/v1/tools/pdf-crop", args),
     toolsPdfExtractPages: (args) => request<ToolsPdfExtractPagesResponse>("POST", "/api/v1/tools/pdf-extract-pages", args),
+    toolsPdfForms: (args) => request<ToolsPdfFormsResponse>("POST", "/api/v1/tools/pdf-forms", args),
     toolsPdfMerge: (args) => request<ToolsPdfMergeResponse>("POST", "/api/v1/tools/pdf-merge", args),
+    toolsPdfOcr: (args) => request<ToolsPdfOcrResponse>("POST", "/api/v1/tools/pdf-ocr", args),
     toolsPdfOrganise: (args) => request<ToolsPdfOrganiseResponse>("POST", "/api/v1/tools/pdf-organise", args),
     toolsPdfPageNumbers: (args) => request<ToolsPdfPageNumbersResponse>("POST", "/api/v1/tools/pdf-page-numbers", args),
     toolsPdfProtect: (args) => request<ToolsPdfProtectResponse>("POST", "/api/v1/tools/pdf-protect", args),
     toolsPdfRemovePages: (args) => request<ToolsPdfRemovePagesResponse>("POST", "/api/v1/tools/pdf-remove-pages", args),
     toolsPdfRepair: (args) => request<ToolsPdfRepairResponse>("POST", "/api/v1/tools/pdf-repair", args),
     toolsPdfRotate: (args) => request<ToolsPdfRotateResponse>("POST", "/api/v1/tools/pdf-rotate", args),
+    toolsPdfSign: (args) => request<ToolsPdfSignResponse>("POST", "/api/v1/tools/pdf-sign", args),
     toolsPdfSplit: (args) => request<ToolsPdfSplitResponse>("POST", "/api/v1/tools/pdf-split", args),
     toolsPdfToImage: (args) => request<ToolsPdfToImageResponse>("POST", "/api/v1/tools/pdf-to-image", args),
     toolsPdfToPdfa: (args) => request<ToolsPdfToPdfaResponse>("POST", "/api/v1/tools/pdf-to-pdfa", args),
@@ -1203,6 +1367,7 @@ export function createClient(options: ClientOptions = {}): Client {
     toolsPdfUnlock: (args) => request<ToolsPdfUnlockResponse>("POST", "/api/v1/tools/pdf-unlock", args),
     toolsPdfWatermark: (args) => request<ToolsPdfWatermarkResponse>("POST", "/api/v1/tools/pdf-watermark", args),
     toolsPixelsToSvg: (args) => request<ToolsPixelsToSvgResponse>("POST", "/api/v1/tools/pixels-to-svg", args),
+    toolsPowerpointToPdf: (args) => request<ToolsPowerpointToPdfResponse>("POST", "/api/v1/tools/powerpoint-to-pdf", args),
     toolsSpriteBuild: (args) => request<ToolsSpriteBuildResponse>("POST", "/api/v1/tools/sprite-build", args),
     toolsSpriteSplit: (args) => request<ToolsSpriteSplitResponse>("POST", "/api/v1/tools/sprite-split", args),
     toolsSpriteSplitFormats: () => request<ToolsSpriteSplitFormatsResponse>("GET", "/api/v1/tools/sprite-split/formats"),
@@ -1213,7 +1378,9 @@ export function createClient(options: ClientOptions = {}): Client {
     toolsVideoDownload: (args) => request<ToolsVideoDownloadResponse>("POST", "/api/v1/tools/video-download", args),
     toolsVideoDownloadMetadata: (args) => request<ToolsVideoDownloadMetadataResponse>("POST", "/api/v1/tools/video-download/metadata", args),
     toolsVideoToGif: (args) => request<ToolsVideoToGifResponse>("POST", "/api/v1/tools/video-to-gif", args),
+    toolsWordToPdf: (args) => request<ToolsWordToPdfResponse>("POST", "/api/v1/tools/word-to-pdf", args),
     uploadsIndex: () => request<UploadsIndexResponse>("GET", "/api/v1/uploads"),
     uploadsTypes: () => request<UploadsTypesResponse>("GET", "/api/v1/upload-types"),
+    usage: () => request<UsageResponse>("GET", "/api/v1/usage"),
   };
 }

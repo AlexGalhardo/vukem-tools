@@ -5,11 +5,42 @@ Where the project is, and what is next. Updated at the end of every completed ta
 
 ## Now
 
-**Version:** `v0.1.0` released; `main` is ahead of it.
-**Next milestone:** `v0.5.0`, which is what [ROADMAP.md](../ROADMAP.md) names for the sprite
-sheets — now built, so the tag is a release task rather than a development one.
+**Version:** `v0.5.0` released. `v0.2.0` to `v0.4.0` exist as local tags on the commits that finished
+archives, image compression and sprite sheets; they are not pushed yet, see
+[brainstorming.md § 9.7](brainstorming.md). `main` is ahead of all of them.
+**Next:** push the back-filled tags, review and commit the work below, cut the next release.
 
-**30 tools registered.**
+**54 tools live** in the catalogue and none planned: the conversion pipeline's tools plus seventeen that run in the browser.
+
+## Shipped on 2026-10-24
+
+Not committed yet. Decisions and reasons are in [brainstorming.md § 9](brainstorming.md).
+
+- **Left sidebar.** The header is gone; a fixed column on the left with the hamburger drawer on a
+  phone. The catalogue no longer shows "Not planned" rows.
+- **Seventeen developer tools** in the browser, with `bun test` coverage: JSON format, schema and
+  tool-definition validation, JSON/YAML/CSV/XML conversion, diff, hash and HMAC, passwords,
+  UUID/ULID, Base64, JWT, CPF/CNPJ, fake people, token estimate, LLM output cleaning, LLM cost
+  and chat-format conversion. Two server lookups: `/lookup/cep/{cep}` and `/lookup/cnpj/{cnpj}`.
+- **Word, PowerPoint and Excel to PDF, OCR, PDF forms and Sign a PDF.** LibreOffice, OCRmyPDF with
+  Tesseract and qpdf, all run against the real engines in a Debian trixie container; signatures are
+  verified with `pdfsig`.
+- **`/llms.txt` and `/llms-full.txt`**, generated from the catalogue.
+- **Telegram bot, rebuilt.** Each person signs in from the chat through a link the server approves
+  (`/account/link`), then uses the tools from button menus: images, audio and video, PDF,
+  documents to PDF, archives and downloads by link, with the account's budget on the main menu and
+  Sign out revoking the key. New API: `POST /api/v1/device-links`, `POST /api/v1/device-links/token`
+  and `GET /api/v1/usage`. See [brainstorming.md § 9.8](brainstorming.md).
+- **Clients regenerated** for the six new API operations (`codegen:client`).
+
+### Not verified here
+
+- The sidebar was typechecked and built but not looked at in a browser, because no database was
+  available to sign in with. Check it at phone width and in dark mode.
+- The new Dockerfile pins were checked against the pinned base image with `apt-cache policy`; the
+  image itself was not rebuilt.
+- Peak memory of LibreOffice and OCR under the production limits was checked once, not benchmarked;
+  nothing is recorded in [benchmarks.md](benchmarks.md) for them yet.
 
 ## Shipped on 2026-10-19
 

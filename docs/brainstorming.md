@@ -154,7 +154,8 @@ All decided, and the owner authorised changing this project's production configu
 
 Decided: **a Telegram bot in Go**, on vukem's Telegram support, in the first wave. It talks to the
 app's own HTTP API with an API key whose abilities are limited to what it uses, so the bot is just
-another API client and gets no privileged path.
+another API client and gets no privileged path. Since 2026-10-24 each person signs in to their own
+account from the chat and the bot holds that person's key; see § 9.8.
 
 ### 3.10 Versioning
 
@@ -392,3 +393,126 @@ service could write, and both would need an undocumented, version-fragile one. S
 third catalogue entry, `sprite-godot-unity`, marked skipped with that reason — a visitor
 comparing this with TexturePacker finds the answer rather than concluding it is missing — and the
 build page shows the one-line import instruction whenever the layout is `grid`.
+
+## 9. Finishing the catalogue, the dashboard and the developer tools (2026-10-24)
+
+### 9.1 The catalogue lists what is built or coming, not what was refused
+
+The ten PDF entries and `sprite-godot-unity` that carried a `Skipped` reason are removed from the
+catalogue, so the index shows no "Not planned" row. Their reasons stay in the ROADMAP, where they
+were decided. The `Skipped` status type is still in the code but unused. The one skipped tool
+worth having, Sign a PDF, is built (9.3).
+
+### 9.2 Office, OCR and forms
+
+- **Word, PowerPoint and Excel to PDF** run on LibreOffice, one function behind three tools so each
+  is found by its own name and can be limited by its own API key. A fresh user profile per job lets
+  conversions run side by side; macros never run; the sandbox gives no network. LibreOffice exits 0
+  for a file it cannot open, so the tool checks for an output file instead of trusting the status.
+- **OCR** runs on OCRmyPDF with Tesseract, English and Portuguese, at most 100 pages, with
+  `--skip-text` so pages that already have text are kept.
+- **PDF forms** run on **qpdf, not pdfcpu**. The first plan named pdfcpu; it is not a dependency of
+  this project, and qpdf already is. qpdf has no "set field" command, but its JSON interface
+  (`--update-from-json`) can replace field dictionaries and `--generate-appearances` redraws them,
+  and the tests prove the values come back through `FormFields` and `pdftotext`. Scripts in a form
+  do not run, so calculated fields are not recalculated.
+- Debian pins, checked in the base image: LibreOffice 25.2.3, OCRmyPDF 16.7.0, Tesseract 5.5.0,
+  language data 4.1.0. The image grows by several hundred megabytes; that is the price of the
+  three Office tools.
+
+### 9.3 Sign a PDF with a certificate the user brings
+
+The earlier decision was to skip signing because holding other people's private keys is a
+liability. Signing is built on the opposite premise: the user uploads their own `.p12`, the key is
+used for one SHA-256 digest and dropped, and the file expires with the other uploads. The password
+sits in the conversion's options row like the unlock tool's, and is useless once the bundle is
+gone. What is and is not claimed:
+
+- An invisible, detached CMS signature (`adbe.pkcs7.detached`), RSA or ECDSA. Verified with
+  poppler's `pdfsig`, including a tampered copy.
+- A self-signed certificate proves the document did not change; it does not prove who signed it,
+  and the tool says so in its result message. It is not a qualified electronic signature.
+- A document that is already signed is refused, because rewriting it would invalidate the first
+  signature. An encrypted document and an expired certificate are refused too.
+- One dependency added: `go-pkcs12` v0.7.4 (BSD-3-Clause), because the standard library cannot read
+  a `.p12`. The CMS structure is written with `encoding/asn1` rather than a second library, since
+  `digitorus/pdfsign`, the only maintained Go PDF signer, has only release candidates.
+- qpdf writes the signature field with a same-width placeholder; the byte ranges and the signature
+  are patched in place, so no offset moves. The `.p12` is recognised from its ASN.1 header
+  (`detect`), because `mimetype` has no signature for it.
+
+### 9.4 Developer tools run in the browser
+
+Seventeen tools (JSON, schemas, conversions, diff, hashes, passwords, identifiers, Base64, JWT,
+CPF/CNPJ, CEP, CNPJ lookup, fake people, token count, LLM output cleaning, LLM cost, chat format
+conversion) are catalogue entries with `Client: true`. They need no pipeline entry and no upload.
+`Tools/Dev.tsx` picks the interface from the tool's name, and `tests/devtools_test.go` fails a
+catalogue entry that has none.
+
+- The logic is pure TypeScript in `resources/js/lib/dev/` with `bun test` coverage; nothing there
+  imports a library, because the project adds no dependency without asking. That is why YAML is a
+  small subset parser and MD5 is written out.
+- **Token counts are estimates.** There is no offline Claude tokenizer, and shipping a GPT
+  vocabulary would add a dependency and megabytes. The page says so and shows an upper bound.
+- **Prices** in the cost tool are list prices read from each provider's pricing page on
+  2026-10-24, editable, with the sources shown. Tiered and dated prices are left out.
+- **CEP and CNPJ lookups** go through the server (`/lookup/cep/{cep}`, `/lookup/cnpj/{cnpj}`),
+  because the site's CSP allows only its own origin to connect. Digits only are interpolated into a
+  fixed host, a login and a per-IP limit are required, and the provider's body is never forwarded
+  on a failure. BrasilAPI is a beta community service with no declared licence or uptime.
+
+### 9.5 The shell is a left sidebar
+
+The header is replaced by a fixed 16rem column on the left from `md` up (tools and account on top,
+API reference, licences, theme and the account at the foot) and by a top bar with a hamburger that
+slides the same column in on a phone. One element serves both sizes. Closed on a phone it is
+`invisible`, so it leaves the tab order.
+
+### 9.6 `llms.txt` and `llms-full.txt`
+
+Both are generated from the catalogue, with absolute URLs from `APP_URL`, no login, and only live
+tools. The API guide in `llms-full.txt` is a constant in the controller; it must be updated with
+`docs/api.md`.
+
+### 9.7 Releases are renumbered by adding tags, never by moving them
+
+`v0.1.0` and `v0.5.0` exist and no tag is moved. `v0.2.0` (archives), `v0.3.0` (image
+compression) and `v0.4.0` (sprite sheets) are annotated tags on the commits that finished those
+features, between the two. Pushing each tag runs `release.yml`, which builds and pushes a container
+image from the tagged commit and then looks for a changelog section that those old commits do not
+contain, so the push needs either that workflow disabled for the back-fill or a decision to accept
+the failed runs. The tags are created locally and not pushed.
+
+### 9.8 The Telegram bot signs each person in, and only offers what fits a chat
+
+The first bot held one shared key with one ability and an allow-list of Telegram ids. It could
+only download videos. It now serves the whole account, which changes who the key belongs to.
+
+- **Sign-in is a link the server approves, not a password in the chat.** The bot asks
+  `POST /api/v1/device-links` for two codes. The person opens the sign-in page (a button), checks
+  that its short code matches the one in the chat, and presses Connect on `/account/link`. The bot,
+  polling with a secret code, receives a key made at that moment. This is the OAuth device grant
+  (RFC 8628) in miniature, with its state in the cache (ten minutes, no table). The link is
+  approved only from a signed-in session of an account with a verified email.
+- **The server fixes what the key may do.** The bot cannot ask for abilities: `abilities.Telegram()`
+  is granted for the `telegram` client. Tests hold the bot's tool table and that list to each other,
+  and the key never carries `pdf:security` (unlock, protect, sign), `pdf:edit` or `sprite:sheet`.
+  An ability is a family of tools, so the key can also reach siblings of what the menus offer (it
+  can split a PDF though only merge is offered); the test logs them.
+- **Keys live in memory only.** A restart signs everybody out and costs one click. Signing out
+  revokes the key on the server. Each key is listed in the account's key list as
+  `Telegram: @name` and can be revoked there.
+- **Menus are buttons.** Main menu: who is signed in, today's budget (`GET /api/v1/usage`), the
+  tool groups, a link-based download, Refresh and Sign out. A tool asks for its file, then at most
+  one question answered with a button. Multi-file tools (merge PDFs, images to PDF, pack an
+  archive) collect files and wait for Done. Typed input is only a file, or a link for a download.
+- **Left out on purpose:** anything that needs a typed password, a page range or a geometry
+  (unlock, protect, sign, crop, rotate, forms, watermark), the sprite tools and the developer
+  tools. They stay in the web interface.
+- **Everything crossing the edge goes through `z`.** Updates (private chats only, sender, text
+  length), pressed buttons (a closed character set, and a value must be one of the tool's own
+  options), files (id, name, type, size up to Telegram's 20 MB), and the server's answers
+  (conversion status, result links on the API's own host, usage, the account, the key) are all
+  checked before they are used or shown.
+- **Not covered by tests:** the real Telegram Bot API and a deployed bot. The conversation is
+  tested end to end against fakes, the link flow against the real HTTP app.

@@ -54,6 +54,21 @@ and vukem's own <https://vukem.dev/docs/security/overview>.
 7. **One working directory per job**, removed when the job ends, including on panic. A job never
    reads or writes outside it.
 
+## Public endpoints and programs that sign in for a person
+
+1. A route with no guard needs a reason written next to it and a rate limit per IP. The device-link
+   routes (`POST /api/v1/device-links` and `/token`) are public because the codes are the
+   credential; starting a link grants nothing until a signed-in person with a verified email
+   approves it, and one approval yields one key.
+2. What a key made for a program may do is fixed on the server (`abilities.Telegram()`), never
+   asked for by the program. Keep sensitive families (`pdf:security`) out of it.
+3. A proxy to a third party (`/lookup/cep`, `/lookup/cnpj`) validates the path value to digits
+   before it is placed in a URL, uses a fixed host, requires a signed-in account, and never
+   forwards the provider's own error body.
+4. Anything that signs or decrypts with a person's key takes it from an upload that expires with the
+   others, uses it for one operation and drops it. The password sits in the options row like the
+   unlock tool's; say so wherever the tool is described.
+
 ## SSRF, when a URL is the input
 
 1. URLs are matched against an allowlist by **hostname**, not by `netloc` or a substring.
@@ -67,7 +82,7 @@ and vukem's own <https://vukem.dev/docs/security/overview>.
 1. Results are served through **signed URLs with a short TTL** (`vukem/signed`), never by handing
    out a path.
 2. Downloads carry a sanitised filename, `filename*` in UTF-8 and `Cache-Control: no-store`.
-3. Results expire after one hour and the cleanup is idempotent. A full disk takes the service down.
+3. Results expire after five minutes and the cleanup is idempotent. A full disk takes the service down.
 4. Stripping metadata is the default for images; say so in the UI, and convert to sRGB before
    stripping so the colour does not shift.
 

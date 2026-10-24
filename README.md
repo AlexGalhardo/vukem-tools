@@ -24,27 +24,43 @@ demanding on top of it.
 
 ## Status
 
-Phase S3 of the [ROADMAP](ROADMAP.md). The foundation (S1) and Pixels to SVG (S2) are in; S3 adds
-downloading from a URL, cutting and cropping, and compression. A tool whose engine is missing from
-the image is not registered at all, so the tool index shows it as planned rather than offering a
-form that cannot work — `GET /api/v1/capabilities` reports which engines a given deployment has.
+Version 0.6.0, phase S9 of the [ROADMAP](ROADMAP.md). Images, video, audio, PDF, archives, sprite
+sheets, the developer tools and the Telegram bot are in. A tool whose engine is missing from the
+image is not registered at all, so the tool index shows it as planned rather than offering a form
+that cannot work — `GET /api/v1/capabilities` reports which engines a given deployment has.
 
 ## Tools
 
-Ticked tools are implemented. The rest are planned, in the order the [ROADMAP](ROADMAP.md) sets.
+Every tool needs an account. The index at `/` lists them, `Ctrl+K` searches them, and the sidebar
+groups them by family.
 
-| Tool | What it does | Engine |
+| Family | What it does | Engine |
 | --- | --- | --- |
-| Pixels to SVG | Pixel art to SVG with real shape merging, three output modes, up to 2K | Own Go implementation |
-| Video download | YouTube, Instagram, X and TikTok to MP4, MP3 or 60-second clips | yt-dlp + ffmpeg |
-| Cut and crop | Trim by time and crop by area | ffmpeg |
-| Compress | Video, audio and PDF | ffmpeg + Ghostscript |
-| Image convert | JPEG, PNG, WebP, AVIF, JXL, HEIC, GIF, TIFF | libvips |
-| Image optimise | Lossless and lossy compression | oxipng, mozjpeg, pngquant, cwebp |
-| Image edit | Resize, crop, rotate, watermark, thumbnail | libvips |
-| Video convert | MP4, WebM, MKV, and video to GIF | ffmpeg |
-| Audio convert | MP3, WAV, FLAC, Opus, AAC | ffmpeg |
-| Transcribe | Video or audio to SRT and VTT | whisper.cpp |
+| Images | Convert, compress, pixel art to SVG, images to one PDF | libvips, own Go implementation |
+| Video and audio | Convert, compress, cut and crop, video to GIF, download from YouTube, Instagram, X and TikTok | ffmpeg, yt-dlp |
+| PDF | Merge, split, rotate, crop, compress, repair, protect, unlock, compare, watermark, page numbers, to text, to images, to PDF/A, OCR, fill forms, sign | qpdf, Ghostscript, poppler, OCRmyPDF with Tesseract |
+| Documents to PDF | Word, PowerPoint and Excel to PDF | LibreOffice |
+| Archives | Create and extract ZIP, TAR, TAR.GZ and GZ; sprite sheets and atlases | Own Go implementation |
+| Developer tools | JSON, YAML, CSV and XML, JSON Schema and tool-definition checks, diff, hashes, passwords, UUID and ULID, Base64, JWT | Your browser |
+| Brazil | CPF and CNPJ, CEP and CNPJ lookup, fake people for test data | Your browser, ViaCEP, BrasilAPI |
+| LLM and agents | Token estimate, cost estimate, clean a model's reply, convert chat formats | Your browser |
+
+The same tools are on the JSON API (`/docs`), and `/llms.txt` and `/llms-full.txt` describe them for
+language models.
+
+## Telegram bot
+
+`cmd/bot` is a separate binary that serves the tools from a chat. Nobody types a password into the
+chat: the bot shows a short code and a button, you sign in on the site, check the code and press
+Connect, and the bot receives a key limited to what its menus use. The main menu shows who is
+signed in and what is left of the day's budget, and signing out revokes the key.
+
+```bash
+TELEGRAM_BOT_TOKEN=... BOT_API_URL=https://tools.example.com go run ./cmd/bot
+```
+
+The settings are in `.env.example`, and the design is in
+[docs/brainstorming.md § 9.8](docs/brainstorming.md).
 
 ## Stack
 
@@ -55,9 +71,9 @@ Ticked tools are implemented. The rest are planned, in the order the [ROADMAP](R
 | Database | PostgreSQL |
 | Jobs | `vukem/queue` on PostgreSQL, progress over Server-Sent Events |
 | Uploads | `vukem/upload` with resumable [tus](https://tus.io) uploads and ClamAV scanning |
-| Storage | S3-compatible object storage with signed URLs; results expire after one hour |
+| Storage | S3-compatible object storage with signed URLs; results expire after five minutes |
 | API docs | OpenAPI 3.1 with a [Scalar](https://scalar.com) reference at `/docs` |
-| Engines | ffmpeg, yt-dlp, libvips, Ghostscript, whisper.cpp — all as subprocesses, pinned by version |
+| Engines | ffmpeg, yt-dlp, libvips, Ghostscript, qpdf, poppler, LibreOffice, OCRmyPDF with Tesseract — all as subprocesses, pinned by version |
 | Quality | golangci-lint, `go test -race`, markdownlint, Conventional Commits, git-cliff |
 | Deploy | [Railway](https://railway.com): a `web` service and a `worker` service from one image |
 

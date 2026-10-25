@@ -3,7 +3,7 @@ module github.com/AlexGalhardo/vukem-tools
 go 1.27.3
 
 require (
-	github.com/AlexGalhardo/vukem v0.31.0
+	github.com/AlexGalhardo/vukem v0.32.0
 	github.com/AlexGalhardo/vukem/drivers/otel v0.4.1
 	github.com/AlexGalhardo/vukem/drivers/postgres v0.5.1
 	github.com/AlexGalhardo/vukem/drivers/s3 v0.3.1

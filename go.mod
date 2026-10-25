@@ -3,10 +3,10 @@ module github.com/AlexGalhardo/vukem-tools
 go 1.27.3
 
 require (
-	github.com/AlexGalhardo/vukem v0.30.0
-	github.com/AlexGalhardo/vukem/drivers/otel v0.4.0
-	github.com/AlexGalhardo/vukem/drivers/postgres v0.5.0
-	github.com/AlexGalhardo/vukem/drivers/s3 v0.3.0
+	github.com/AlexGalhardo/vukem v0.31.0
+	github.com/AlexGalhardo/vukem/drivers/otel v0.4.1
+	github.com/AlexGalhardo/vukem/drivers/postgres v0.5.1
+	github.com/AlexGalhardo/vukem/drivers/s3 v0.3.1
 	github.com/gabriel-vasile/mimetype v1.4.16
 	github.com/google/go-cmp v0.7.0
 	github.com/prometheus/client_golang v1.24.1
@@ -15,6 +15,7 @@ require (
 	go.opentelemetry.io/otel/metric v1.47.0
 	go.opentelemetry.io/otel/sdk/metric v1.47.0
 	go.opentelemetry.io/otel/trace v1.47.0
+	software.sslmate.com/src/go-pkcs12 v0.7.4
 )
 
 require (
@@ -62,7 +63,6 @@ require (
 	modernc.org/mathutil v1.7.1 // indirect
 	modernc.org/memory v1.12.1 // indirect
 	modernc.org/sqlite v1.60.1 // indirect
-	software.sslmate.com/src/go-pkcs12 v0.7.4 // indirect
 )
 
 tool golang.org/x/vuln/cmd/govulncheck

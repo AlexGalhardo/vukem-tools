@@ -465,22 +465,68 @@ func TestAPastedLinkStartsADownloadAndRunsOnlyAKnownFormat(t *testing.T) {
 		{Name: new("v.mp4"), Mime: new("video/mp4"), SizeBytes: new(int64(10)), URL: new(apiBase + "/files/v")},
 	}
 	h.signIn()
-	h.say("https://youtu.be/abc123")
+	h.say("https://x.com/someone/status/123")
 
 	offer := h.tg.last()
-	if !strings.Contains(offer.text, "A fine video") || offer.buttons()["MP3"] != "dv:audio" {
+	if !strings.Contains(offer.text, "A fine video") || offer.buttons()["MP3"] != "dv:audio" ||
+		offer.buttons()["MP4"] != "dv:video" {
 		t.Fatalf("the offer is %q %v", offer.text, offer.buttons())
 	}
 
 	h.press("dv:audio")
 
 	body, ok := h.api.body.(apiclient.ToolsVideoDownloadBody)
-	if !ok || body.Options.URL != "https://youtu.be/abc123" || valueOr(body.Options.Kind) != "audio" {
+	if !ok || body.Options.URL != "https://x.com/someone/status/123" || valueOr(body.Options.Kind) != "audio" {
 		t.Fatalf("the download was submitted as %+v", h.api.body)
 	}
 
 	if len(h.tg.sent) != 1 || !strings.HasPrefix(h.tg.sent[0], "video:") {
 		t.Errorf("the result was sent as %v", h.tg.sent)
+	}
+}
+
+func TestMP4AsksFullOrSixtySecondCutsBeforeDownloading(t *testing.T) {
+	t.Parallel()
+
+	for _, tc := range []struct {
+		press string
+		clips bool
+	}{{"dv:full", false}, {"dv:clips", true}} {
+		h := newHarness(t)
+		h.api.results = []apiclient.ResultFile{
+			{Name: new("v.mp4"), Mime: new("video/mp4"), SizeBytes: new(int64(10)), URL: new(apiBase + "/files/v")},
+		}
+		h.signIn()
+		h.say("https://www.tiktok.com/@a/video/1")
+		h.press("dv:video")
+
+		if h.api.body != nil {
+			t.Fatalf("%s: the download started before the second question: %+v", tc.press, h.api.body)
+		}
+
+		if got := h.tg.last().buttons(); got["Full video"] != "dv:full" || got["60-second cuts"] != "dv:clips" {
+			t.Fatalf("%s: the second question is %v", tc.press, got)
+		}
+
+		h.press(tc.press)
+
+		body, ok := h.api.body.(apiclient.ToolsVideoDownloadBody)
+		if !ok || valueOr(body.Options.Kind) != "video" || valueOr(body.Options.Clips) != tc.clips {
+			t.Errorf("%s: the download was submitted as %+v", tc.press, h.api.body)
+		}
+	}
+}
+
+func TestAnAnswerToTheSecondQuestionBeforeTheFirstIsRefused(t *testing.T) {
+	t.Parallel()
+
+	h := newHarness(t)
+	h.signIn()
+	h.say("https://www.instagram.com/reel/abc/")
+	h.press("dv:clips")
+
+	if h.api.body != nil {
+		t.Errorf("a download started without a format: %+v", h.api.body)
 	}
 }
 

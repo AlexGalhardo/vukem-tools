@@ -22,6 +22,9 @@ type flow struct {
 	download bool
 	url      string
 	title    string
+	// kind is the format chosen for a download ("video" or "audio"), empty
+	// until the first question is answered.
+	kind string
 	// menu is the message to keep editing as the person moves along.
 	menu int64
 	at   time.Time
@@ -242,7 +245,7 @@ func (b *Bot) press(ctx context.Context, id who, messageID int64, data string) {
 	case "dl":
 		b.setFlow(id.user, &flow{download: true, menu: messageID})
 		b.show(ctx, id.chat, messageID,
-			"Send me the link to a video on YouTube, Instagram, X or TikTok.\n\n"+
+			"Send me the link to a video on X, TikTok or Instagram.\n\n"+
 				"Downloading may breach the platform's terms of service, and you are responsible for what you download.",
 			&Keyboard{Rows: [][]Button{{{Text: "Cancel", Data: "cancel"}}}})
 	case "c":
@@ -576,13 +579,12 @@ func (b *Bot) handleLink(ctx context.Context, id who, link string) {
 
 	title := plain(valueOr(media.Title, "that video"), 120)
 
-	summary := fmt.Sprintf("%s\nby %s · %s · about %s\n\nWhat would you like?",
+	summary := fmt.Sprintf("%s\nby %s · %s · about %s\n\nMP4 or MP3?",
 		title, plain(valueOr(media.Uploader, "unknown"), 60),
 		formatDuration(valueOr(media.DurationSeconds, 0)), formatBytes(valueOr(media.EstimatedBytes, 0)))
 
 	menu := b.show(ctx, id.chat, 0, summary, &Keyboard{Rows: [][]Button{
-		{{Text: "MP4, best", Data: "dv:best"}, {Text: "MP4, smallest", Data: "dv:small"}},
-		{{Text: "MP3", Data: "dv:audio"}, {Text: "60-second clips", Data: "dv:clips"}},
+		{{Text: "MP4", Data: "dv:video"}, {Text: "MP3", Data: "dv:audio"}},
 		{{Text: "Cancel", Data: "cancel"}},
 	}})
 
@@ -599,26 +601,38 @@ func (b *Bot) chooseDownload(ctx context.Context, id who, s *session, messageID 
 		return
 	}
 
-	// A closed set: only these four strings ever select options.
-	var kind, quality string
+	// A closed set, asked in two steps: the format first, then, for video
+	// only, the whole video or 60-second cuts. Clips are refused by the API
+	// for audio, so MP3 skips the second question.
+	var kind string
 
 	var clips bool
 
-	switch choice {
-	case "best":
-		kind, quality = "video", "best"
-	case "small":
-		kind, quality = "video", "smallest"
-	case "audio":
-		kind, quality = "audio", "best"
-	case "clips":
-		kind, quality, clips = "video", "best", true
+	switch {
+	case choice == "video" && f.kind == "":
+		f.kind, f.menu = "video", messageID
+		b.setFlow(id.user, f)
+		b.show(ctx, id.chat, messageID, f.title+"\n\nFull video or 60-second cuts for Shorts?",
+			&Keyboard{Rows: [][]Button{
+				{{Text: "Full video", Data: "dv:full"}, {Text: "60-second cuts", Data: "dv:clips"}},
+				{{Text: "Cancel", Data: "cancel"}},
+			}})
+
+		return
+	case choice == "audio" && f.kind == "":
+		kind = "audio"
+	case choice == "full" && f.kind == "video":
+		kind = "video"
+	case choice == "clips" && f.kind == "video":
+		kind, clips = "video", true
 	default:
 		b.show(ctx, id.chat, messageID, "I do not recognise that choice.", nil)
 		b.showMain(ctx, id, 0)
 
 		return
 	}
+
+	quality := "best"
 
 	url := f.url
 	b.clearFlow(id.user)

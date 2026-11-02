@@ -46,6 +46,13 @@ type Engine struct {
 func (e Engine) env() []string {
 	return []string{
 		"VIPS_CONCURRENCY=" + strconv.Itoa(cpu.Limit()),
+		// OpenMP (libvips, and the ImageMagick module it loads) sizes its pool
+		// from the host's cores, and glibc gives each thread a 64 MB malloc
+		// arena. On a many-core Railway host that reservation outgrew the
+		// runner's RLIMIT_AS and `vips black` segfaulted at boot, only on some
+		// hosts (2026-11-02). Both are bounded to the container's quota.
+		"OMP_NUM_THREADS=" + strconv.Itoa(cpu.Limit()),
+		"MALLOC_ARENA_MAX=2",
 		"VIPS_DISC_THRESHOLD=" + strconv.Itoa(discThresholdMB) + "m",
 		// Warnings on a malformed-but-readable file are useful in the owner's
 		// log and must not reach a user, so they go to stderr, which the

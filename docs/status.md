@@ -152,7 +152,8 @@ them. See [vukem-audit.md](vukem-audit.md).
   package's tests run in parallel and each engine computes its ceiling from the tasks that exist
   when it starts rather than the ones its peers are about to create. Two threads to pull: size the
   headroom from the engine concurrency the caller permits, and bound libgomp — `internal/image`
-  sets `VIPS_CONCURRENCY` from `cpu.Limit()` but nothing sets `OMP_NUM_THREADS`, so OpenMP sizes
+  sets `VIPS_CONCURRENCY` and, since 2026-11-02, `OMP_NUM_THREADS` from `cpu.Limit()` (a many-core
+  Railway host segfaulted the boot probe without it); before that OpenMP sized
   its pool from the host's CPU count, which is the thing `AGENTS.md` forbids.
 
 - `v0.5.0` is cut: it carries S7 (sprite sheets), S8 (archives), image compression, the sitemap

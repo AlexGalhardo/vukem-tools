@@ -106,8 +106,10 @@ func TestTheConvertCommandAsksForShrinkOnLoadAndSRGB(t *testing.T) {
 
 	// The environment is set from the container's CPU quota, not left to
 	// libvips's own guess at the host's core count.
-	if !hasPrefix(convert.Env, "VIPS_CONCURRENCY=") {
-		t.Errorf("VIPS_CONCURRENCY is not set: %v", convert.Env)
+	for _, v := range []string{"VIPS_CONCURRENCY=", "OMP_NUM_THREADS="} {
+		if !hasPrefix(convert.Env, v) {
+			t.Errorf("%s is not set: %v", v, convert.Env)
+		}
 	}
 }
 

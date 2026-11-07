@@ -1,0 +1,218 @@
+[
+  {
+    "coverage_id": ".github%2Fworkflows%2Fci.yml%23uses::.claude%2Frules%2Fci.md%23pinning::profile%2Fquick%2Fall-in-scope-subsystems::ATTACK-CLASSES.md%23Obvious%20things",
+    "canonical_refs": {
+      "surface": ".github/workflows/ci.yml#uses",
+      "boundary": ".claude/rules/ci.md#pinning",
+      "subsystem": "profile/quick/all-in-scope-subsystems",
+      "attack_class": "ATTACK-CLASSES.md#Obvious things"
+    },
+    "surface": ".github/workflows/ci.yml#uses",
+    "boundary": ".claude/rules/ci.md#pinning",
+    "subsystem": "profile/quick/all-in-scope-subsystems",
+    "attack_class": "ATTACK-CLASSES.md#Obvious things",
+    "starting_paths": [
+      ".github/workflows/ci.yml",
+      ".github/workflows/release.yml",
+      ".claude/rules/ci.md"
+    ],
+    "ordinary_attack_class_block": "ATTACK-CLASSES.md#Obvious things",
+    "selected_companion_blocks": [],
+    "excluded_blocks": [],
+    "prior_status": "none",
+    "attempts": [],
+    "wave": 1,
+    "status": "candidate",
+    "agent_id": "hunter-main",
+    "reviewed_paths": [
+      ".github/workflows/ci.yml",
+      ".github/workflows/release.yml",
+      ".claude/rules/ci.md"
+    ],
+    "local_checks": [
+      {
+        "agent_id": "hunter-main",
+        "reviewed_paths": [
+          ".github/workflows/ci.yml",
+          ".github/workflows/release.yml",
+          ".claude/rules/ci.md"
+        ],
+        "invariant": "Third-party actions are SHA-pinned and checkouts do not persist credentials.",
+        "method": "source",
+        "result": "Third-party already pinned; first-party tag-pinned.",
+        "artifact": null
+      }
+    ],
+    "result_fingerprints": [
+      "vukem-tools:ci:actions-pinned-by-tag"
+    ],
+    "unresolved": []
+  },
+  {
+    "coverage_id": "app%2Fcontrollers%2Flookup.go%23Lookup::app%2Fcontrollers%2Flookup.go%23digits::profile%2Fquick%2Fall-in-scope-subsystems::ATTACK-CLASSES.md%23Injection",
+    "canonical_refs": {
+      "surface": "app/controllers/lookup.go#Lookup",
+      "boundary": "app/controllers/lookup.go#digits",
+      "subsystem": "profile/quick/all-in-scope-subsystems",
+      "attack_class": "ATTACK-CLASSES.md#Injection"
+    },
+    "surface": "app/controllers/lookup.go#Lookup",
+    "boundary": "app/controllers/lookup.go#digits",
+    "subsystem": "profile/quick/all-in-scope-subsystems",
+    "attack_class": "ATTACK-CLASSES.md#Injection",
+    "starting_paths": [
+      "app/controllers/lookup.go"
+    ],
+    "ordinary_attack_class_block": "ATTACK-CLASSES.md#Injection",
+    "selected_companion_blocks": [],
+    "excluded_blocks": [],
+    "prior_status": "none",
+    "attempts": [],
+    "wave": 1,
+    "status": "covered",
+    "agent_id": "hunter-main",
+    "reviewed_paths": [
+      "app/controllers/lookup.go"
+    ],
+    "local_checks": [
+      {
+        "agent_id": "hunter-main",
+        "reviewed_paths": [
+          "app/controllers/lookup.go"
+        ],
+        "invariant": "Path segments are digits before URL use.",
+        "method": "source",
+        "result": "Validated.",
+        "artifact": null
+      }
+    ],
+    "result_fingerprints": [],
+    "unresolved": []
+  },
+  {
+    "coverage_id": "internal%2Farchive%2Farchive.go%23Extract::internal%2Farchive%2Farchive.go%23limits::profile%2Fquick%2Fall-in-scope-subsystems::ATTACK-CLASSES.md%23Resource%20and%20file%20handling",
+    "canonical_refs": {
+      "surface": "internal/archive/archive.go#Extract",
+      "boundary": "internal/archive/archive.go#limits",
+      "subsystem": "profile/quick/all-in-scope-subsystems",
+      "attack_class": "ATTACK-CLASSES.md#Resource and file handling"
+    },
+    "surface": "internal/archive/archive.go#Extract",
+    "boundary": "internal/archive/archive.go#limits",
+    "subsystem": "profile/quick/all-in-scope-subsystems",
+    "attack_class": "ATTACK-CLASSES.md#Resource and file handling",
+    "starting_paths": [
+      "internal/archive/archive.go"
+    ],
+    "ordinary_attack_class_block": "ATTACK-CLASSES.md#Resource and file handling",
+    "selected_companion_blocks": [],
+    "excluded_blocks": [],
+    "prior_status": "none",
+    "attempts": [],
+    "wave": 1,
+    "status": "covered",
+    "agent_id": "hunter-main",
+    "reviewed_paths": [
+      "internal/archive/archive.go"
+    ],
+    "local_checks": [
+      {
+        "agent_id": "hunter-main",
+        "reviewed_paths": [
+          "internal/archive/archive.go"
+        ],
+        "invariant": "Extraction is confined and bounded.",
+        "method": "source",
+        "result": "Guards present.",
+        "artifact": null
+      }
+    ],
+    "result_fingerprints": [],
+    "unresolved": []
+  },
+  {
+    "coverage_id": "internal%2Fdownloader%2Fdownloader.go%23Metadata::internal%2Fdownloader%2Fssrf_test.go%23targets::profile%2Fquick%2Fall-in-scope-subsystems::ATTACK-CLASSES.md%23Feature%20abuse%20and%20data%20leakage",
+    "canonical_refs": {
+      "surface": "internal/downloader/downloader.go#Metadata",
+      "boundary": "internal/downloader/ssrf_test.go#targets",
+      "subsystem": "profile/quick/all-in-scope-subsystems",
+      "attack_class": "ATTACK-CLASSES.md#Feature abuse and data leakage"
+    },
+    "surface": "internal/downloader/downloader.go#Metadata",
+    "boundary": "internal/downloader/ssrf_test.go#targets",
+    "subsystem": "profile/quick/all-in-scope-subsystems",
+    "attack_class": "ATTACK-CLASSES.md#Feature abuse and data leakage",
+    "starting_paths": [
+      "internal/downloader/downloader.go",
+      "internal/downloader/ssrf_test.go"
+    ],
+    "ordinary_attack_class_block": "ATTACK-CLASSES.md#Feature abuse and data leakage",
+    "selected_companion_blocks": [],
+    "excluded_blocks": [],
+    "prior_status": "none",
+    "attempts": [],
+    "wave": 1,
+    "status": "covered",
+    "agent_id": "hunter-main",
+    "reviewed_paths": [
+      "internal/downloader/downloader.go",
+      "internal/downloader/ssrf_test.go"
+    ],
+    "local_checks": [
+      {
+        "agent_id": "hunter-main",
+        "reviewed_paths": [
+          "internal/downloader/downloader.go",
+          "internal/downloader/ssrf_test.go"
+        ],
+        "invariant": "URLs cannot reach internal hosts or flags.",
+        "method": "source",
+        "result": "Hostname, extractor and `--` guards.",
+        "artifact": null
+      }
+    ],
+    "result_fingerprints": [],
+    "unresolved": []
+  },
+  {
+    "coverage_id": "internal%2Fhttpx%2Fapikey.go%23middleware::app%2Fcontrollers%2Fapiv1%23auth::profile%2Fquick%2Fall-in-scope-subsystems::ATTACK-CLASSES.md%23Access%20control",
+    "canonical_refs": {
+      "surface": "internal/httpx/apikey.go#middleware",
+      "boundary": "app/controllers/apiv1#auth",
+      "subsystem": "profile/quick/all-in-scope-subsystems",
+      "attack_class": "ATTACK-CLASSES.md#Access control"
+    },
+    "surface": "internal/httpx/apikey.go#middleware",
+    "boundary": "app/controllers/apiv1#auth",
+    "subsystem": "profile/quick/all-in-scope-subsystems",
+    "attack_class": "ATTACK-CLASSES.md#Access control",
+    "starting_paths": [
+      "internal/httpx/apikey.go"
+    ],
+    "ordinary_attack_class_block": "ATTACK-CLASSES.md#Access control",
+    "selected_companion_blocks": [],
+    "excluded_blocks": [],
+    "prior_status": "none",
+    "attempts": [],
+    "wave": 1,
+    "status": "covered",
+    "agent_id": "hunter-main",
+    "reviewed_paths": [
+      "internal/httpx/apikey.go"
+    ],
+    "local_checks": [
+      {
+        "agent_id": "hunter-main",
+        "reviewed_paths": [
+          "internal/httpx/apikey.go"
+        ],
+        "invariant": "API calls require a key.",
+        "method": "source",
+        "result": "Header check present.",
+        "artifact": null
+      }
+    ],
+    "result_fingerprints": [],
+    "unresolved": []
+  }
+]

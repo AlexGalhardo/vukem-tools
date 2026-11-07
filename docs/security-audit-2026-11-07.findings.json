@@ -1,0 +1,116 @@
+[
+  {
+    "verdict": "rejected",
+    "fingerprint": "vukem-tools:archive:zip-slip-and-bomb",
+    "title": "Archive extraction writes outside the target or expands without bound",
+    "description": "Uploaded archives are extracted.",
+    "claimed_root_cause": "Uploaded archives are extracted.",
+    "trace": [
+      {
+        "kind": "entrypoint",
+        "file": "internal/archive/archive.go",
+        "line": 81,
+        "scope": "Extract",
+        "description": "Uploaded archive."
+      }
+    ],
+    "evidence": [
+      {
+        "file": "internal/archive/archive.go",
+        "line": 81,
+        "description": "Names are reduced to a base name, links, devices and FIFOs are refused, entries are capped at 64 and expansion at a ratio of 500."
+      }
+    ],
+    "reason": "Guards present and documented."
+  },
+  {
+    "verdict": "confirmed",
+    "fingerprint": "vukem-tools:ci:actions-pinned-by-tag",
+    "title": "Third-party GitHub Actions are pinned by mutable tag",
+    "description": "Workflows reference actions by version tag, which the action owner can move. A compromised tag would run attacker code with the job token and secrets.",
+    "root_cause": "uses: owner/action@vX.Y.Z instead of a full commit SHA.",
+    "intended_behavior": "Third-party actions are pinned to a 40-character commit SHA with the version in a trailing comment, as in security-audit.yml.",
+    "trace": [
+      {
+        "kind": "entrypoint",
+        "file": ".github/workflows/ci.yml",
+        "line": 30,
+        "scope": "jobs",
+        "description": "Workflow runs resolve the tag at run time."
+      },
+      {
+        "kind": "sink",
+        "file": ".github/workflows/ci.yml",
+        "line": 30,
+        "scope": "uses step",
+        "description": "The resolved code runs with the job token and secrets."
+      }
+    ],
+    "evidence": [
+      {
+        "file": ".github/workflows/ci.yml",
+        "line": 30,
+        "description": "The step is pinned by tag, not SHA."
+      }
+    ],
+    "conditions": [
+      {
+        "kind": "environmental_dependency",
+        "description": "Needs the upstream action tag to be moved or its repository compromised."
+      }
+    ],
+    "execution": {
+      "attacker_perspective": "Compromised upstream action maintainer or tag.",
+      "payloads": [
+        "none"
+      ],
+      "instructions": [
+        "Inspect the workflows: uses lines end in a version tag."
+      ],
+      "observed_result": "The action code is resolved from a movable tag."
+    },
+    "remediation": {
+      "strategy": "Pin every action to its commit SHA, keeping the version in a comment.",
+      "code_changes": []
+    },
+    "severity": {
+      "likelihood": {
+        "score": "low",
+        "reason": "Needs an upstream compromise."
+      },
+      "impact": {
+        "score": "informational",
+        "reason": "Only GitHub-published `actions/*` are tag-pinned, which `.claude/rules/ci.md` allows; pinning them is extra hardening."
+      },
+      "overall_severity": "informational"
+    },
+    "confidence": {
+      "score": "high",
+      "reason": "Visible in the repository files."
+    }
+  },
+  {
+    "verdict": "rejected",
+    "fingerprint": "vukem-tools:downloader:ssrf",
+    "title": "Download URL reaches internal addresses through yt-dlp",
+    "description": "A user URL is handed to yt-dlp.",
+    "claimed_root_cause": "A user URL is handed to yt-dlp.",
+    "trace": [
+      {
+        "kind": "entrypoint",
+        "file": "internal/downloader/downloader.go",
+        "line": 7,
+        "scope": "Metadata",
+        "description": "User-supplied URL."
+      }
+    ],
+    "evidence": [
+      {
+        "file": "internal/downloader/downloader.go",
+        "line": 7,
+        "description": "Platform hostname matching, the platform-only extractor allowlist, --ignore-config and `--` are each covered by tests (ssrf_test.go)."
+      }
+    ],
+    "reason": "Three independent guards."
+  }
+]

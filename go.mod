@@ -3,9 +3,9 @@ module github.com/AlexGalhardo/vukem-tools
 go 1.27.3
 
 require (
-	github.com/AlexGalhardo/vukem v0.37.0
-	github.com/AlexGalhardo/vukem/drivers/otel v0.4.1
-	github.com/AlexGalhardo/vukem/drivers/postgres v0.5.1
+	github.com/AlexGalhardo/vukem v0.39.1
+	github.com/AlexGalhardo/vukem/drivers/otel v0.4.3
+	github.com/AlexGalhardo/vukem/drivers/postgres v0.6.1
 	github.com/AlexGalhardo/vukem/drivers/s3 v0.4.2
 	github.com/gabriel-vasile/mimetype v1.4.16
 	github.com/google/go-cmp v0.7.0
@@ -48,7 +48,7 @@ require (
 	go.opentelemetry.io/proto/otlp v1.11.0 // indirect
 	golang.org/x/crypto v0.58.0 // indirect
 	golang.org/x/mod v0.42.0 // indirect
-	golang.org/x/net v0.61.0 // indirect
+	golang.org/x/net v0.62.0 // indirect
 	golang.org/x/sync v0.24.0 // indirect
 	golang.org/x/sys v0.49.0 // indirect
 	golang.org/x/telemetry v0.0.0-20261010193011-f71dc92da45e // indirect
@@ -56,7 +56,7 @@ require (
 	golang.org/x/tools v0.52.0 // indirect
 	golang.org/x/vuln v1.9.0 // indirect
 	google.golang.org/genproto/googleapis/api v0.0.0-20260928230214-8a89bd6388cc // indirect
-	google.golang.org/genproto/googleapis/rpc v0.0.0-20260928230214-8a89bd6388cc // indirect
+	google.golang.org/genproto/googleapis/rpc v0.0.0-20261012220534-4341edf3f941 // indirect
 	google.golang.org/grpc v1.83.2 // indirect
 	google.golang.org/protobuf v1.36.12 // indirect
 	modernc.org/libc v1.79.0 // indirect

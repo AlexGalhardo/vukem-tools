@@ -1,15 +1,12 @@
 # Framework feedback rule
 
 This project is a battle test for the vukem framework. Every vukem bug, missing feature, awkward
-API, security issue or wrong/missing docs page you hit gets one entry appended to
-`../framework-feedback/vukem-tools-feedback.md` (format at the top of that file; include the docs
-URL for docs findings).
+API, security issue or wrong/missing docs page you hit gets one entry in the single shared
+`vukem-feedback.md` at the workspace root (the folder that holds `vukem/` and every app; include
+the docs URL for docs findings). Never keep a copy inside this repository.
 
-**In a cloud session `../framework-feedback/` does not exist**, and anything written beside the
-repository is not under version control and is lost when the container is reclaimed. Write to
-[`docs/vukem-feedback.md`](../../docs/vukem-feedback.md) and
-[`docs/vukem-audit.md`](../../docs/vukem-audit.md) instead, which are the same two files committed
-here; copy them across when working locally.
+In a cloud session the workspace root does not exist: report the finding in the pull request
+description instead, and the maintainer copies it to the queue.
 
 Apply a local workaround, mark it in code with `// workaround(vukem): <entry title>`, and keep
 going. Never edit the vukem repository from here.

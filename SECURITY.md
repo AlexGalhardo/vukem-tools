@@ -2,9 +2,9 @@
 
 Vukem Tools accepts arbitrary files from the internet and hands them to decoders and media tools
 written in C. That is the whole attack surface, and it is treated as such: the threat model, the
-engine CVE history and the mitigations are in [docs/web-research.md](../docs/web-research.md), and
+engine CVE history and the mitigations are in [docs/web-research.md](docs/web-research.md), and
 the checklist every new route and engine call follows is in
-[`.claude/skills/vukem-tools-secure-endpoint`](../.claude/skills/vukem-tools-secure-endpoint/SKILL.md).
+[`.claude/skills/vukem-tools-secure-endpoint`](.claude/skills/vukem-tools-secure-endpoint/SKILL.md).
 
 ## Supported versions
 
@@ -52,7 +52,7 @@ bug bounty, no service-level agreement and no paid support.
   app without authentication
 - Missing hardening with no demonstrated impact, and automated scanner output with no reproduction
 - Advisories with no fixed release in a dev-only dependency, which are documented in the workflow
-  that ignores them (see [`.claude/rules/ci.md`](../.claude/rules/ci.md))
+  that ignores them (see [`.claude/rules/ci.md`](.claude/rules/ci.md))
 - Denial of service that needs a valid account and stays inside the published limits — that is the
   quota working
 

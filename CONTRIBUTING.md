@@ -6,13 +6,13 @@ shape.
 
 ## Before you write code
 
-Read [ROADMAP.md](../ROADMAP.md) and take an unchecked task, or open an issue first. Two things are
+Read [ROADMAP.md](ROADMAP.md) and take an unchecked task, or open an issue first. Two things are
 worth knowing before you start:
 
-- [docs/brainstorming.md](../docs/brainstorming.md) records the decisions and **why**. They are
+- [docs/brainstorming.md](docs/brainstorming.md) records the decisions and **why**. They are
   final unless that file is updated first. If you disagree with one, argue there — not in a pull
   request that quietly does something else.
-- [docs/web-research.md](../docs/web-research.md) records every conversion engine, its exact
+- [docs/web-research.md](docs/web-research.md) records every conversion engine, its exact
   licence and its traps. A new engine needs an entry there, and its licence on the `/licenses`
   page, before the feature that uses it ships.
 
@@ -39,7 +39,7 @@ works — `go run ./cmd/app about` prints which engines were resolved.
 
 ## The bar
 
-Every commit holds the gates in [ROADMAP.md](../ROADMAP.md#global-quality-gates):
+Every commit holds the gates in [ROADMAP.md](ROADMAP.md#global-quality-gates):
 
 ```bash
 go build ./... && go vet ./... && golangci-lint run ./...
@@ -57,17 +57,17 @@ Non-negotiable, because the whole point of this project is the quality bar:
 - **Test the malicious case**, not only the happy path: wrong magic bytes, oversized input, path
   traversal in a filename, a cancelled job, a timeout.
 - **Measure before claiming.** Any performance claim needs `go test -bench . -benchmem` and a row
-  in [docs/benchmarks.md](../docs/benchmarks.md). A number without its command is not a benchmark.
+  in [docs/benchmarks.md](docs/benchmarks.md). A number without its command is not a benchmark.
 - **Stream, never buffer a whole file.** This runs on a small container.
 - **Engines run as subprocesses**, with a timeout, a process-group kill and `setrlimit`. No cgo.
-  See [`.claude/rules/engines.md`](../.claude/rules/engines.md).
+  See [`.claude/rules/engines.md`](.claude/rules/engines.md).
 - **Detect types from magic bytes.** Never the extension, never the client's `Content-Type`.
 - English everywhere: code, comments, docs and UI. There is no i18n layer.
 
 ## Commits and releases
 
 [Conventional Commits](https://www.conventionalcommits.org/en/v1.0.0/), English, with a scope from
-[`.claude/rules/commits.md`](../.claude/rules/commits.md):
+[`.claude/rules/commits.md`](.claude/rules/commits.md):
 
 ```text
 feat(pixelsvg): merge adjacent runs into maximal rectangles
@@ -87,7 +87,7 @@ would silently never run.
 
 ## Agents
 
-This repository is set up for agent-assisted development: [AGENTS.md](../AGENTS.md) and
+This repository is set up for agent-assisted development: [AGENTS.md](AGENTS.md) and
 `.claude/` hold the rules, the skills and the project's own workflows. If you use an agent, it is
 still your pull request: you are expected to have read what it wrote and to be able to defend it.
 

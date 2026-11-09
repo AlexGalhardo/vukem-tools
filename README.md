@@ -3,7 +3,7 @@
 <h1><strong><a href="https://tools.vukem.dev" style="text-decoration: none" target="_blank">Vukem Tools</a></strong></h1>
 
 [![CI](https://github.com/AlexGalhardo/vukem-tools/actions/workflows/ci.yml/badge.svg)](https://github.com/AlexGalhardo/vukem-tools/actions/workflows/ci.yml)
-[![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+[![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE.md)
 [![Go 1.27.3](https://img.shields.io/badge/go-1.27.3-00ADD8?logo=go&logoColor=white)](go.mod)
 <a href="https://github.com/AlexGalhardo/vukem-tools/releases"><img src="https://img.shields.io/github/v/release/AlexGalhardo/vukem-tools?include_prereleases&label=version" alt="Version"></a>
 <a href="https://scorecard.dev/viewer/?uri=github.com/AlexGalhardo/vukem-tools"><img src="https://api.scorecard.dev/projects/github.com/AlexGalhardo/vukem-tools/badge" alt="OpenSSF Scorecard"></a>
@@ -157,7 +157,7 @@ Thank you for considering a contribution to Vukem Tools.
 - Every commit keeps `go build`, `go vet`, `golangci-lint run`, `go test -race`, `bun run typecheck`, `bun run build` and `markdownlint-cli2` clean.
 - Respect the decisions in [docs/brainstorming.md](docs/brainstorming.md) and the engine notes in [docs/web-research.md](docs/web-research.md).
 
-The full guide is in [CONTRIBUTING.md](.github/CONTRIBUTING.md).
+The full guide is in [CONTRIBUTING.md](CONTRIBUTING.md).
 
 ### Pull requests
 
@@ -177,12 +177,12 @@ The `commit-msg` hook runs commitlint locally, and CI checks the commits and the
 
 ## Code of conduct
 
-To keep the community welcoming to everyone, please review and follow the [Code of Conduct](.github/CODE_OF_CONDUCT.md).
+To keep the community welcoming to everyone, please review and follow the [Code of Conduct](CODE_OF_CONDUCT.md).
 
 ## Security vulnerabilities
 
-This app accepts arbitrary files from the internet and feeds them to decoders written in C, so it takes that seriously. If you discover a security vulnerability, please follow the [security policy](.github/SECURITY.md) instead of opening a public issue.
+This app accepts arbitrary files from the internet and feeds them to decoders written in C, so it takes that seriously. If you discover a security vulnerability, please follow the [security policy](SECURITY.md) instead of opening a public issue.
 
 ## License
 
-Vukem Tools is open source software released under the [MIT license](LICENSE).
+Vukem Tools is open source software released under the [MIT license](LICENSE.md).

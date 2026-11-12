@@ -20,6 +20,6 @@
     "MD060": false
   },
   "globs": ["**/*.md"],
-  // Vendored agent material, not our prose
-  "ignores": ["**/node_modules/**", "**/testdata/**", ".claude/skills/**", ".claude/agents/**", ".claude/references/**"]
+  // Vendored agent material, not our prose, and the untracked plans folder
+  "ignores": ["**/node_modules/**", "**/testdata/**", ".claude/skills/**", ".claude/agents/**", ".claude/references/**", "plans/**"]
 }

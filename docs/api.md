@@ -170,7 +170,7 @@ Regenerate them after any change to a route or to a request or response type:
 ```bash
 OPENAPI_PREFIX=/api/v1 go run ./cmd/app codegen:client -lang go -package apiclient \
   -o clients/apiclient/client.go
-OPENAPI_PREFIX=/api/v1 go run ./cmd/app codegen:client -lang ts -o clients/typescript/client.ts
+OPENAPI_PREFIX=/api/v1 go run ./cmd/app codegen:client -lang ts -style throw -o clients/typescript/client.ts
 ```
 
 `OPENAPI_PREFIX` is what keeps the browser routes out of the clients: without it `codegen:client`
@@ -192,7 +192,7 @@ Nothing is written, so the mistake is loud rather than silent. Prefix each comma
 MSYS_NO_PATHCONV=1 OPENAPI_PREFIX=/api/v1 go run ./cmd/app codegen:client -lang go \
   -package apiclient -o clients/apiclient/client.go
 MSYS_NO_PATHCONV=1 OPENAPI_PREFIX=/api/v1 go run ./cmd/app codegen:client -lang ts \
-  -o clients/typescript/client.ts
+  -style throw -o clients/typescript/client.ts
 ```
 
 PowerShell does no such rewriting, so there the plain form works:
@@ -200,7 +200,7 @@ PowerShell does no such rewriting, so there the plain form works:
 ```powershell
 $env:OPENAPI_PREFIX = "/api/v1"
 go run ./cmd/app codegen:client -lang go -package apiclient -o clients/apiclient/client.go
-go run ./cmd/app codegen:client -lang ts -o clients/typescript/client.ts
+go run ./cmd/app codegen:client -lang ts -style throw -o clients/typescript/client.ts
 ```
 
 Neither client authenticates by itself. Both take a per-request header hook: `Client.Header` in Go,

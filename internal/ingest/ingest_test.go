@@ -27,7 +27,7 @@ import (
 const owner = "7"
 
 // pngBytes is a PNG signature, which is all the detector reads.
-var pngBytes = append([]byte("\x89PNG\r\n\x1a\n"), bytes.Repeat([]byte{0}, 64)...)
+var pngBytes = append([]byte("\x89PNG\r\n\x1a\n"), make([]byte, 64)...)
 
 // scanner is a fake upload.Scanner.
 type scanner struct {

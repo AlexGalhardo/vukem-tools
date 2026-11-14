@@ -16,6 +16,7 @@ import (
 	"github.com/AlexGalhardo/vukem-tools/bootstrap"
 	"github.com/AlexGalhardo/vukem-tools/internal/bot"
 	"github.com/AlexGalhardo/vukem-tools/internal/jobs"
+	"github.com/AlexGalhardo/vukem-tools/internal/testenv"
 )
 
 // The bot holds an API key, and the point of that key is that it carries as
@@ -165,7 +166,11 @@ func TestTheBotsKeyHasNoAbilityItDoesNotUse(t *testing.T) {
 			// The engine is missing from this machine, so the tool is not
 			// registered. The ability it would need is still knowable, but
 			// not from here, and the test must not pass by finding nothing.
-			t.Skipf("the %s tool is not registered on this machine, so its ability cannot be read", op.toolName)
+			testenv.MissingEnginef(
+				t,
+				"the %s tool is not registered on this machine, so its ability cannot be read",
+				op.toolName,
+			)
 		}
 
 		needed[tool.Ability()] = op.id

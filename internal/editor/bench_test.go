@@ -9,6 +9,7 @@ import (
 
 	"github.com/AlexGalhardo/vukem-tools/internal/editor"
 	"github.com/AlexGalhardo/vukem-tools/internal/engine"
+	"github.com/AlexGalhardo/vukem-tools/internal/testenv"
 )
 
 // The benchmarks here run the real ffmpeg, because the number they exist to
@@ -24,12 +25,12 @@ func benchEditor(b *testing.B) (*editor.Editor, string) {
 
 	ffmpeg, err := exec.LookPath("ffmpeg")
 	if err != nil {
-		b.Skip("ffmpeg is not installed; run this inside the image (docs/deployment.md)")
+		testenv.MissingEngine(b, "ffmpeg is not installed; run this inside the image (docs/deployment.md)")
 	}
 
 	ffprobe, err := exec.LookPath("ffprobe")
 	if err != nil {
-		b.Skip("ffprobe is not installed; run this inside the image (docs/deployment.md)")
+		testenv.MissingEngine(b, "ffprobe is not installed; run this inside the image (docs/deployment.md)")
 	}
 
 	runner, err := engine.NewRunner(engine.RunnerOptions{Limits: engine.Limits{Timeout: 5 * time.Minute}})

@@ -9,6 +9,7 @@ import (
 
 	"github.com/AlexGalhardo/vukem-tools/internal/engine"
 	"github.com/AlexGalhardo/vukem-tools/internal/pdf"
+	"github.com/AlexGalhardo/vukem-tools/internal/testenv"
 )
 
 // envLookup resolves an engine path from the environment, the same variables
@@ -69,7 +70,7 @@ func testEngineParts(t *testing.T, need ...string) (pdf.Registry, pdf.Subprocess
 
 	for _, name := range need {
 		if !registry.Has(name) {
-			t.Skipf("%s is not installed. This assertion runs inside the production image: "+
+			testenv.MissingEnginef(t, "%s is not installed. This assertion runs inside the production image: "+
 				"see docs/deployment.md, \"Verifying the image\".", name)
 		}
 	}

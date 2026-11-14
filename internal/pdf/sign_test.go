@@ -21,6 +21,7 @@ import (
 	pkcs12 "software.sslmate.com/src/go-pkcs12"
 
 	"github.com/AlexGalhardo/vukem-tools/internal/pdf"
+	"github.com/AlexGalhardo/vukem-tools/internal/testenv"
 )
 
 // writeBundle makes a self-signed certificate and writes it, with its key, as
@@ -83,7 +84,7 @@ func pdfsig(t *testing.T, path string) string {
 
 	bin, err := exec.LookPath("pdfsig")
 	if err != nil {
-		t.Skip("pdfsig is not installed. This assertion runs inside the production image.")
+		testenv.MissingEngine(t, "pdfsig is not installed. This assertion runs inside the production image.")
 	}
 
 	out, _ := exec.CommandContext(context.Background(), bin, path).CombinedOutput()

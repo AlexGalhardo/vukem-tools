@@ -13,6 +13,7 @@ import (
 
 	"github.com/AlexGalhardo/vukem-tools/internal/engine"
 	"github.com/AlexGalhardo/vukem-tools/internal/pdf"
+	"github.com/AlexGalhardo/vukem-tools/internal/testenv"
 )
 
 // benchEngines is testEngines for a benchmark, which has no *testing.T.
@@ -33,7 +34,7 @@ func benchEngines(b *testing.B, need ...string) *pdf.Engines {
 
 	for _, name := range need {
 		if !registry.Has(name) {
-			b.Skipf("%s is not installed. These figures are measured inside the production image: "+
+			testenv.MissingEnginef(b, "%s is not installed. These figures are measured inside the production image: "+
 				"see docs/deployment.md, \"Verifying the image\".", name)
 		}
 	}

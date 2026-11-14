@@ -10,6 +10,7 @@ import (
 
 	"github.com/AlexGalhardo/vukem-tools/internal/editor"
 	"github.com/AlexGalhardo/vukem-tools/internal/engine"
+	"github.com/AlexGalhardo/vukem-tools/internal/testenv"
 )
 
 // The tests in this file run the real ffmpeg and ffprobe.
@@ -28,12 +29,12 @@ func realEditor(t *testing.T) (*editor.Editor, string, string) {
 
 	ffmpeg, err := exec.LookPath("ffmpeg")
 	if err != nil {
-		t.Skip("ffmpeg is not installed; run this inside the image (docs/deployment.md)")
+		testenv.MissingEngine(t, "ffmpeg is not installed; run this inside the image (docs/deployment.md)")
 	}
 
 	ffprobe, err := exec.LookPath("ffprobe")
 	if err != nil {
-		t.Skip("ffprobe is not installed; run this inside the image (docs/deployment.md)")
+		testenv.MissingEngine(t, "ffprobe is not installed; run this inside the image (docs/deployment.md)")
 	}
 
 	runner, err := engine.NewRunner(engine.RunnerOptions{

@@ -144,3 +144,12 @@ jobs:
       - name: The binary starts and reports the app
         run: |
           docker run --rm             -e APP_KEY="base64:$(head -c 32 /dev/urandom | base64 -w0)"             -e MAIL_MAILER=log             -e APP_ENV=development             vukem-tools:ci about
+      # The engine tests skip on a machine without the engines, so a plain
+      # `go test` proves nothing about them. Here they run inside the image
+      # with REQUIRE_ENGINES=1, which turns a missing engine into a failure.
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version-file: go.mod
+          cache: true
+      - name: Engine tests inside the image (REQUIRE_ENGINES=1)
+        run: scripts/engine-tests.sh vukem-tools:ci

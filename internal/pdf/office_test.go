@@ -10,6 +10,7 @@ import (
 	"testing"
 
 	"github.com/AlexGalhardo/vukem-tools/internal/pdf"
+	"github.com/AlexGalhardo/vukem-tools/internal/testenv"
 )
 
 // flatODT is the smallest document LibreOffice opens: one paragraph, in the
@@ -116,7 +117,7 @@ func TestAScanBecomesSearchable(t *testing.T) {
 	// conversion.
 	gs, lookErr := exec.LookPath("gs")
 	if lookErr != nil {
-		t.Skip("gs is not on PATH")
+		testenv.MissingEngine(t, "gs is not on PATH")
 	}
 
 	if out, err := exec.CommandContext(context.Background(), gs, "-q", "-dNOPAUSE", "-dBATCH",

@@ -15,6 +15,7 @@ import (
 	"time"
 
 	"github.com/AlexGalhardo/vukem-tools/internal/engine"
+	"github.com/AlexGalhardo/vukem-tools/internal/testenv"
 )
 
 // The tests run this test binary as the engine, which is the only way to
@@ -441,7 +442,7 @@ func TestAFileSizeLimitStopsARunawayWrite(t *testing.T) {
 	}
 
 	if _, err := exec.LookPath("prlimit"); err != nil {
-		t.Skip("prlimit is not installed; the container installs util-linux explicitly")
+		testenv.MissingEngine(t, "prlimit is not installed; the container installs util-linux explicitly")
 	}
 
 	// One mebibyte, against an engine that tries to write 64.

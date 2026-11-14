@@ -13,6 +13,7 @@ import (
 
 	"github.com/AlexGalhardo/vukem-tools/internal/engine"
 	"github.com/AlexGalhardo/vukem-tools/internal/ffmpeg"
+	"github.com/AlexGalhardo/vukem-tools/internal/testenv"
 	"github.com/AlexGalhardo/vukem-tools/internal/video"
 )
 
@@ -24,13 +25,13 @@ func engines(tb testing.TB) (ffmpeg.Engine, ffmpeg.Runner, ffmpeg.Capabilities) 
 
 	binary, err := exec.LookPath("ffmpeg")
 	if err != nil {
-		tb.Skip("ffmpeg is not installed here; run this inside the production image " +
+		testenv.MissingEngine(tb, "ffmpeg is not installed here; run this inside the production image "+
 			"(docs/deployment.md § Verifying the image)")
 	}
 
 	probe, err := exec.LookPath("ffprobe")
 	if err != nil {
-		tb.Skip("ffprobe is not installed here; run this inside the production image")
+		testenv.MissingEngine(tb, "ffprobe is not installed here; run this inside the production image")
 	}
 
 	runner, err := engine.NewRunner(engine.RunnerOptions{

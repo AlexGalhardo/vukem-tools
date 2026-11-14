@@ -13,6 +13,7 @@ import (
 
 	"github.com/AlexGalhardo/vukem-tools/internal/downloader"
 	"github.com/AlexGalhardo/vukem-tools/internal/engine"
+	"github.com/AlexGalhardo/vukem-tools/internal/testenv"
 )
 
 // The test in this file downloads a real video from a real platform.
@@ -44,17 +45,17 @@ func TestARealDownloadProducesAPlayableFileWhoseDurationMatchesTheMetadata(t *te
 
 	ytdlp, err := exec.LookPath("yt-dlp")
 	if err != nil {
-		t.Skip("yt-dlp is not installed")
+		testenv.MissingEngine(t, "yt-dlp is not installed")
 	}
 
 	ffmpeg, err := exec.LookPath("ffmpeg")
 	if err != nil {
-		t.Skip("ffmpeg is not installed")
+		testenv.MissingEngine(t, "ffmpeg is not installed")
 	}
 
 	ffprobe, err := exec.LookPath("ffprobe")
 	if err != nil {
-		t.Skip("ffprobe is not installed")
+		testenv.MissingEngine(t, "ffprobe is not installed")
 	}
 
 	runner, err := engine.NewRunner(engine.RunnerOptions{Limits: engine.Limits{Timeout: 10 * time.Minute}})

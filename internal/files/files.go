@@ -50,8 +50,10 @@ type Store struct {
 	signer *signed.Signer
 	base   string
 	ttl    time.Duration
-	now    func() time.Time
-	log    *slog.Logger
+	// uploadTTL is the lifetime of a role=input file.
+	uploadTTL time.Duration
+	now       func() time.Time
+	log       *slog.Logger
 }
 
 // Options configures a Store. DB, Disk, IDs, Signer and TTL are required.
@@ -67,8 +69,12 @@ type Options struct {
 	BaseURL string
 	// TTL is how long a file stays downloadable once it exists.
 	TTL time.Duration
-	Now func() time.Time
-	Log *slog.Logger
+	// UploadTTL is how long an uploaded input stays, when it should outlive
+	// a result. An upload waits for the person to choose options, so it
+	// cannot share the short result lifetime. Zero means TTL.
+	UploadTTL time.Duration
+	Now       func() time.Time
+	Log       *slog.Logger
 }
 
 // New returns a store.
@@ -86,6 +92,10 @@ func New(o Options) (*Store, error) {
 		return nil, fmt.Errorf("files: lifetime must be positive, got %s", o.TTL)
 	}
 
+	if o.UploadTTL <= 0 {
+		o.UploadTTL = o.TTL
+	}
+
 	if o.Now == nil {
 		o.Now = time.Now
 	}
@@ -101,8 +111,10 @@ func New(o Options) (*Store, error) {
 		signer: o.Signer,
 		base:   strings.TrimRight(o.BaseURL, "/"),
 		ttl:    o.TTL,
-		now:    o.Now,
-		log:    o.Log,
+
+		uploadTTL: o.UploadTTL,
+		now:       o.Now,
+		log:       o.Log,
 	}, nil
 }
 
@@ -167,7 +179,7 @@ func (s *Store) Put(ctx context.Context, in Incoming, r io.Reader) (models.File,
 		Name:      name,
 		MIME:      in.Kind.MIME,
 		SizeBytes: meter.n,
-		ExpiresAt: at.Add(s.ttl),
+		ExpiresAt: at.Add(s.lifetime(in.Role)),
 		CreatedAt: at,
 	}
 
@@ -191,6 +203,15 @@ func (s *Store) Put(ctx context.Context, in Incoming, r io.Reader) (models.File,
 	}
 
 	return f, nil
+}
+
+// lifetime is how long a file of this role stays.
+func (s *Store) lifetime(role string) time.Duration {
+	if role == models.FileInput {
+		return s.uploadTTL
+	}
+
+	return s.ttl
 }
 
 // countingHasher counts and hashes bytes as they stream past.

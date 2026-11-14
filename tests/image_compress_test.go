@@ -16,6 +16,7 @@ import (
 	"github.com/AlexGalhardo/vukem-tools/app/tools"
 	"github.com/AlexGalhardo/vukem-tools/bootstrap"
 	"github.com/AlexGalhardo/vukem-tools/internal/jobs"
+	"github.com/AlexGalhardo/vukem-tools/internal/testenv"
 )
 
 // The modes the interface offers have to be the modes the library implements.
@@ -94,7 +95,11 @@ func requireRegisteredTool(t *testing.T, app *vukemtest.App, name string) {
 	app.Client(t).Get("/api/v1/tools").AssertOK().JSON(&list)
 
 	if !slices.Contains(list.Data, name) {
-		t.Skipf("the %s tool is not registered here, so the engine it needs is missing from this machine", name)
+		testenv.MissingEnginef(
+			t,
+			"the %s tool is not registered here, so the engine it needs is missing from this machine",
+			name,
+		)
 	}
 }
 
@@ -132,7 +137,11 @@ func TestCompressingAnImageRunsAndProducesASmallerFile(t *testing.T) {
 	status, _ := done.JSONPath("status")
 	if status != string(jobs.Finished) {
 		if status == string(jobs.Errored) {
-			t.Skipf("libvips is not available here, so the conversion could not run:\n%s", done.Body())
+			testenv.MissingEnginef(
+				t,
+				"libvips is not available here, so the conversion could not run:\n%s",
+				done.Body(),
+			)
 		}
 
 		t.Fatalf("status = %v, want finished. The whole response:\n%s", status, done.Body())
@@ -191,7 +200,7 @@ func TestTheCompressionReportsWhatItDid(t *testing.T) {
 	done := app.Client(t).WithHeader("Authorization", "Bearer "+key).
 		Get("/api/v1/conversions/" + conversionID).AssertOK()
 	if status, _ := done.JSONPath("status"); status == string(jobs.Errored) {
-		t.Skipf("libvips is not available here:\n%s", done.Body())
+		testenv.MissingEnginef(t, "libvips is not available here:\n%s", done.Body())
 	}
 
 	req := httptest.NewRequest(http.MethodGet,

@@ -10,6 +10,7 @@ import (
 
 	"github.com/AlexGalhardo/vukem-tools/internal/compressor"
 	"github.com/AlexGalhardo/vukem-tools/internal/engine"
+	"github.com/AlexGalhardo/vukem-tools/internal/testenv"
 )
 
 // The tests in this file run the real Ghostscript.
@@ -28,12 +29,12 @@ func realCompressor(t *testing.T) *compressor.Compressor {
 
 	gs, err := exec.LookPath("gs")
 	if err != nil {
-		t.Skip("Ghostscript is not installed; run this inside the image (docs/deployment.md)")
+		testenv.MissingEngine(t, "Ghostscript is not installed; run this inside the image (docs/deployment.md)")
 	}
 
 	ffmpeg, err := exec.LookPath("ffmpeg")
 	if err != nil {
-		t.Skip("ffmpeg is not installed; run this inside the image (docs/deployment.md)")
+		testenv.MissingEngine(t, "ffmpeg is not installed; run this inside the image (docs/deployment.md)")
 	}
 
 	runner, err := engine.NewRunner(engine.RunnerOptions{
@@ -170,7 +171,7 @@ func TestARealPDFIsCompressedAndTheFiguresAreTheRealByteSizes(t *testing.T) {
 
 	gs, err := exec.LookPath("gs")
 	if err != nil {
-		t.Skip("Ghostscript is not installed")
+		testenv.MissingEngine(t, "Ghostscript is not installed")
 	}
 
 	dir := t.TempDir()

@@ -15,6 +15,7 @@ package quota
 
 import (
 	"context"
+	"database/sql"
 	"errors"
 	"fmt"
 	"log/slog"
@@ -329,9 +330,6 @@ func (c *Counter) day() time.Time {
 	return time.Date(t.Year(), t.Month(), t.Day(), 0, 0, 0, 0, time.UTC)
 }
 
-// isNoRows reports whether err is the empty-result error, by message, because
-// database/sql's own sentinel is not reachable without importing it here for
-// one comparison.
-func isNoRows(err error) bool {
-	return err != nil && err.Error() == "sql: no rows in result set"
-}
+// isNoRows reports whether err is the empty-result error, however it was
+// wrapped on the way up.
+func isNoRows(err error) bool { return errors.Is(err, sql.ErrNoRows) }

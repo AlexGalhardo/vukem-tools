@@ -224,7 +224,7 @@ func (t *ArchiveCreate) Run(ctx context.Context, w jobs.Work) (jobs.Outcome, err
 		return jobs.Outcome{}, jobs.Fail(jobs.DiskFull, err, "create the archive")
 	}
 
-	result, packErr := archive.Create(ctx, dst, members, archive.CreateOptions{
+	_, packErr := archive.Create(ctx, dst, members, archive.CreateOptions{
 		Format: format,
 		Level:  opts.Level,
 	})
@@ -241,7 +241,7 @@ func (t *ArchiveCreate) Run(ctx context.Context, w jobs.Work) (jobs.Outcome, err
 		return jobs.Outcome{}, err
 	}
 
-	return t.store(ctx, w, out, opts, format, result)
+	return t.store(ctx, w, out, opts, format)
 }
 
 // localise copies every input out of the bucket into the job's directory.
@@ -302,7 +302,6 @@ func (t *ArchiveCreate) store(
 	path string,
 	opts ArchiveCreateOptions,
 	format archive.Format,
-	result archive.CreateResult,
 ) (jobs.Outcome, error) {
 	mime := archiveMIME(format)
 
@@ -328,8 +327,6 @@ func (t *ArchiveCreate) store(
 	if err != nil {
 		return jobs.Outcome{}, jobs.Fail(jobs.Internal, err, "store the archive")
 	}
-
-	_ = result // the figures are reported through the progress trail, not the outcome
 
 	return jobs.Outcome{BytesOut: stored.SizeBytes}, nil
 }

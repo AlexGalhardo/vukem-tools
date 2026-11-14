@@ -49,7 +49,7 @@ RUN tags="$(sed 's/#.*//' .buildtags 2>/dev/null | tr -s ', \t\r\n' ',' | sed 's
 
 # yt-dlp is fetched in its own stage so the checksum failure is a build failure
 # and the download tools never reach the runtime image.
-FROM debian:trixie-slim@sha256:a29215f6a35e51e22adffa17f89e9d2ef06214e64a2bad10d765c46aea49f11f AS ytdlp
+FROM debian:trixie-slim@sha256:f6b08b09a05725f9431502d3b5714f5c4576e82c1a84fa1debe0c24a7e0c3ec4 AS ytdlp
 ARG YTDLP_VERSION=2026.08.19
 ARG YTDLP_SHA256=58162f9bfdc27458ea47bfcb311cf47028f17d8154a8bf7d689861d46399230a
 RUN apt-get update \
@@ -59,7 +59,7 @@ RUN apt-get update \
 	&& echo "${YTDLP_SHA256}  /tmp/yt-dlp" | sha256sum -c - \
 	&& chmod 0755 /tmp/yt-dlp
 
-FROM debian:trixie-slim@sha256:a29215f6a35e51e22adffa17f89e9d2ef06214e64a2bad10d765c46aea49f11f
+FROM debian:trixie-slim@sha256:f6b08b09a05725f9431502d3b5714f5c4576e82c1a84fa1debe0c24a7e0c3ec4
 
 # Every engine is pinned to the exact Debian version, never a distro default
 # and never "latest" (.claude/rules/engines.md). A pin can leave the mirror

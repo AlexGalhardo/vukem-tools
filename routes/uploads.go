@@ -2,6 +2,7 @@ package routes
 
 import (
 	"context"
+	"errors"
 	"time"
 
 	vukem "github.com/AlexGalhardo/vukem"
@@ -120,9 +121,10 @@ func Uploads(c *services.Conversions) func(r *router.Router, app *vukem.App) err
 // newIngester builds the upload acceptance path: what types come in, how
 // large, and what scans them.
 func newIngester(app *vukem.App, c *services.Conversions) (*ingest.Ingester, error) {
-	var scanner upload.Scanner
-	if addr := app.Source.Get("CLAMAV_ADDR"); addr != "" {
-		scanner = upload.ClamAV(addr)
+	scanner, err := scannerFor(
+		app.Config.Env == "production", app.Source.Get("CLAMAV_ADDR"), app.Source.Get("CLAMAV_DISABLED") == "true")
+	if err != nil {
+		return nil, err
 	}
 
 	return ingest.New(ingest.Options{
@@ -136,4 +138,22 @@ func newIngester(app *vukem.App, c *services.Conversions) (*ingest.Ingester, err
 		MaxBytes: services.MaxUploadBytes(app),
 		Log:      app.Log,
 	})
+}
+
+// scannerFor decides what scans uploads.
+//
+// Production without a clamd address is a boot error rather than a warning:
+// "secure by default, fail closed" cannot mean that the default image stores
+// every upload unscanned. CLAMAV_DISABLED=true is the one explicit way to run
+// production without a scanner, and a configured address always wins over it.
+func scannerFor(production bool, addr string, disabled bool) (upload.Scanner, error) {
+	switch {
+	case addr != "":
+		return upload.ClamAV(addr), nil
+	case production && !disabled:
+		return nil, errors.New("routes: no malware scanner in production: set CLAMAV_ADDR to a clamd " +
+			"(compose.yaml runs one), or CLAMAV_DISABLED=true to store uploads unscanned on purpose")
+	default:
+		return nil, nil
+	}
 }

@@ -17,6 +17,7 @@ import (
 	"github.com/AlexGalhardo/vukem/web"
 
 	"github.com/AlexGalhardo/vukem-tools/internal/engine"
+	"github.com/AlexGalhardo/vukem-tools/internal/httpx"
 )
 
 // Health answers the two questions an operator and a load balancer ask, which
@@ -39,6 +40,8 @@ type Health struct {
 	started time.Time
 	now     func() time.Time
 	version string
+	// token is the operator's bearer token; empty means nobody is one.
+	token string
 }
 
 // HealthOptions configures the controller.
@@ -50,6 +53,10 @@ type HealthOptions struct {
 	// Version identifies the build, so a deep check tells an operator which
 	// code answered.
 	Version string
+	// Token is the bearer token that unlocks the operator view of the deep
+	// check (METRICS_TOKEN, the one that guards /metrics). Empty means every
+	// caller gets the anonymous view.
+	Token string
 }
 
 // NewHealth returns the controller.
@@ -66,6 +73,7 @@ func NewHealth(o HealthOptions) *Health {
 		started: now(),
 		now:     now,
 		version: o.Version,
+		token:   o.Token,
 	}
 }
 
@@ -92,10 +100,18 @@ type Check struct {
 	// written by this package rather than taken from an error that could
 	// carry a connection string.
 	Detail string `json:"detail,omitempty"`
-	Took   string `json:"took"`
+	Took   string `json:"took,omitempty"`
 }
 
 // Deep checks every dependency and reports 503 when any required one fails.
+//
+// The endpoint is reachable without credentials (a deploy gate and an alert
+// should not need a secret to learn "down"), so what an anonymous caller
+// reads is only the overall status and each check's ok or fail. The engine
+// versions, the build, the failure details and the timings are the
+// deployment's fingerprint, the list an attacker matches against CVEs, and
+// go to the holder of the bearer token only. The route is also rate limited
+// per IP, because every call costs a query and a storage round trip.
 //
 // The engines are reported but do not fail the check: an engine whose tools
 // are all still planned is a feature that is not ready, not a broken deploy,
@@ -155,6 +171,15 @@ func (h *Health) Deep(c *web.Ctx) error {
 	}
 
 	noStore(c)
+
+	if !httpx.BearerMatches(c.Header("Authorization"), h.token) {
+		public := make(map[string]Check, len(results))
+		for name, r := range results {
+			public[name] = Check{Status: r.Status}
+		}
+
+		return c.JSON(status, map[string]any{"status": overall, "checks": public})
+	}
 
 	return c.JSON(status, map[string]any{
 		"status":  overall,

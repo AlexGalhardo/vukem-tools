@@ -97,12 +97,18 @@ func registerWeb(
 		return err
 	}
 
+	limiters, err := app.RateLimiters()
+	if err != nil {
+		return err
+	}
+
 	health := controllers.NewHealth(controllers.HealthOptions{
 		DB:      db,
 		Disk:    conversions.Disk(),
 		Engines: conversions.Engines(),
 		Now:     app.Now,
 		Version: app.Source.Get("APP_VERSION"),
+		Token:   app.Source.Get("METRICS_TOKEN"),
 	})
 
 	// Registered before the Inertia middleware runs on them: a health probe
@@ -115,7 +121,10 @@ func registerWeb(
 	// stays for platforms that probe it by convention; /health is the
 	// documented one and also reports uptime and the build.
 	r.Get("/health", health.Shallow).Name("health.live")
-	r.Get("/health/deep", health.Deep).Name("health.deep")
+	// Per IP, because each call is a query and a storage round trip, and the
+	// body an anonymous caller gets carries no versions (see Health.Deep).
+	deepLimit := ratelimit.Middleware(limiters("health.deep", 12, time.Minute), ratelimit.ByIP)
+	r.Get("/health/deep", health.Deep).Name("health.deep").Use(deepLimit)
 
 	// The scrape target, guarded by METRICS_TOKEN and absent without one.
 	// Server level like the probes: a scraper has no session, and metrics
@@ -149,11 +158,6 @@ func registerWeb(
 	// The two registry lookups behind the Brazil tools. Signed in and limited
 	// per IP, because each request costs an outbound call to a free public
 	// service whose own limits this app would otherwise spend for everybody.
-	limiters, err := app.RateLimiters()
-	if err != nil {
-		return err
-	}
-
 	lookup := controllers.NewLookup(nil)
 	lookupLimit := ratelimit.Middleware(limiters("lookup", 30, time.Minute), ratelimit.ByIP)
 	r.Get("/lookup/cep/{cep}", lookup.CEP).Name("lookup.cep").Use(auth.Required(acc.Web), lookupLimit)

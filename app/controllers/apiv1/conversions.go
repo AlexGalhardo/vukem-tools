@@ -243,10 +243,21 @@ func (h *Conversions) submit(c *web.Ctx, in submission) (ConversionView, error) 
 				"That upload has already been converted. Upload it again to convert it twice.")
 		}
 
-		return ConversionView{}, err
+		return ConversionView{}, budgetOr(c, err)
 	}
 
 	return viewOf(created), nil
+}
+
+// budgetOr turns the budget refusal Submit makes inside its transaction (the
+// authoritative decision; withinBudget only answers early in the common case)
+// into the 429, and passes any other error through.
+func budgetOr(c *web.Ctx, err error) error {
+	if exceeded, ok := errors.AsType[*quota.ExceededError](err); ok {
+		return refuseBudget(c, exceeded.Allowance)
+	}
+
+	return err
 }
 
 // errInputAlreadyUsed is returned from inside the submit transaction when the
@@ -273,6 +284,12 @@ func (h *Conversions) withinBudget(c *web.Ctx, userID string) error {
 		return nil
 	}
 
+	return refuseBudget(c, allowance)
+}
+
+// refuseBudget is the 429 for a spent budget, with Retry-After naming when
+// it resets.
+func refuseBudget(c *web.Ctx, allowance quota.Allowance) error {
 	retry := allowance.RetryAfter(time.Now())
 	c.Writer().Header().Set("Retry-After", strconv.Itoa(int(retry.Seconds())))
 

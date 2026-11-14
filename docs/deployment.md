@@ -115,6 +115,18 @@ network and logs a warning at boot; use it only when an egress policy outside th
 that here. Outside production the runner logs the warning and carries on, so `vukem serve` works
 on a laptop.
 
+## Malware scanning
+
+Uploads are scanned by a `clamd` over TCP before they are stored; the image carries no daemon, so
+clamd runs as its own service (`clamav/clamav` in [`compose.yaml`](../compose.yaml)) and the app
+reaches it through `CLAMAV_ADDR` (`clamd:3310`). A scanner that cannot be reached refuses the
+upload rather than letting it through.
+
+With `APP_ENV=production` and no `CLAMAV_ADDR` the app **refuses to boot**. The one explicit way
+around it is `CLAMAV_DISABLED=true`, which stores uploads unscanned and is meant for an operator
+who scans somewhere else; a configured `CLAMAV_ADDR` always wins over it. Outside production a
+missing scanner only logs a warning.
+
 ## Known vulnerabilities
 
 Scanned with `trivy image` at the version in the table above. Three critical findings are present

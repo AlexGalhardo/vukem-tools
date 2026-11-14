@@ -102,7 +102,16 @@ RUN apt-get update \
 		"libvips-tools=${LIBVIPS_VERSION}" \
 		"ghostscript=${GHOSTSCRIPT_VERSION}" \
 		"poppler-utils=${POPPLER_VERSION}" \
-		"qpdf=${QPDF_VERSION}" 		"libreoffice-writer=${LIBREOFFICE_VERSION}" 		"libreoffice-calc=${LIBREOFFICE_VERSION}" 		"libreoffice-impress=${LIBREOFFICE_VERSION}" 		"fonts-liberation=${FONTS_LIBERATION_VERSION}" 		"fonts-dejavu-core=${FONTS_DEJAVU_VERSION}" 		"ocrmypdf=${OCRMYPDF_VERSION}" 		"tesseract-ocr=${TESSERACT_VERSION}" 		"tesseract-ocr-eng=${TESSERACT_LANG_VERSION}" 		"tesseract-ocr-por=${TESSERACT_LANG_VERSION}" \
+		"qpdf=${QPDF_VERSION}" \
+		"libreoffice-writer=${LIBREOFFICE_VERSION}" \
+		"libreoffice-calc=${LIBREOFFICE_VERSION}" \
+		"libreoffice-impress=${LIBREOFFICE_VERSION}" \
+		"fonts-liberation=${FONTS_LIBERATION_VERSION}" \
+		"fonts-dejavu-core=${FONTS_DEJAVU_VERSION}" \
+		"ocrmypdf=${OCRMYPDF_VERSION}" \
+		"tesseract-ocr=${TESSERACT_VERSION}" \
+		"tesseract-ocr-eng=${TESSERACT_LANG_VERSION}" \
+		"tesseract-ocr-por=${TESSERACT_LANG_VERSION}" \
 		"clamav=${CLAMAV_VERSION}" \
 		"util-linux=${UTIL_LINUX_VERSION}" \
 		"liblzma5=${LIBLZMA_VERSION}" \
@@ -129,6 +138,13 @@ ENV APP_ENV=production \
 	LOG_FORMAT=json \
 	ENGINE_WORKDIR=/app/work
 EXPOSE 3000
+
+# /health touches nothing, so a failing probe means the process is not serving.
+# The image has no curl, but it has bash: the probe opens a TCP connection to
+# the port the server listens on and reads the status line. start-period
+# covers the engine version probes at boot.
+HEALTHCHECK --interval=30s --timeout=5s --start-period=30s --retries=3 \
+	CMD ["bash", "-c", "exec 3<>/dev/tcp/127.0.0.1/${PORT:-3000} && printf 'GET /health HTTP/1.0\\r\\n\\r\\n' >&3 && head -n1 <&3 | grep -q ' 200 '"]
 
 # The app logs every engine's resolved path and version at startup and refuses
 # to start when a required one is missing, so a broken image fails the deploy

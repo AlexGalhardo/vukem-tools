@@ -61,6 +61,11 @@ type Command struct {
 	// (ffmpeg's `-progress pipe:1`), line by line. It is separate from
 	// Stdout so a tool can read progress without also buffering output.
 	Progress func(line string)
+	// Network keeps the container's network for this program. The zero value
+	// is no network: libvips, Ghostscript, LibreOffice and OCRmyPDF all fetch
+	// what a hostile file names (an SVG href, a PostScript or OOXML external
+	// reference), so only the downloader, whose job is to fetch, sets this.
+	Network bool
 	// Env is added to a deliberately minimal environment. Nothing is
 	// inherited: the server's environment holds database credentials and API
 	// keys, and an engine has no business seeing them.
@@ -102,7 +107,13 @@ type RunnerOptions struct {
 	// decoders without limits is one bad file away from an outage, so the
 	// unsafe configuration has to be impossible to deploy by accident.
 	Production bool
-	Log        *slog.Logger
+	// InsecureAllowNetwork lets conversion subprocesses keep the container's
+	// network when the host cannot give them a network namespace. Without it
+	// a production runner refuses to start in that case: the alternative is
+	// an engine that can reach the metadata service or send a file out, and
+	// that has to be a decision somebody wrote down.
+	InsecureAllowNetwork bool
+	Log                  *slog.Logger
 }
 
 // NewRunner returns a runner.
@@ -124,6 +135,17 @@ func NewRunner(o RunnerOptions) (*Runner, error) {
 		o.Log.Warn("engine: subprocess limits are not enforced on this platform", "reason", err)
 
 		box = nopSandbox{}
+	}
+
+	if netErr := box.networkIsolation(); netErr != nil {
+		switch {
+		case o.Production && !o.InsecureAllowNetwork:
+			return nil, fmt.Errorf("engine: cannot take the network away from a conversion subprocess "+
+				"(it needs CAP_SYS_ADMIN or unprivileged user namespaces; set ENGINE_INSECURE_ALLOW_NETWORK=true "+
+				"to run the engines with the container's network anyway): %w", netErr)
+		case err == nil:
+			o.Log.Warn("engine: conversion subprocesses keep the container's network", "reason", netErr)
+		}
 	}
 
 	return &Runner{limits: o.Limits, log: o.Log, sandbox: box}, nil
@@ -236,7 +258,7 @@ func (r *Runner) Run(ctx context.Context, cmd Command) (Result, error) {
 		return Result{}, err
 	}
 
-	r.sandbox.isolate(proc)
+	r.sandbox.isolate(proc, cmd.Network)
 
 	if err := proc.Start(); err != nil {
 		return Result{}, fmt.Errorf("engine: start %s: %w", cmd.Path, err)

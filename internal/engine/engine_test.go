@@ -3,6 +3,7 @@ package engine_test
 import (
 	"context"
 	"errors"
+	"net"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -93,6 +94,16 @@ func TestMain(m *testing.M) {
 		}
 
 		os.Exit(0)
+	case "dial":
+		conn, err := net.DialTimeout("tcp", os.Getenv("ENGINE_TEST_ADDR"), 2*time.Second)
+		if err != nil {
+			os.Stderr.WriteString(err.Error() + "\n")
+			os.Exit(7)
+		}
+
+		_ = conn.Close()
+
+		os.Exit(0)
 	case "write":
 		// Writes until it is stopped or the file-size limit kills it.
 		f, err := os.Create(filepath.Join(os.Getenv("HOME"), "big"))
@@ -133,7 +144,7 @@ func newRunner(t *testing.T, limits engine.Limits) *engine.Runner {
 		limits.Timeout = 10 * time.Second
 	}
 
-	r, err := engine.NewRunner(engine.RunnerOptions{Limits: limits})
+	r, err := engine.NewRunner(engine.RunnerOptions{Limits: limits, InsecureAllowNetwork: true})
 	if err != nil {
 		t.Fatalf("new runner: %v", err)
 	}
@@ -471,8 +482,9 @@ func TestProductionRefusesToRunWithoutLimits(t *testing.T) {
 	t.Parallel()
 
 	_, err := engine.NewRunner(engine.RunnerOptions{
-		Limits:     engine.Limits{Timeout: time.Second},
-		Production: true,
+		Limits:               engine.Limits{Timeout: time.Second},
+		Production:           true,
+		InsecureAllowNetwork: true,
 	})
 
 	if runtime.GOOS == "linux" {

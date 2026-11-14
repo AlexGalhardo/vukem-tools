@@ -226,10 +226,11 @@ func (d *Downloader) Metadata(ctx context.Context, dir, rawURL string) (Media, e
 	args := append(d.commonArgs(platform), "--dump-single-json", "--skip-download", "--", rawURL)
 
 	if _, err := d.run.Run(ctx, engine.Command{
-		Path:   d.binary,
-		Args:   args,
-		Dir:    dir,
-		Stdout: &out,
+		Path:    d.binary,
+		Args:    args,
+		Dir:     dir,
+		Stdout:  &out,
+		Network: true,
 	}); err != nil {
 		return Media{}, Classify(err)
 	}
@@ -464,6 +465,7 @@ func (d *Downloader) Download(ctx context.Context, in Request) (Result, error) {
 		Args:     args,
 		Dir:      in.Dir,
 		Progress: progressReader(in.Progress),
+		Network:  true,
 	})
 	if err != nil {
 		return Result{}, Classify(err)

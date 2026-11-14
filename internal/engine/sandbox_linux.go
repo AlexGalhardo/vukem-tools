@@ -3,6 +3,7 @@
 package engine
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"os"
@@ -11,6 +12,7 @@ import (
 	"strconv"
 	"strings"
 	"syscall"
+	"time"
 )
 
 // linuxSandbox limits a child through prlimit(1) from util-linux.
@@ -25,7 +27,27 @@ import (
 //
 // util-linux is in the Debian and Alpine base images, and the Dockerfile
 // installs it explicitly rather than relying on that.
-type linuxSandbox struct{ prlimit string }
+type linuxSandbox struct {
+	prlimit string
+	// netns is how a program gets a network namespace here, decided once by
+	// probing the kernel rather than per run.
+	netns netnsMode
+}
+
+// netnsMode is the way a network namespace can be created.
+type netnsMode int
+
+const (
+	// netnsNone means the kernel or the container refused both ways.
+	netnsNone netnsMode = iota
+	// netnsDirect is CLONE_NEWNET, which needs CAP_SYS_ADMIN (root in a
+	// container granted it).
+	netnsDirect
+	// netnsUser is CLONE_NEWUSER|CLONE_NEWNET with the current uid mapped to
+	// itself, which an unprivileged process may do when the kernel and the
+	// seccomp profile allow it.
+	netnsUser
+)
 
 // newSandbox finds prlimit, or reports why limits cannot be applied.
 func newSandbox() (sandbox, error) {
@@ -34,7 +56,57 @@ func newSandbox() (sandbox, error) {
 		return nil, fmt.Errorf("prlimit (util-linux) is not installed: %w", err)
 	}
 
-	return linuxSandbox{prlimit: path}, nil
+	return linuxSandbox{prlimit: path, netns: probeNetns(path)}, nil
+}
+
+// netnsProbeTimeout bounds one probe; prlimit --version returns at once.
+const netnsProbeTimeout = 5 * time.Second
+
+// probeNetns starts a harmless program in each kind of namespace and reports
+// the first that the kernel allows.
+func probeNetns(program string) netnsMode {
+	for _, mode := range []netnsMode{netnsDirect, netnsUser} {
+		ctx, cancel := context.WithTimeout(context.Background(), netnsProbeTimeout)
+		probe := exec.CommandContext(ctx, program, "--version")
+		probe.SysProcAttr = netnsAttr(mode)
+
+		err := probe.Run()
+
+		cancel()
+
+		if err == nil {
+			return mode
+		}
+	}
+
+	return netnsNone
+}
+
+// netnsAttr is the process attributes that create a network namespace.
+func netnsAttr(mode netnsMode) *syscall.SysProcAttr {
+	attr := &syscall.SysProcAttr{Setpgid: true}
+
+	switch mode {
+	case netnsDirect:
+		attr.Cloneflags = syscall.CLONE_NEWNET
+	case netnsUser:
+		attr.Cloneflags = syscall.CLONE_NEWUSER | syscall.CLONE_NEWNET
+		attr.UidMappings = []syscall.SysProcIDMap{{ContainerID: os.Getuid(), HostID: os.Getuid(), Size: 1}}
+		attr.GidMappings = []syscall.SysProcIDMap{{ContainerID: os.Getgid(), HostID: os.Getgid(), Size: 1}}
+		attr.GidMappingsEnableSetgroups = false
+	case netnsNone:
+	}
+
+	return attr
+}
+
+// networkIsolation is nil when a network namespace can be created.
+func (s linuxSandbox) networkIsolation() error {
+	if s.netns == netnsNone {
+		return errors.New("the kernel or the container refused CLONE_NEWNET, with and without a user namespace")
+	}
+
+	return nil
 }
 
 // wrap builds the prlimit command line.
@@ -159,9 +231,17 @@ func statusTasks(status string) (uid string, threads int) {
 }
 
 // isolate puts the program in its own process group, which is what makes
-// killing its children possible.
-func (linuxSandbox) isolate(proc *exec.Cmd) {
-	proc.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
+// killing its children possible, and in a network namespace of its own unless
+// it is allowed the network. The namespace is empty: not even loopback is up,
+// so the program has no route to anything, the metadata service included.
+func (s linuxSandbox) isolate(proc *exec.Cmd, network bool) {
+	if network {
+		proc.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
+
+		return
+	}
+
+	proc.SysProcAttr = netnsAttr(s.netns)
 }
 
 // kill ends the whole group.

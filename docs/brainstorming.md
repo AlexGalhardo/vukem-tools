@@ -407,7 +407,8 @@ worth having, Sign a PDF, is built (9.3).
 
 - **Word, PowerPoint and Excel to PDF** run on LibreOffice, one function behind three tools so each
   is found by its own name and can be limited by its own API key. A fresh user profile per job lets
-  conversions run side by side; macros never run; the sandbox gives no network. LibreOffice exits 0
+  conversions run side by side; macros never run; the sandbox gives no network (a network namespace per engine, see
+  `docs/deployment.md`). LibreOffice exits 0
   for a file it cannot open, so the tool checks for an output file instead of trusting the status.
 - **OCR** runs on OCRmyPDF with Tesseract, English and Portuguese, at most 100 pages, with
   `--skip-text` so pages that already have text are kept.

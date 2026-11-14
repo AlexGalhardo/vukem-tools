@@ -93,6 +93,28 @@ Check the engines are present and are the pinned versions:
 docker run --rm --entrypoint sh vukem-tools:local -c 'id; ffmpeg -version | head -1; yt-dlp --version'
 ```
 
+## Engine network isolation
+
+Every conversion engine (ffmpeg, libvips, Ghostscript, LibreOffice, OCRmyPDF, qpdf) runs in a
+network namespace of its own with no interface up, so a crafted file cannot make an engine fetch
+an internal URL, reach the platform metadata service or send what it was given somewhere. Only the
+downloader (yt-dlp) keeps the container's network, through `engine.Command.Network`.
+
+The runner creates the namespace with `CLONE_NEWNET`, or with `CLONE_NEWUSER|CLONE_NEWNET` when it
+is unprivileged, and probes which works at startup. Docker's default seccomp profile allows
+neither. The container therefore needs one of:
+
+- `cap_add: [SYS_ADMIN]` (what `compose.yaml` uses), or
+- a seccomp profile that allows `unshare`/`clone` with the namespace flags, with user namespaces
+  enabled on the host.
+
+When the host allows neither, a production boot fails with an error naming this section. The only
+override is `ENGINE_INSECURE_ALLOW_NETWORK=true`, which runs the engines with the container's
+network and logs a warning at boot; use it only when an egress policy outside the container
+(firewall, a network policy denying the metadata address) gives the same guarantee, and record
+that here. Outside production the runner logs the warning and carries on, so `vukem serve` works
+on a laptop.
+
 ## Known vulnerabilities
 
 Scanned with `trivy image` at the version in the table above. Three critical findings are present

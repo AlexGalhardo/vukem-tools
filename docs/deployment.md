@@ -205,6 +205,14 @@ metrics worth coming back for, and one that was never enabled should look like o
 exist. It serves its own Prometheus registry rather than the default one, so the body carries this
 service's instruments and not the Go runtime collectors anything linked into the binary could add.
 
+### The deep health check
+
+`GET /health/deep` is rate limited to 12 requests a minute per IP and reads a table and a bucket
+object on every call. Anonymously it answers `200` or `503` with `ok` or `fail` per check and
+nothing else. Send `Authorization: Bearer $METRICS_TOKEN` to also get the build, the engine
+versions, the failure details and the timings, which are the deployment's fingerprint. `/health`
+stays open.
+
 ### What is recorded
 
 The vukem otel driver already records HTTP, database and queue signals.

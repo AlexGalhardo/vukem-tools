@@ -2,7 +2,6 @@ package services
 
 import (
 	"context"
-	"crypto/subtle"
 	"fmt"
 	"net/http"
 	"strings"
@@ -14,6 +13,7 @@ import (
 	promexporter "go.opentelemetry.io/otel/exporters/prometheus"
 	sdkmetric "go.opentelemetry.io/otel/sdk/metric"
 
+	"github.com/AlexGalhardo/vukem-tools/internal/httpx"
 	"github.com/AlexGalhardo/vukem-tools/internal/telemetry"
 )
 
@@ -163,15 +163,7 @@ func (s *ScrapeTarget) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 // authorised compares the bearer token in constant time, so the endpoint does
 // not leak the token's prefix through its response time.
 func (s *ScrapeTarget) authorised(r *http.Request) bool {
-	scheme, token, found := strings.Cut(r.Header.Get("Authorization"), " ")
-	if !found || !strings.EqualFold(scheme, "Bearer") {
-		return false
-	}
-
-	given := []byte(strings.TrimSpace(token))
-	want := []byte(s.token)
-
-	return subtle.ConstantTimeCompare(given, want) == 1
+	return httpx.BearerMatches(r.Header.Get("Authorization"), s.token)
 }
 
 // Scrape serves the metrics, or 404 when no scrape target is configured.

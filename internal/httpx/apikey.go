@@ -2,6 +2,7 @@
 package httpx
 
 import (
+	"crypto/subtle"
 	"net/http"
 	"strings"
 )
@@ -62,4 +63,21 @@ func DeployTarget(target string) func(http.Handler) http.Handler {
 			next.ServeHTTP(w, r)
 		})
 	}
+}
+
+// BearerMatches reports whether an Authorization header value carries exactly
+// the wanted token. The comparison is constant time so the response time does
+// not leak the token's prefix, and an empty wanted token never matches: with
+// no token configured nobody is authorised, whatever they send.
+func BearerMatches(authorization, want string) bool {
+	if want == "" {
+		return false
+	}
+
+	scheme, token, found := strings.Cut(authorization, " ")
+	if !found || !strings.EqualFold(scheme, "Bearer") {
+		return false
+	}
+
+	return subtle.ConstantTimeCompare([]byte(strings.TrimSpace(token)), []byte(want)) == 1
 }

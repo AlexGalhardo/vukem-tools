@@ -103,6 +103,10 @@ func New(o Options) (*Ingester, error) {
 // the taxonomy, so the HTTP layer answers with one mapping and the user gets
 // the same wording here as they would from a failed conversion.
 func (i *Ingester) Accept(ctx context.Context, userID string, info upload.TusInfo, open Opener) (models.File, error) {
+	if err := i.Room(ctx, userID, info.Length); err != nil {
+		return models.File{}, err
+	}
+
 	if info.Length > i.maxBytes {
 		return models.File{}, jobs.Refuse(jobs.InputTooLarge, nil,
 			fmt.Sprintf("That file is %d MB. The limit is %d MB.", info.Length>>20, i.maxBytes>>20),
@@ -136,6 +140,24 @@ func (i *Ingester) Accept(ctx context.Context, userID string, info upload.TusInf
 	}
 
 	return stored, nil
+}
+
+// Room refuses an upload the account has no space left for, as the quota
+// refusal the interface already words. It runs when an upload is created, so
+// a 500 MB transfer is not accepted only to be discarded, and again when it
+// completes, because the declared length is the client's word.
+func (i *Ingester) Room(ctx context.Context, userID string, incoming int64) error {
+	err := i.files.Room(ctx, userID, incoming)
+	switch {
+	case err == nil:
+		return nil
+	case errors.Is(err, files.ErrStorageFull):
+		return jobs.Refuse(jobs.QuotaExceeded, err,
+			"You are storing too many files. Convert or download them, or wait for them to expire, and try again.",
+			fmt.Sprintf("%d incoming bytes do not fit under the %d byte cap", incoming, i.files.MaxStoredBytes()))
+	default:
+		return jobs.Fail(jobs.Internal, err, "check the account's stored bytes")
+	}
 }
 
 // identify reads the header and decides what the file is.

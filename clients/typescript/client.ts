@@ -464,6 +464,8 @@ export type UsageView = {
   remaining_seconds?: number;
   resets_at?: string;
   spent_seconds?: number;
+  stored_bytes?: number;
+  stored_limit_bytes?: number;
   unlimited?: boolean;
 };
 

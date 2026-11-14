@@ -77,7 +77,9 @@ The server fixes what the key may do for the client kind; the program cannot ask
 key appears in the account's key list as `Telegram: <name>` and can be revoked there.
 
 `GET /api/v1/usage` reports today's processing budget: seconds spent, seconds left, when it
-resets, and `unlimited` when no daily budget applies.
+resets, and `unlimited` when no daily budget applies. It also reports `stored_bytes` (your live
+uploads and results) against `stored_limit_bytes` (`MAX_STORED_MB_PER_USER`, 0 for no cap): past
+the cap a new upload is refused with `quota_exceeded` until files expire.
 
 ## Job lifecycle
 

@@ -52,6 +52,8 @@ type Store struct {
 	ttl    time.Duration
 	// uploadTTL is the lifetime of a role=input file.
 	uploadTTL time.Duration
+	// maxStored caps the live bytes one account may hold; zero is no cap.
+	maxStored int64
 	now       func() time.Time
 	log       *slog.Logger
 }
@@ -73,8 +75,12 @@ type Options struct {
 	// a result. An upload waits for the person to choose options, so it
 	// cannot share the short result lifetime. Zero means TTL.
 	UploadTTL time.Duration
-	Now       func() time.Time
-	Log       *slog.Logger
+	// MaxStoredBytes caps the live bytes (uploads and results that have not
+	// expired) one account may hold, so the upload rate limit is not the only
+	// thing between an account and the disk. Zero means no cap.
+	MaxStoredBytes int64
+	Now            func() time.Time
+	Log            *slog.Logger
 }
 
 // New returns a store.
@@ -113,6 +119,7 @@ func New(o Options) (*Store, error) {
 		ttl:    o.TTL,
 
 		uploadTTL: o.UploadTTL,
+		maxStored: o.MaxStoredBytes,
 		now:       o.Now,
 		log:       o.Log,
 	}, nil
@@ -418,6 +425,47 @@ func (s *Store) DownloadURL(f models.File, ttl time.Duration) (string, error) {
 	}
 
 	return signedURL, nil
+}
+
+// ErrStorageFull means the account already holds its cap of live bytes.
+var ErrStorageFull = errors.New("files: the account's stored-bytes cap is reached")
+
+// MaxStoredBytes is the per-account cap, zero for none.
+func (s *Store) MaxStoredBytes() int64 { return s.maxStored }
+
+// StoredBytes is the size of every file of the account that has not expired.
+func (s *Store) StoredBytes(ctx context.Context, userID string) (int64, error) {
+	dl := s.db.Dialect()
+	query := "SELECT COALESCE(SUM(size_bytes), 0) FROM " + dl.Quote(models.File{}.Table()) +
+		" WHERE user_id = " + dl.Placeholder(1) + " AND expires_at > " + dl.Placeholder(2)
+
+	var total int64
+	if err := s.db.QueryRowContext(ctx, query, userID, s.now().UTC()).Scan(&total); err != nil {
+		return 0, fmt.Errorf("files: sum the stored bytes of %s: %w", userID, err)
+	}
+
+	return total, nil
+}
+
+// Room reports whether the account can store incoming more bytes, as
+// ErrStorageFull when it cannot. It is a check, not a reservation: two
+// uploads racing can both pass, which overshoots the cap by one file at most,
+// and the rate limit on creating uploads bounds how many can race.
+func (s *Store) Room(ctx context.Context, userID string, incoming int64) error {
+	if s.maxStored <= 0 {
+		return nil
+	}
+
+	stored, err := s.StoredBytes(ctx, userID)
+	if err != nil {
+		return err
+	}
+
+	if stored+incoming > s.maxStored {
+		return ErrStorageFull
+	}
+
+	return nil
 }
 
 // ErrExpired means the file's lifetime has already run out, so no link can be

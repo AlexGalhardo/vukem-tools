@@ -720,3 +720,81 @@ func TestAnUploadOutlivesAResult(t *testing.T) {
 		t.Errorf("result lifetime = %s, want %s", got, want)
 	}
 }
+
+// rigWithCap is a store capped at limit stored bytes per account.
+func rigWithCap(t *testing.T, limit int64) *rig {
+	t.Helper()
+
+	r := newRig(t)
+
+	store, err := files.New(files.Options{
+		DB:             r.db,
+		Disk:           r.disk,
+		IDs:            ulid.NewGenerator(),
+		Signer:         r.sign,
+		BaseURL:        baseURL,
+		TTL:            fileTTL,
+		MaxStoredBytes: limit,
+		Now:            r.clock.Now,
+	})
+	if err != nil {
+		t.Fatalf("store: %v", err)
+	}
+
+	r.store = store
+
+	return r
+}
+
+// Thirty uploads a minute of 500 MB each is not a rate limit on storage: the
+// account's live bytes are what the disk pays for.
+func TestAnAccountCannotStoreMoreThanItsCap(t *testing.T) {
+	t.Parallel()
+
+	r := rigWithCap(t, 100)
+	r.put(t, files.Incoming{Name: "a.png"}, strings.Repeat("x", 60))
+
+	if err := r.store.Room(t.Context(), owner, 40); err != nil {
+		t.Errorf("60 stored + 40 incoming fits in 100, got %v", err)
+	}
+
+	if err := r.store.Room(t.Context(), owner, 41); !errors.Is(err, files.ErrStorageFull) {
+		t.Errorf("60 stored + 41 incoming must be refused, got %v", err)
+	}
+
+	if err := r.store.Room(t.Context(), "someone-else", 100); err != nil {
+		t.Errorf("the cap is per account, another account was refused: %v", err)
+	}
+
+	got, err := r.store.StoredBytes(t.Context(), owner)
+	if err != nil || got != 60 {
+		t.Errorf("stored bytes = %d, %v; want 60", got, err)
+	}
+}
+
+// Expired files are the cleanup's to delete and no longer count, or an
+// account that stopped using the service would stay locked out by the sweep's
+// own schedule.
+func TestExpiredFilesDoNotCountAgainstTheCap(t *testing.T) {
+	t.Parallel()
+
+	r := rigWithCap(t, 100)
+	r.put(t, files.Incoming{Name: "a.png"}, strings.Repeat("x", 90))
+
+	r.clock.Advance(fileTTL + time.Minute)
+
+	if err := r.store.Room(t.Context(), owner, 100); err != nil {
+		t.Errorf("an expired file still counts: %v", err)
+	}
+}
+
+func TestNoCapMeansNoLimit(t *testing.T) {
+	t.Parallel()
+
+	r := newRig(t)
+	r.put(t, files.Incoming{Name: "a.png"}, strings.Repeat("x", 60))
+
+	if err := r.store.Room(t.Context(), owner, 1<<40); err != nil {
+		t.Errorf("a store with no cap refused: %v", err)
+	}
+}

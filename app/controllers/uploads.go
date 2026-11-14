@@ -65,8 +65,21 @@ func (u *Uploads) TusConfig(dir, basePath string, maxBytes int64, expiry time.Du
 // middleware would otherwise make the endpoint anonymous, and an anonymous
 // resumable upload endpoint is free disk for anybody who finds it.
 func (u *Uploads) authorize(r *http.Request) error {
-	if _, err := u.owner(r.Context()); err != nil {
+	userID, err := u.owner(r.Context())
+	if err != nil {
 		return err
+	}
+
+	// Only the request that creates an upload: it declares the length, and
+	// checking the account's stored bytes on every PATCH of a large upload
+	// would be a query per chunk. A malformed length is the protocol
+	// handler's to refuse.
+	if r.Method == http.MethodPost {
+		if length, perr := strconv.ParseInt(r.Header.Get("Upload-Length"), 10, 64); perr == nil && length > 0 {
+			if err := u.ingester.Room(r.Context(), userID, length); err != nil {
+				return asHTTP(err)
+			}
+		}
 	}
 
 	return nil

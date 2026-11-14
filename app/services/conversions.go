@@ -167,6 +167,10 @@ const (
 	// defaultMaxUploadMB is the largest file accepted, matching the figure
 	// in .env.example and the one the interface advertises.
 	defaultMaxUploadMB = 500
+	// defaultMaxStoredMB caps the live bytes of one account (uploads and
+	// results that have not expired): four maximum-size uploads. Overridden by
+	// MAX_STORED_MB_PER_USER.
+	defaultMaxStoredMB = 2048
 	// uploadExpiry is how long an unfinished resumable upload is kept before
 	// the cleanup deletes it. Long enough to survive a bad connection and a
 	// night's sleep, short enough that abandoned bytes do not accumulate.
@@ -360,15 +364,16 @@ func (c *Conversions) buildFiles(app *vukem.App, ttl, uploadTTL time.Duration) e
 		WithClock(app.Now)
 
 	c.files, err = files.New(files.Options{
-		DB:        db,
-		Disk:      c.disk,
-		IDs:       ulid.NewGenerator(),
-		Signer:    c.signer,
-		BaseURL:   app.Config.URL,
-		TTL:       ttl,
-		Now:       app.Now,
-		UploadTTL: uploadTTL,
-		Log:       app.Log,
+		DB:             db,
+		Disk:           c.disk,
+		IDs:            ulid.NewGenerator(),
+		Signer:         c.signer,
+		BaseURL:        app.Config.URL,
+		TTL:            ttl,
+		Now:            app.Now,
+		UploadTTL:      uploadTTL,
+		MaxStoredBytes: MaxStoredBytes(app),
+		Log:            app.Log,
 	})
 
 	return err
@@ -429,6 +434,12 @@ func UploadRoot(app *vukem.App) string {
 // MaxUploadBytes is the largest file accepted.
 func MaxUploadBytes(app *vukem.App) int64 {
 	return int64(intFrom(app, "MAX_UPLOAD_SIZE_MB", defaultMaxUploadMB)) << 20
+}
+
+// MaxStoredBytes is how many live bytes one account may hold at once. It is
+// MAX_STORED_MB_PER_USER, and defaults to four uploads' worth.
+func MaxStoredBytes(app *vukem.App) int64 {
+	return int64(intFrom(app, "MAX_STORED_MB_PER_USER", defaultMaxStoredMB)) << 20
 }
 
 // UploadExpiry is how long an unfinished resumable upload is kept.

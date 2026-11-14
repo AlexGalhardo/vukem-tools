@@ -459,3 +459,130 @@ func TestErrExceededIsRecognisable(t *testing.T) {
 		t.Fatal("ErrExceeded is not recognisable through wrapping")
 	}
 }
+
+// submit is what Pipeline.Submit does around a conversion: admit it and, when
+// admitted, insert the row that then counts as in flight.
+func submit(t *testing.T, db *database.DB, c *quota.Counter, user, id string) bool {
+	t.Helper()
+
+	var admitted bool
+
+	err := db.Tx(t.Context(), func(tx *database.Tx) error {
+		a, err := c.Admit(t.Context(), tx, user)
+		if err != nil {
+			return err
+		}
+
+		if !a.Allowed {
+			return nil
+		}
+
+		admitted = true
+
+		_, err = tx.ExecContext(t.Context(),
+			"INSERT INTO conversions (id, user_id, tool, status, options, expires_at, created_at, updated_at) "+
+				"VALUES ("+tx.Dialect().Placeholder(1)+", "+tx.Dialect().Placeholder(2)+", 'x', 'pending', '{}', "+
+				tx.Dialect().Placeholder(3)+", "+tx.Dialect().Placeholder(4)+", "+tx.Dialect().Placeholder(5)+")",
+			id, user, time.Now().UTC(), time.Now().UTC(), time.Now().UTC())
+
+		return err
+	})
+	if err != nil {
+		t.Fatalf("submit %s: %v", id, err)
+	}
+
+	return admitted
+}
+
+// Check-then-spend let every queued job pass the check before any had spent,
+// so a burst overshot the budget by the concurrency times the longest job.
+// Admitting inside the submit transaction, counting what is already in
+// flight at an estimate, closes that.
+func TestConcurrentSubmissionsNearTheLimitAreBoundedByTheBudget(t *testing.T) {
+	t.Parallel()
+
+	db := openDB(t)
+
+	c, err := quota.New(quota.Options{DB: db, Budget: budget, Reserve: 10 * time.Minute, Now: newClock().Now})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	const attempts = 20
+
+	var (
+		wg       sync.WaitGroup
+		mu       sync.Mutex
+		admitted int
+	)
+
+	for i := range attempts {
+		wg.Go(func() {
+			if submit(t, db, c, owner, "conv-"+string(rune('a'+i))) {
+				mu.Lock()
+				admitted++
+				mu.Unlock()
+			}
+		})
+	}
+
+	wg.Wait()
+
+	// An hour at ten minutes each: six in flight fill it.
+	if admitted != 6 {
+		t.Fatalf("%d of %d concurrent submissions were admitted, want exactly 6", admitted, attempts)
+	}
+}
+
+// The reservation is the conversion row itself, so a conversion that fails
+// or is cancelled gives it back by leaving the in-flight states, with no
+// refund bookkeeping to get wrong.
+func TestAFinishedConversionReleasesItsReservation(t *testing.T) {
+	t.Parallel()
+
+	db := openDB(t)
+
+	c, err := quota.New(quota.Options{DB: db, Budget: budget, Reserve: 30 * time.Minute, Now: newClock().Now})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if !submit(t, db, c, owner, "one") || !submit(t, db, c, owner, "two") {
+		t.Fatal("two half-hour reservations fit in an hour")
+	}
+
+	if submit(t, db, c, owner, "three") {
+		t.Fatal("a third reservation was admitted past the budget")
+	}
+
+	if _, err := db.ExecContext(t.Context(), "UPDATE conversions SET status = 'error' WHERE id = 'two'"); err != nil {
+		t.Fatal(err)
+	}
+
+	if !submit(t, db, c, owner, "four") {
+		t.Fatal("the failed conversion's reservation was not given back")
+	}
+
+	if !submit(t, db, c, otherOwner, "other") {
+		t.Fatal("one account's reservations were charged to another")
+	}
+}
+
+func TestAnExemptAccountIsAlwaysAdmitted(t *testing.T) {
+	t.Parallel()
+
+	db := openDB(t)
+
+	c, err := quota.New(quota.Options{
+		DB: db, Budget: time.Minute, Reserve: time.Hour, Exempt: []string{owner}, Now: newClock().Now,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	for _, id := range []string{"a", "b", "c"} {
+		if !submit(t, db, c, owner, id) {
+			t.Fatal("an exempt account was refused")
+		}
+	}
+}

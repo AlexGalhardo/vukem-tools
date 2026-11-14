@@ -98,7 +98,7 @@ func (h *Conversions) submitWithoutUpload(
 		BytesIn: 0,
 	})
 	if err != nil {
-		return ConversionView{}, err
+		return ConversionView{}, budgetOr(c, err)
 	}
 
 	return viewOf(created), nil

@@ -29,6 +29,8 @@ Product rules that hold across every tool, not just every commit.
   every conversion, so no client has to infer it. The reason is cost and liability in equal measure:
   the bucket is billed by what sits in it, and a file nobody is waiting for is a file we are keeping
   for no one. Set by `RESULT_TTL_MINUTES`; five is the default and the documented promise.
+- **A finished upload waits 30 minutes to be converted.** The interface uploads first and asks for
+  options after, so an upload cannot share the result's five minutes. Set by `UPLOAD_TTL_MINUTES`.
 - **An unfinished upload lives 24 hours.** A resumable upload that was never completed is scratch
   space, not a result: long enough to survive a bad connection and a night's sleep, then swept.
 - **Login is required for every tool.** There is no anonymous conversion, so every file on the

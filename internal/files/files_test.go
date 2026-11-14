@@ -675,3 +675,48 @@ func TestNewValidatesItsOptions(t *testing.T) {
 		})
 	}
 }
+
+// An upload waits for the person to pick options, so it outlives a result:
+// otherwise a slow upload or a pause over the format dialog ends in "that
+// upload does not exist".
+func TestAnUploadOutlivesAResult(t *testing.T) {
+	t.Parallel()
+
+	r := newRig(t)
+
+	store, err := files.New(files.Options{
+		DB:        r.db,
+		Disk:      r.disk,
+		IDs:       ulid.NewGenerator(),
+		Signer:    r.sign,
+		BaseURL:   baseURL,
+		TTL:       fileTTL,
+		UploadTTL: 3 * fileTTL,
+		Now:       r.clock.Now,
+	})
+	if err != nil {
+		t.Fatalf("store: %v", err)
+	}
+
+	in, err := store.Put(t.Context(), files.Incoming{
+		UserID: owner, Role: models.FileInput, Name: "a.png", Kind: pngKind,
+	}, strings.NewReader("a"))
+	if err != nil {
+		t.Fatalf("put input: %v", err)
+	}
+
+	out, err := store.Put(t.Context(), files.Incoming{
+		UserID: owner, Role: models.FileOutput, Name: "b.png", Kind: pngKind,
+	}, strings.NewReader("b"))
+	if err != nil {
+		t.Fatalf("put output: %v", err)
+	}
+
+	if got, want := in.ExpiresAt.Sub(in.CreatedAt), 3*fileTTL; got != want {
+		t.Errorf("upload lifetime = %s, want %s", got, want)
+	}
+
+	if got, want := out.ExpiresAt.Sub(out.CreatedAt), fileTTL; got != want {
+		t.Errorf("result lifetime = %s, want %s", got, want)
+	}
+}

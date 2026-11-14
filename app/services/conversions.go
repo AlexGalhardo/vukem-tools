@@ -149,6 +149,12 @@ func (c *Conversions) SweepUploads(ctx context.Context) (int, error) {
 // Default settings, used when the matching variable is unset.
 const (
 	defaultResultTTLMinutes = 5
+	// defaultUploadTTLMinutes is how long an uploaded input waits to be
+	// converted. It is longer than a result's on purpose: the interface has
+	// the person upload first and choose options after, so a slow upload or
+	// a pause over the format dialog must not expire the file under them.
+	// Overridden by UPLOAD_TTL_MINUTES.
+	defaultUploadTTLMinutes = 30
 	defaultWorkRoot         = "storage/work"
 	// mediaProbeTimeout bounds the boot-time capability probe. It is nine
 	// small subprocesses, so a minute is generous; the point is that a wedged
@@ -245,7 +251,11 @@ func (c *Conversions) build(app *vukem.App) error {
 
 	// The file store comes before the pipeline: every tool reads its input
 	// and writes its result through it.
-	if err := c.buildFiles(app, ttl); err != nil {
+	if err := c.buildFiles(
+		app,
+		ttl,
+		time.Duration(intFrom(app, "UPLOAD_TTL_MINUTES", defaultUploadTTLMinutes))*time.Minute,
+	); err != nil {
 		return err
 	}
 
@@ -317,7 +327,7 @@ func (c *Conversions) build(app *vukem.App) error {
 
 // buildFiles wires the file store: the bucket, the signer for download links,
 // and the lifetime a result keeps.
-func (c *Conversions) buildFiles(app *vukem.App, ttl time.Duration) error {
+func (c *Conversions) buildFiles(app *vukem.App, ttl, uploadTTL time.Duration) error {
 	db, err := app.DB()
 	if err != nil {
 		return fmt.Errorf("services: database: %w", err)
@@ -350,14 +360,15 @@ func (c *Conversions) buildFiles(app *vukem.App, ttl time.Duration) error {
 		WithClock(app.Now)
 
 	c.files, err = files.New(files.Options{
-		DB:      db,
-		Disk:    c.disk,
-		IDs:     ulid.NewGenerator(),
-		Signer:  c.signer,
-		BaseURL: app.Config.URL,
-		TTL:     ttl,
-		Now:     app.Now,
-		Log:     app.Log,
+		DB:        db,
+		Disk:      c.disk,
+		IDs:       ulid.NewGenerator(),
+		Signer:    c.signer,
+		BaseURL:   app.Config.URL,
+		TTL:       ttl,
+		Now:       app.Now,
+		UploadTTL: uploadTTL,
+		Log:       app.Log,
 	})
 
 	return err

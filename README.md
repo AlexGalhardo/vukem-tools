@@ -122,6 +122,23 @@ go run ./cmd/app serve   # the app, in another
 
 The app listens on `http://localhost:3000` and the API reference on `http://localhost:3000/docs`.
 
+### With Docker Compose
+
+`compose.yaml` runs the app with every engine, PostgreSQL and a `clamd` for upload scanning, with
+pinned image tags and no other setup:
+
+```bash
+export APP_KEY="base64:$(openssl rand -base64 32)"
+docker compose up -d --build --wait
+curl -i http://localhost:3000/health      # 200
+docker compose down -v                    # also deletes the volumes
+```
+
+The first build downloads the engines and takes a while. The stack runs with `APP_ENV=development`
+because production requires an S3 bucket and a real mailer; `docs/deployment.md` covers the
+production settings. To run the engine tests inside the image with `REQUIRE_ENGINES=1` (a missing
+engine fails instead of skipping), use `scripts/engine-tests.sh`.
+
 ## Documentation
 
 - [ROADMAP.md](ROADMAP.md): every task, subtask and quality assert, by phase.

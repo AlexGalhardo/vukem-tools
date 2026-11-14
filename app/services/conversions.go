@@ -149,6 +149,12 @@ func (c *Conversions) SweepUploads(ctx context.Context) (int, error) {
 // Default settings, used when the matching variable is unset.
 const (
 	defaultResultTTLMinutes = 5
+	// defaultUploadTTLMinutes is how long an uploaded input waits to be
+	// converted. It is longer than a result's on purpose: the interface has
+	// the person upload first and choose options after, so a slow upload or
+	// a pause over the format dialog must not expire the file under them.
+	// Overridden by UPLOAD_TTL_MINUTES.
+	defaultUploadTTLMinutes = 30
 	defaultWorkRoot         = "storage/work"
 	// mediaProbeTimeout bounds the boot-time capability probe. It is nine
 	// small subprocesses, so a minute is generous; the point is that a wedged
@@ -161,6 +167,10 @@ const (
 	// defaultMaxUploadMB is the largest file accepted, matching the figure
 	// in .env.example and the one the interface advertises.
 	defaultMaxUploadMB = 500
+	// defaultMaxStoredMB caps the live bytes of one account (uploads and
+	// results that have not expired): four maximum-size uploads. Overridden by
+	// MAX_STORED_MB_PER_USER.
+	defaultMaxStoredMB = 2048
 	// uploadExpiry is how long an unfinished resumable upload is kept before
 	// the cleanup deletes it. Long enough to survive a bad connection and a
 	// night's sleep, short enough that abandoned bytes do not accumulate.
@@ -245,7 +255,11 @@ func (c *Conversions) build(app *vukem.App) error {
 
 	// The file store comes before the pipeline: every tool reads its input
 	// and writes its result through it.
-	if err := c.buildFiles(app, ttl); err != nil {
+	if err := c.buildFiles(
+		app,
+		ttl,
+		time.Duration(intFrom(app, "UPLOAD_TTL_MINUTES", defaultUploadTTLMinutes))*time.Minute,
+	); err != nil {
 		return err
 	}
 
@@ -317,7 +331,7 @@ func (c *Conversions) build(app *vukem.App) error {
 
 // buildFiles wires the file store: the bucket, the signer for download links,
 // and the lifetime a result keeps.
-func (c *Conversions) buildFiles(app *vukem.App, ttl time.Duration) error {
+func (c *Conversions) buildFiles(app *vukem.App, ttl, uploadTTL time.Duration) error {
 	db, err := app.DB()
 	if err != nil {
 		return fmt.Errorf("services: database: %w", err)
@@ -350,14 +364,16 @@ func (c *Conversions) buildFiles(app *vukem.App, ttl time.Duration) error {
 		WithClock(app.Now)
 
 	c.files, err = files.New(files.Options{
-		DB:      db,
-		Disk:    c.disk,
-		IDs:     ulid.NewGenerator(),
-		Signer:  c.signer,
-		BaseURL: app.Config.URL,
-		TTL:     ttl,
-		Now:     app.Now,
-		Log:     app.Log,
+		DB:             db,
+		Disk:           c.disk,
+		IDs:            ulid.NewGenerator(),
+		Signer:         c.signer,
+		BaseURL:        app.Config.URL,
+		TTL:            ttl,
+		Now:            app.Now,
+		UploadTTL:      uploadTTL,
+		MaxStoredBytes: MaxStoredBytes(app),
+		Log:            app.Log,
 	})
 
 	return err
@@ -418,6 +434,12 @@ func UploadRoot(app *vukem.App) string {
 // MaxUploadBytes is the largest file accepted.
 func MaxUploadBytes(app *vukem.App) int64 {
 	return int64(intFrom(app, "MAX_UPLOAD_SIZE_MB", defaultMaxUploadMB)) << 20
+}
+
+// MaxStoredBytes is how many live bytes one account may hold at once. It is
+// MAX_STORED_MB_PER_USER, and defaults to four uploads' worth.
+func MaxStoredBytes(app *vukem.App) int64 {
+	return int64(intFrom(app, "MAX_STORED_MB_PER_USER", defaultMaxStoredMB)) << 20
 }
 
 // UploadExpiry is how long an unfinished resumable upload is kept.

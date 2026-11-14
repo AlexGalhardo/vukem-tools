@@ -1,0 +1,90 @@
+# A local, self-contained stack: the app with every conversion engine, PostgreSQL
+# and a clamd for upload scanning. HTTP is served by the app directly; there is
+# no proxy in front of it, so put Caddy (never nginx) there if you add one.
+#
+#   export APP_KEY="base64:$(openssl rand -base64 32)"
+#   docker compose up -d --build --wait
+#   curl -i http://localhost:3000/health
+#   docker compose down -v
+#
+# It runs with APP_ENV=development because production insists on an S3 bucket
+# and a real mailer, neither of which belongs in a local stack: results live in
+# a volume and mail goes to the log. Everything else is as deployed: the
+# engines run in an empty network namespace (see below) and uploads are scanned.
+#
+# docs/deployment.md has the production notes.
+
+name: vukem-tools
+
+services:
+  postgres:
+    image: postgres:18.1-alpine
+    environment:
+      POSTGRES_USER: vukem
+      POSTGRES_PASSWORD: vukem
+      POSTGRES_DB: vukem_tools
+    volumes:
+      - pgdata:/var/lib/postgresql
+    healthcheck:
+      # Over TCP, not the socket: during first-run initialisation a temporary
+      # server answers on the socket only, and the app would connect too soon.
+      test: ["CMD-SHELL", "pg_isready -h 127.0.0.1 -U vukem -d vukem_tools"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  # Signatures are baked into the image and freshclam keeps them current, so
+  # the first start does not wait for a download. The image ships its own
+  # health check, which `--wait` honours.
+  clamd:
+    image: clamav/clamav:1.4.3
+    volumes:
+      - clamdb:/var/lib/clamav
+
+  migrate:
+    build: .
+    image: vukem-tools:local
+    command: ["migrate"]
+    environment: &app-env
+      APP_ENV: development
+      APP_DEBUG: "false"
+      APP_KEY: ${APP_KEY:?set APP_KEY, for example export APP_KEY="base64:$(openssl rand -base64 32)"}
+      APP_URL: http://localhost:3000
+      DATABASE_URL: postgres://vukem:vukem@postgres:5432/vukem_tools?sslmode=disable
+      MAIL_MAILER: log
+      CLAMAV_ADDR: clamd:3310
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: "no"
+
+  app:
+    build: .
+    image: vukem-tools:local
+    command: ["serve"]
+    environment: *app-env
+    ports:
+      - "3000:3000"
+    volumes:
+      - storage:/app/storage
+      - work:/app/work
+    # The engines get an empty network namespace per conversion (H1 in
+    # docs/audit-2026-11-14.md). Docker's default seccomp profile refuses
+    # creating one, and CAP_SYS_ADMIN is what lifts that. Without it the app
+    # still runs here (development only warns); production would refuse to
+    # boot unless ENGINE_INSECURE_ALLOW_NETWORK=true.
+    cap_add:
+      - SYS_ADMIN
+    depends_on:
+      postgres:
+        condition: service_healthy
+      clamd:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
+
+volumes:
+  pgdata:
+  clamdb:
+  storage:
+  work:

@@ -15,6 +15,7 @@ package quota
 
 import (
 	"context"
+	"database/sql"
 	"errors"
 	"fmt"
 	"log/slog"
@@ -29,9 +30,12 @@ type Counter struct {
 	db     *database.DB
 	budget time.Duration
 	exempt map[string]struct{}
-	now    func() time.Time
-	log    *slog.Logger
-	table  string
+	// reserve is what a conversion that has been admitted but not finished is
+	// assumed to cost; see Admit.
+	reserve time.Duration
+	now     func() time.Time
+	log     *slog.Logger
+	table   string
 }
 
 // Options configures a Counter. DB is required.
@@ -45,8 +49,12 @@ type Options struct {
 	// Exempt lists user ids the budget does not apply to, normally just the
 	// owner's. An exempt account is still counted, so the figures stay true.
 	Exempt []string
-	Now    func() time.Time
-	Log    *slog.Logger
+	// Reserve is what an admitted conversion that has not ended is assumed
+	// to cost, so a burst of submissions cannot all pass before any has
+	// spent. Zero means DefaultReserve.
+	Reserve time.Duration
+	Now     func() time.Time
+	Log     *slog.Logger
 }
 
 // New returns a counter.
@@ -57,6 +65,14 @@ func New(o Options) (*Counter, error) {
 
 	if o.Budget < 0 {
 		return nil, fmt.Errorf("quota: the budget cannot be negative, got %s", o.Budget)
+	}
+
+	if o.Reserve < 0 {
+		return nil, fmt.Errorf("quota: the reservation cannot be negative, got %s", o.Reserve)
+	}
+
+	if o.Reserve == 0 {
+		o.Reserve = DefaultReserve
 	}
 
 	if o.Now == nil {
@@ -74,8 +90,23 @@ func New(o Options) (*Counter, error) {
 		}
 	}
 
-	return &Counter{db: o.DB, budget: o.Budget, exempt: exempt, now: o.Now, log: o.Log, table: "usage_counters"}, nil
+	return &Counter{
+		db:      o.DB,
+		budget:  o.Budget,
+		exempt:  exempt,
+		reserve: o.Reserve,
+		now:     o.Now,
+		log:     o.Log,
+		table:   "usage_counters",
+	}, nil
 }
+
+// DefaultReserve is the processing time an admitted conversion is assumed to
+// cost until it ends. Thirty seconds is the typical image or short-video job;
+// a longer one overshoots the day by its excess, which is the documented
+// bound (the budget is exceeded by at most one conversion's overrun, not by
+// the concurrency times it).
+const DefaultReserve = 30 * time.Second
 
 // Usage is what one conversion consumed.
 type Usage struct {
@@ -125,6 +156,15 @@ func (a Allowance) RetryAfter(now time.Time) time.Duration {
 // ErrExceeded means the account has spent today's budget.
 var ErrExceeded = errors.New("quota: today's budget is spent")
 
+// ExceededError is ErrExceeded with the figures at the moment of refusal, so
+// the caller can say when the budget resets.
+type ExceededError struct{ Allowance Allowance }
+
+func (*ExceededError) Error() string { return ErrExceeded.Error() }
+
+// Is makes errors.Is(err, ErrExceeded) true.
+func (*ExceededError) Is(target error) bool { return target == ErrExceeded }
+
 // Check reports what the account may still do today.
 //
 // A missing row is not an error: an account that has converted nothing today
@@ -142,7 +182,7 @@ func (c *Counter) Check(ctx context.Context, userID string) (Allowance, error) {
 		a.Exempt = true
 	}
 
-	spent, err := c.spentOn(ctx, userID, day)
+	spent, err := c.spentOn(ctx, c.db, userID, day)
 	if err != nil {
 		return Allowance{}, err
 	}
@@ -156,15 +196,75 @@ func (c *Counter) Check(ctx context.Context, userID string) (Allowance, error) {
 	return a, nil
 }
 
+// Admit decides whether a new conversion may start, inside the transaction
+// that creates it.
+//
+// Check-then-spend let every queued job pass the check before any had spent.
+// Here the decision and the conversion row commit together, and the first
+// statement writes the account's row for today, which serialises concurrent
+// submissions of one account (a row lock on PostgreSQL, the single writer on
+// SQLite). Conversions already admitted and not yet ended count at the
+// reserve each, on top of what is spent, so the account is refused once
+// spent + in flight reaches the budget.
+//
+// The reservation is the conversion row itself: when it fails, is cancelled
+// or finishes it leaves the pending and running states, so there is nothing
+// to refund and nothing a crash can leave behind. Finishing charges the
+// measured time through Spend as before.
+//
+// The caller inserts the conversion in the same transaction when Allowed.
+func (c *Counter) Admit(ctx context.Context, ex database.Executor, userID string) (Allowance, error) {
+	day := c.day()
+	at := c.now().UTC()
+	dl := ex.Dialect()
+	t := dl.Quote(c.table)
+
+	lock := "INSERT INTO " + t +
+		" (user_id, day, cpu_ms, bytes_in, bytes_out, conversions, created_at, updated_at) VALUES (" +
+		dl.Placeholder(1) + ", " + dl.Placeholder(2) + ", 0, 0, 0, 0, " + dl.Placeholder(3) + ", " + dl.Placeholder(4) +
+		") ON CONFLICT (user_id, day) DO UPDATE SET updated_at = " + dl.Placeholder(5)
+	if _, err := ex.ExecContext(ctx, lock, userID, day, at, at, at); err != nil {
+		return Allowance{}, fmt.Errorf("quota: lock the account's row for %s: %w", userID, err)
+	}
+
+	a := Allowance{Allowed: true, Budget: c.budget, ResetsAt: day.AddDate(0, 0, 1)}
+	if _, ok := c.exempt[userID]; ok {
+		a.Exempt = true
+	}
+
+	spent, err := c.spentOn(ctx, ex, userID, day)
+	if err != nil {
+		return Allowance{}, err
+	}
+
+	var inFlight int64
+
+	count := "SELECT COUNT(*) FROM " + dl.Quote("conversions") + " WHERE user_id = " + dl.Placeholder(1) +
+		" AND status IN ('pending', 'running')"
+	if err := ex.QueryRowContext(ctx, count, userID).Scan(&inFlight); err != nil {
+		return Allowance{}, fmt.Errorf("quota: count the conversions in flight for %s: %w", userID, err)
+	}
+
+	a.Spent = spent + time.Duration(inFlight)*c.reserve
+
+	if c.budget > 0 && !a.Exempt && a.Spent >= c.budget {
+		a.Allowed = false
+	}
+
+	return a, nil
+}
+
 // spentOn reads today's measured time, or zero when there is no row.
-func (c *Counter) spentOn(ctx context.Context, userID string, day time.Time) (time.Duration, error) {
-	dl := c.db.Dialect()
+func (c *Counter) spentOn(
+	ctx context.Context, ex database.Executor, userID string, day time.Time,
+) (time.Duration, error) {
+	dl := ex.Dialect()
 	query := "SELECT cpu_ms FROM " + dl.Quote(c.table) +
 		" WHERE user_id = " + dl.Placeholder(1) + " AND day = " + dl.Placeholder(2)
 
 	var ms int64
 
-	switch err := c.db.QueryRowContext(ctx, query, userID, day).Scan(&ms); {
+	switch err := ex.QueryRowContext(ctx, query, userID, day).Scan(&ms); {
 	case err == nil:
 		return time.Duration(ms) * time.Millisecond, nil
 	case isNoRows(err):
@@ -230,9 +330,6 @@ func (c *Counter) day() time.Time {
 	return time.Date(t.Year(), t.Month(), t.Day(), 0, 0, 0, 0, time.UTC)
 }
 
-// isNoRows reports whether err is the empty-result error, by message, because
-// database/sql's own sentinel is not reachable without importing it here for
-// one comparison.
-func isNoRows(err error) bool {
-	return err != nil && err.Error() == "sql: no rows in result set"
-}
+// isNoRows reports whether err is the empty-result error, however it was
+// wrapped on the way up.
+func isNoRows(err error) bool { return errors.Is(err, sql.ErrNoRows) }

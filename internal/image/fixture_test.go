@@ -15,6 +15,7 @@ import (
 
 	"github.com/AlexGalhardo/vukem-tools/internal/engine"
 	vipsimage "github.com/AlexGalhardo/vukem-tools/internal/image"
+	"github.com/AlexGalhardo/vukem-tools/internal/testenv"
 )
 
 // The tests in this package need libvips. It is in the production image and
@@ -27,13 +28,13 @@ func engines(tb testing.TB) (vipsimage.Engine, vipsimage.Runner) {
 
 	vips, err := exec.LookPath("vips")
 	if err != nil {
-		tb.Skip("libvips is not installed here; run this inside the production image " +
+		testenv.MissingEngine(tb, "libvips is not installed here; run this inside the production image "+
 			"(docs/deployment.md § Verifying the image)")
 	}
 
 	header, err := exec.LookPath("vipsheader")
 	if err != nil {
-		tb.Skip("vipsheader is not installed here; run this inside the production image")
+		testenv.MissingEngine(tb, "vipsheader is not installed here; run this inside the production image")
 	}
 
 	runner, err := engine.NewRunner(engine.RunnerOptions{

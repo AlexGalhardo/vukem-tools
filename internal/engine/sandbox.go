@@ -1,6 +1,11 @@
 package engine
 
-import "os/exec"
+import (
+	"errors"
+	"os/exec"
+)
+
+var errNoSandbox = errors.New("there is no sandbox on this platform")
 
 // sandbox applies the platform's process limits. There is one implementation
 // per platform (see sandbox_linux.go and sandbox_other.go) plus nopSandbox,
@@ -10,8 +15,13 @@ type sandbox interface {
 	// wrap returns the program and arguments to actually execute, which on
 	// Linux means going through prlimit.
 	wrap(path string, args []string, limits Limits) (string, []string)
-	// isolate sets the process attributes before Start.
-	isolate(proc *exec.Cmd)
+	// isolate sets the process attributes before Start. network keeps the
+	// container's network; false puts the program in a namespace of its own
+	// where it has none, when the platform can.
+	isolate(proc *exec.Cmd, network bool)
+	// networkIsolation is nil when isolate can take the network away, and
+	// otherwise says why it cannot.
+	networkIsolation() error
 	// kill ends the program and everything it started.
 	kill(proc *exec.Cmd) error
 }
@@ -31,7 +41,10 @@ func (nopSandbox) wrap(path string, args []string, _ Limits) (string, []string) 
 
 // isolate does nothing, so a child of the program survives a kill. That is
 // one more reason this is not a production path.
-func (nopSandbox) isolate(*exec.Cmd) {}
+func (nopSandbox) isolate(*exec.Cmd, bool) {}
+
+// networkIsolation reports that nothing is isolated.
+func (nopSandbox) networkIsolation() error { return errNoSandbox }
 
 // kill ends the process itself, not its group.
 func (nopSandbox) kill(proc *exec.Cmd) error {

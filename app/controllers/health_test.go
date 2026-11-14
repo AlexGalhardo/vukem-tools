@@ -206,9 +206,10 @@ func TestAMissingOptionalEngineDoesNotFailTheDeepCheck(t *testing.T) {
 		DB:      openDB(t),
 		Disk:    disk,
 		Engines: registry,
+		Token:   deepToken,
 	})
 
-	rec, err := call(h.Deep, "/health/deep")
+	rec, err := callWith(h.Deep, "/health/deep", "Bearer "+deepToken)
 	if err != nil {
 		t.Fatalf("handler: %v", err)
 	}
@@ -296,12 +297,113 @@ func TestADatabaseWithoutItsSchemaFails(t *testing.T) {
 	}
 }
 
+const deepToken = "operator-token-for-the-deep-check"
+
+// An anonymous caller learns whether the service is up and which dependency
+// is down, and nothing that fingerprints the deployment: no engine versions,
+// no build, no detail text, no timings.
+func TestTheDeepCheckHidesVersionsFromAnAnonymousCaller(t *testing.T) {
+	t.Parallel()
+
+	registry, err := engine.Resolve(t.Context(), nil, []engine.Binary{{Name: "no-such-program-exists-anywhere"}})
+	if err != nil {
+		t.Fatalf("resolve: %v", err)
+	}
+
+	h := controllers.NewHealth(controllers.HealthOptions{
+		DB:      openDB(t),
+		Disk:    &memDisk{objects: map[string][]byte{}},
+		Engines: registry,
+		Version: "9.9.9-secret-build",
+		Token:   deepToken,
+	})
+
+	for name, header := range map[string]string{
+		"no credentials": "",
+		"wrong token":    "Bearer not-the-token",
+		"wrong scheme":   "Basic " + deepToken,
+	} {
+		rec, err := callWith(h.Deep, "/health/deep", header)
+		if err != nil {
+			t.Fatalf("%s: handler: %v", name, err)
+		}
+
+		raw := rec.Body.String()
+		for _, leak := range []string{"9.9.9-secret-build", "no-such-program-exists-anywhere", `"detail"`, `"took"`} {
+			if strings.Contains(raw, leak) {
+				t.Errorf("%s: the anonymous body leaks %q:\n%s", name, leak, raw)
+			}
+		}
+
+		var body struct {
+			Status string                    `json:"status"`
+			Checks map[string]map[string]any `json:"checks"`
+		}
+
+		decode(t, rec, &body)
+
+		if body.Status != "ok" || body.Checks["database"]["status"] != "ok" {
+			t.Errorf("%s: the anonymous body lost the status: %s", name, raw)
+		}
+	}
+}
+
+func TestTheDeepCheckGivesTheOperatorTheVersions(t *testing.T) {
+	t.Parallel()
+
+	h := controllers.NewHealth(controllers.HealthOptions{
+		DB:      openDB(t),
+		Disk:    &memDisk{objects: map[string][]byte{}},
+		Version: "1.2.3",
+		Token:   deepToken,
+	})
+
+	rec, err := callWith(h.Deep, "/health/deep", "Bearer "+deepToken)
+	if err != nil {
+		t.Fatalf("handler: %v", err)
+	}
+
+	if !strings.Contains(rec.Body.String(), `"version":"1.2.3"`) || !strings.Contains(rec.Body.String(), `"took"`) {
+		t.Errorf("the operator's body is missing the build or the timings: %s", rec.Body.String())
+	}
+}
+
+// With no token configured nobody is the operator: the endpoint must not
+// treat an empty bearer as a match for an empty token.
+func TestTheDeepCheckWithNoTokenIsAlwaysAnonymous(t *testing.T) {
+	t.Parallel()
+
+	h := controllers.NewHealth(controllers.HealthOptions{
+		DB:      openDB(t),
+		Disk:    &memDisk{objects: map[string][]byte{}},
+		Version: "1.2.3",
+	})
+
+	rec, err := callWith(h.Deep, "/health/deep", "Bearer ")
+	if err != nil {
+		t.Fatalf("handler: %v", err)
+	}
+
+	if strings.Contains(rec.Body.String(), "1.2.3") {
+		t.Errorf("an empty bearer unlocked the operator view: %s", rec.Body.String())
+	}
+}
+
 // call drives a handler the way the router does: through a web.Ctx over a
 // recorder, so the test exercises the same path as production rather than a
 // net/http handler the app does not have.
 func call(h func(*web.Ctx) error, target string) (*httptest.ResponseRecorder, error) {
+	return callWith(h, target, "")
+}
+
+// callWith is call with an Authorization header, when one is given.
+func callWith(h func(*web.Ctx) error, target, authorization string) (*httptest.ResponseRecorder, error) {
 	rec := httptest.NewRecorder()
 	req := httptest.NewRequest(http.MethodGet, target, http.NoBody)
+
+	if authorization != "" {
+		req.Header.Set("Authorization", authorization)
+	}
 
 	return rec, h(web.NewCtx(rec, req, nil))
 }

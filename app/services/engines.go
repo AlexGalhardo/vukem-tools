@@ -102,7 +102,10 @@ func (c *Conversions) resolveEngines(app *vukem.App) error {
 			OpenFiles:    engineOpenFiles,
 		},
 		Production: app.Config.Env == "production",
-		Log:        app.Log,
+		// The one way to run engines with the container's network, for a host
+		// that cannot give them a namespace. It is named for what it costs.
+		InsecureAllowNetwork: app.Source.Get("ENGINE_INSECURE_ALLOW_NETWORK") == "true",
+		Log:                  app.Log,
 	})
 	if err != nil {
 		return fmt.Errorf("services: engine runner: %w", err)

@@ -239,6 +239,20 @@ func (p *Pipeline) Submit(ctx context.Context, in Submission) (models.Conversion
 	var created models.Conversion
 
 	err = p.store.db.Tx(ctx, func(tx *database.Tx) error {
+		// The budget is decided in the same transaction that creates the
+		// conversion, so a burst of submissions cannot all pass a check made
+		// before any of them counted. See quota.Counter.Admit.
+		if p.quota != nil {
+			allowance, err := p.quota.Admit(ctx, tx, in.UserID)
+			if err != nil {
+				return err
+			}
+
+			if !allowance.Allowed {
+				return &quota.ExceededError{Allowance: allowance}
+			}
+		}
+
 		c, err := p.store.Create(ctx, tx, in)
 		if err != nil {
 			return err

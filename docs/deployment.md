@@ -93,6 +93,40 @@ Check the engines are present and are the pinned versions:
 docker run --rm --entrypoint sh vukem-tools:local -c 'id; ffmpeg -version | head -1; yt-dlp --version'
 ```
 
+## Engine network isolation
+
+Every conversion engine (ffmpeg, libvips, Ghostscript, LibreOffice, OCRmyPDF, qpdf) runs in a
+network namespace of its own with no interface up, so a crafted file cannot make an engine fetch
+an internal URL, reach the platform metadata service or send what it was given somewhere. Only the
+downloader (yt-dlp) keeps the container's network, through `engine.Command.Network`.
+
+The runner creates the namespace with `CLONE_NEWNET`, or with `CLONE_NEWUSER|CLONE_NEWNET` when it
+is unprivileged, and probes which works at startup. Docker's default seccomp profile allows
+neither. The container therefore needs one of:
+
+- `cap_add: [SYS_ADMIN]` (what `compose.yaml` uses), or
+- a seccomp profile that allows `unshare`/`clone` with the namespace flags, with user namespaces
+  enabled on the host.
+
+When the host allows neither, a production boot fails with an error naming this section. The only
+override is `ENGINE_INSECURE_ALLOW_NETWORK=true`, which runs the engines with the container's
+network and logs a warning at boot; use it only when an egress policy outside the container
+(firewall, a network policy denying the metadata address) gives the same guarantee, and record
+that here. Outside production the runner logs the warning and carries on, so `vukem serve` works
+on a laptop.
+
+## Malware scanning
+
+Uploads are scanned by a `clamd` over TCP before they are stored; the image carries no daemon, so
+clamd runs as its own service (`clamav/clamav` in [`compose.yaml`](../compose.yaml)) and the app
+reaches it through `CLAMAV_ADDR` (`clamd:3310`). A scanner that cannot be reached refuses the
+upload rather than letting it through.
+
+With `APP_ENV=production` and no `CLAMAV_ADDR` the app **refuses to boot**. The one explicit way
+around it is `CLAMAV_DISABLED=true`, which stores uploads unscanned and is meant for an operator
+who scans somewhere else; a configured `CLAMAV_ADDR` always wins over it. Outside production a
+missing scanner only logs a warning.
+
 ## Known vulnerabilities
 
 Scanned with `trivy image` at the version in the table above. Three critical findings are present
@@ -170,6 +204,14 @@ there is no collector. Both read the same instruments, so nothing is counted twi
 metrics worth coming back for, and one that was never enabled should look like one that does not
 exist. It serves its own Prometheus registry rather than the default one, so the body carries this
 service's instruments and not the Go runtime collectors anything linked into the binary could add.
+
+### The deep health check
+
+`GET /health/deep` is rate limited to 12 requests a minute per IP and reads a table and a bucket
+object on every call. Anonymously it answers `200` or `503` with `ok` or `fail` per check and
+nothing else. Send `Authorization: Bearer $METRICS_TOKEN` to also get the build, the engine
+versions, the failure details and the timings, which are the deployment's fingerprint. `/health`
+stays open.
 
 ### What is recorded
 

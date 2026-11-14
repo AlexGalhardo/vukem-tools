@@ -21,6 +21,7 @@ import (
 	"github.com/AlexGalhardo/vukem-tools/app/models"
 	"github.com/AlexGalhardo/vukem-tools/database/migrations"
 	"github.com/AlexGalhardo/vukem-tools/internal/jobs"
+	"github.com/AlexGalhardo/vukem-tools/internal/quota"
 )
 
 const (
@@ -1173,5 +1174,57 @@ func TestThereIsNoAttemptOutsideTheQueue(t *testing.T) {
 	// happen.
 	if !(queue.Attempt{Number: 3, MaxRetries: 2}).Last() {
 		t.Error("attempt 3 of 3 does not read as the last one")
+	}
+}
+
+// A submission past the budget is refused inside the transaction that would
+// have created it: no conversion row, nothing queued, and the error carries
+// the figures for the 429.
+func TestASubmissionPastTheBudgetCreatesNothing(t *testing.T) {
+	t.Parallel()
+
+	r := newRig(t, &tool{name: "test"})
+
+	counter, err := quota.New(quota.Options{
+		DB: r.db, Budget: time.Hour, Reserve: 30 * time.Minute, Now: r.clock.Now,
+	})
+	if err != nil {
+		t.Fatalf("quota: %v", err)
+	}
+
+	pipe, err := jobs.NewPipeline(jobs.PipelineOptions{
+		Store:    r.store,
+		Queue:    func() (*queue.Queue, error) { return r.queue, nil },
+		Tools:    []jobs.Tool{r.tool},
+		WorkRoot: r.root,
+		Quota:    counter,
+		Now:      r.clock.Now,
+	})
+	if err != nil {
+		t.Fatalf("pipeline: %v", err)
+	}
+
+	for i := range 2 {
+		if _, _, err := pipe.Submit(t.Context(), jobs.Submission{UserID: owner, Tool: "test"}); err != nil {
+			t.Fatalf("submission %d fits the budget: %v", i, err)
+		}
+	}
+
+	_, _, err = pipe.Submit(t.Context(), jobs.Submission{UserID: owner, Tool: "test"})
+
+	exceeded, ok := errors.AsType[*quota.ExceededError](err)
+	if !ok || !errors.Is(err, quota.ErrExceeded) {
+		t.Fatalf("a third submission: %v, want a budget refusal", err)
+	}
+
+	if exceeded.Allowance.Allowed || exceeded.Allowance.ResetsAt.IsZero() {
+		t.Errorf("the refusal lacks the allowance: %+v", exceeded.Allowance)
+	}
+
+	var rows int
+	if err := r.db.QueryRowContext(t.Context(), "SELECT COUNT(*) FROM conversions").
+		Scan(&rows); err != nil ||
+		rows != 2 {
+		t.Errorf("%d conversion rows after a refused submission, want 2 (%v)", rows, err)
 	}
 }

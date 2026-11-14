@@ -860,6 +860,10 @@ type UsageView struct {
 	ResetsAt *time.Time `json:"resets_at,omitempty"`
 	// Processing time spent today, in seconds.
 	SpentSeconds *int64 `json:"spent_seconds,omitempty"`
+	// Bytes of yours that are stored and have not expired: uploads and results.
+	StoredBytes *int64 `json:"stored_bytes,omitempty"`
+	// The most bytes an account may store at once. 0 when there is no cap.
+	StoredLimitBytes *int64 `json:"stored_limit_bytes,omitempty"`
 	// True when no daily budget applies to this account.
 	Unlimited *bool `json:"unlimited,omitempty"`
 }

@@ -35,7 +35,12 @@ func LoginThrottleKey(r *http.Request) string {
 		return ""
 	}
 
-	return "login:" + loginEmail(r) + ":" + ratelimit.ByIP(r)
+	email, ok := loginEmail(r)
+	if !ok {
+		return "login-malformed:" + ratelimit.ByIP(r)
+	}
+
+	return "login:" + email + ":" + ratelimit.ByIP(r)
 }
 
 // LoginAccountThrottleKey limits login attempts per email from any IP, so
@@ -45,7 +50,12 @@ func LoginAccountThrottleKey(r *http.Request) string {
 		return ""
 	}
 
-	return "login-account:" + loginEmail(r)
+	email, ok := loginEmail(r)
+	if !ok {
+		return "login-account-malformed:" + ratelimit.ByIP(r)
+	}
+
+	return "login-account:" + email
 }
 
 // RegisterThrottleKey limits sign-ups per address. It keys on a hash of
@@ -55,7 +65,12 @@ func RegisterThrottleKey(r *http.Request) string {
 		return ""
 	}
 
-	sum := sha256.Sum256([]byte(loginEmail(r)))
+	email, ok := loginEmail(r)
+	if !ok {
+		return "register-malformed:" + ratelimit.ByIP(r)
+	}
+
+	sum := sha256.Sum256([]byte(email))
 
 	return "register:" + hex.EncodeToString(sum[:])
 }
@@ -63,8 +78,12 @@ func RegisterThrottleKey(r *http.Request) string {
 // loginEmail normalizes the email like LoginSchema (trimmed, lower case),
 // so " a@b.co" and "A@b.co " share a bucket. Inertia posts JSON, so the
 // email is read from a JSON body as well as from a form.
-func loginEmail(r *http.Request) string {
-	email := r.PostFormValue("email")
+//
+// ok is false when the body claims to be JSON and is not. There is no email
+// to key on then, and an empty one would put every malformed request from
+// everywhere in one shared bucket, so the callers key on the address alone.
+func loginEmail(r *http.Request) (email string, ok bool) {
+	email = r.PostFormValue("email")
 
 	if email == "" && strings.HasPrefix(r.Header.Get("Content-Type"), "application/json") {
 		body, err := io.ReadAll(io.LimitReader(r.Body, 64<<10))
@@ -73,14 +92,19 @@ func loginEmail(r *http.Request) string {
 				Email string `json:"email"`
 			}
 
-			_ = json.Unmarshal(body, &in)
+			if err := json.Unmarshal(body, &in); err != nil {
+				r.Body = io.NopCloser(bytes.NewReader(body))
+
+				return "", false
+			}
+
 			email = in.Email
 		}
 
 		r.Body = io.NopCloser(bytes.NewReader(body))
 	}
 
-	return strings.ToLower(strings.TrimSpace(email))
+	return strings.ToLower(strings.TrimSpace(email)), true
 }
 
 // ShowLogin renders the login page.

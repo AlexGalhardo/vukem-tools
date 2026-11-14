@@ -105,8 +105,9 @@ func (d *pdfDeps) resolve(ctx context.Context) (*pdf.Engines, error) {
 			// application's config, which this layer cannot see. It defaults
 			// to on: a runner that silently skipped its limits because a
 			// variable was unset would be the wrong failure.
-			Production: os.Getenv("APP_ENV") != "local" && os.Getenv("APP_ENV") != "testing",
-			Log:        slog.Default(),
+			Production:           os.Getenv("APP_ENV") != "local" && os.Getenv("APP_ENV") != "testing",
+			InsecureAllowNetwork: os.Getenv("ENGINE_INSECURE_ALLOW_NETWORK") == "true",
+			Log:                  slog.Default(),
 		})
 		if err != nil {
 			d.err = fmt.Errorf("tools: the PDF engine runner: %w", err)

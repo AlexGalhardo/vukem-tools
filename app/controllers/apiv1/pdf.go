@@ -162,7 +162,7 @@ func submitMany[O optionsNormaliser[O]](
 				"One of those uploads has already been converted. Upload it again to convert it twice.")
 		}
 
-		return ConversionView{}, err
+		return ConversionView{}, budgetOr(c, err)
 	}
 
 	return viewOf(created), nil

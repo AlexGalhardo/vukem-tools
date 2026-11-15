@@ -4,12 +4,12 @@ go 1.27.4
 
 require (
 	github.com/AlexGalhardo/vukem v0.41.0
-	github.com/AlexGalhardo/vukem/drivers/otel v0.4.3
-	github.com/AlexGalhardo/vukem/drivers/postgres v0.6.1
-	github.com/AlexGalhardo/vukem/drivers/s3 v0.4.2
+	github.com/AlexGalhardo/vukem/drivers/otel v0.4.4
+	github.com/AlexGalhardo/vukem/drivers/postgres v0.7.0
+	github.com/AlexGalhardo/vukem/drivers/s3 v0.4.3
 	github.com/gabriel-vasile/mimetype v1.4.16
 	github.com/google/go-cmp v0.7.0
-	github.com/prometheus/client_golang v1.24.1
+	github.com/prometheus/client_golang v1.25.0
 	go.opentelemetry.io/otel v1.47.0
 	go.opentelemetry.io/otel/exporters/prometheus v0.69.0
 	go.opentelemetry.io/otel/metric v1.47.0

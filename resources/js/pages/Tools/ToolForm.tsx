@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import ConversionQueue, { type Job } from "../../components/ConversionQueue";
 import DropZone from "../../components/DropZone";
 import Icon from "../../components/Icon";
+import { Button } from "../../components/ui/button";
 import {
   ApiError,
   final,
@@ -319,15 +320,9 @@ export default function ToolForm({ tool, maxBytes, tusPath }: Props): React.Reac
       {form.fields.length > 0 ? <Options form={form} values={values} onChange={setValues} /> : null}
 
       <div className="mt-6 flex items-center gap-3">
-        <button
-          type="button"
-          disabled={busy || staged.length === 0}
-          onClick={() => void convert()}
-          className="rounded-field bg-signal px-4 py-2 font-medium text-raised transition-colors duration-100
-            hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-50"
-        >
+        <Button disabled={busy || staged.length === 0} onClick={() => void convert()}>
           {busy ? "Starting…" : tool.title}
-        </button>
+        </Button>
 
         {problem ? (
           <p role="alert" className="text-sm text-bad">
@@ -389,14 +384,14 @@ function StagedList({
             <span className="text-xs text-ink-faint">uploading…</span>
           )}
 
-          <button
-            type="button"
-            className="text-ink-faint hover:text-ink"
+          <Button
+            variant="ghost"
+            size="icon"
             aria-label={`Remove ${item.name}`}
             onClick={() => onRemove(item.key)}
           >
             <Icon name="close" className="size-4" />
-          </button>
+          </Button>
         </li>
       ))}
     </ol>

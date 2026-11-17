@@ -1,0 +1,10 @@
+# The author reviews every change to the checks that judge the code, so a pull request cannot
+# loosen its own checks (REVIEW.md). The same owner covers the release path.
+/REVIEW.md @AlexGalhardo
+/.github/CODEOWNERS @AlexGalhardo
+/.github/pull_request_template.md @AlexGalhardo
+/.github/workflows/ @AlexGalhardo
+/Dockerfile @AlexGalhardo
+/compose.yaml @AlexGalhardo
+/cliff.toml @AlexGalhardo
+/desktop/packaging/ @AlexGalhardo

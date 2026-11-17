@@ -158,11 +158,16 @@ func (e *Engines) readGraph(ctx context.Context, dir, input string) (objectGraph
 	}
 
 	name := dump.Name()
-
-	defer func() {
-		_ = dump.Close()
+	// Close before qpdf runs. On Windows a file this process still holds
+	// open cannot be replaced by the subprocess, and qpdf reports that as
+	// "Permission denied".
+	if err := dump.Close(); err != nil {
 		_ = os.Remove(name)
-	}()
+
+		return objectGraph{}, fmt.Errorf("pdf: close a structure file: %w", err)
+	}
+
+	defer func() { _ = os.Remove(name) }()
 
 	// qpdf writes the JSON to its output argument rather than to stdout.
 	if err := e.qpdf(ctx, dir, []string{
@@ -171,11 +176,13 @@ func (e *Engines) readGraph(ctx context.Context, dir, input string) (objectGraph
 		return objectGraph{}, err
 	}
 
-	if _, err := dump.Seek(0, io.SeekStart); err != nil {
-		return objectGraph{}, fmt.Errorf("pdf: rewind the structure file: %w", err)
+	file, err := os.Open(name)
+	if err != nil {
+		return objectGraph{}, fmt.Errorf("pdf: open a structure file: %w", err)
 	}
+	defer file.Close()
 
-	return decodeGraph(io.LimitReader(dump, maxCropJSONBytes))
+	return decodeGraph(io.LimitReader(file, maxCropJSONBytes))
 }
 
 // decodeGraph reads qpdf's JSON and keeps the page tree.

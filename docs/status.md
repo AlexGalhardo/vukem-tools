@@ -5,11 +5,13 @@ Where the project is, and what is next. Updated at the end of every completed ta
 
 ## Now
 
-**Version:** `v0.6.1` released (`v0.6.0` plus the sidebar's stacked theme options), with `v0.2.0` to `v0.4.0` added as tags on the commits that finished
-archives, image compression and sprite sheets (see [brainstorming.md § 9.7](brainstorming.md)).
-**Next:** record peak memory and wall-clock for LibreOffice and OCR in
-[benchmarks.md](benchmarks.md), rebuild and check the production image, and try the bot against the
-real Telegram Bot API.
+**Version:** `v0.7.0` is the latest GitHub release. It adds the Wails v3 desktop
+shell, the CLI, local HTTP and MCP adapters over the tool catalog, a latest-only
+launcher, and the static docs site. The `v0.1.0`–`v0.6.0` tags stay on the reset
+commits, about 30 commits each. `v0.6.1` stays deleted.
+**Next:** the owner points DNS, GitHub Pages and Railway (see `questions-to-dev.md`), supplies the
+launcher signing key, and records peak memory for LibreOffice and OCR in
+[benchmarks.md](benchmarks.md).
 
 **54 tools live** in the catalogue and none planned: the conversion pipeline's tools plus seventeen that run in the browser.
 

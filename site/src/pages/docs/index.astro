@@ -1,0 +1,30 @@
+---
+import Base from "../../layouts/Base.astro";
+import { pages, sections } from "../../data/pages";
+
+const home = pages.find((page) => page.slug === "");
+---
+
+<Base title="Documentation" summary={home?.summary}>
+	<h1 class="text-3xl font-semibold tracking-tight">Documentation</h1>
+	<p class="mt-3 leading-relaxed">{home?.summary}</p>
+	{
+		sections().map((section) => (
+				<section class="mt-10">
+					<h2 class="text-lg font-semibold">{section}</h2>
+					<ul class="mt-3 space-y-2">
+						{pages
+							.filter((page) => page.section === section && page.slug !== "")
+							.map((page) => (
+								<li>
+									<a class="text-signal underline" href={`/docs/${page.slug}/`}>
+										{page.title}
+									</a>
+									<span class="text-ink/70"> — {page.summary}</span>
+								</li>
+							))}
+					</ul>
+				</section>
+			))
+	}
+</Base>

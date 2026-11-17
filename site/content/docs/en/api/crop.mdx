@@ -1,0 +1,15 @@
+---
+title: "Crop a PDF"
+description: "POST /api/v1/tools/pdf-crop and the local agent route POST /pdf/crop."
+badge: "POST"
+---
+
+## App
+
+`POST /api/v1/tools/pdf-crop` needs a key with `pdf:structure`. The JSON body carries `file_id` of an upload you already made, and `options` with `left`, `bottom`, `right`, and `top` in PDF points. Leave `pages` empty to crop every page. The route is also described in `/openapi.json`.
+
+## Agent server
+
+`vukem-tools serve` accepts `POST /pdf/crop` on `127.0.0.1:8787`. The body names the input path, the output path, and the margins. This route is for a program on the same machine. It is not the public API.
+
+Both paths call the same crop. A successful crop writes a non-empty PDF.

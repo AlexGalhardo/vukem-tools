@@ -1,0 +1,14 @@
+---
+title: "Connect"
+description: "Register vukem-tools mcp with an agent client."
+---
+
+The server is the binary, not a URL.
+
+```bash
+claude mcp add vukem-tools -- vukem-tools mcp
+```
+
+A client that asks for a command and arguments should use the command `vukem-tools` and the argument `mcp`. The working directory has to be one where qpdf and the binary can read the PDF you name.
+
+There is no network listener and no API key on this path. The process can read and write the paths you pass it. Do not point it at a directory you do not trust.

@@ -1,0 +1,20 @@
+---
+title: "Glossary"
+description: "The words this toolbox uses."
+---
+
+**Tool.** A named conversion, such as `pdf-crop`.
+
+**Catalogue.** The list of tools this build can run. `vukem-tools tools` prints it.
+
+**Ability.** A permission on an API key. `pdf-crop` needs `pdf:structure`. A key never receives a wildcard.
+
+**Margin.** A distance in PDF points. 72 points is one inch.
+
+**Page range.** The pages a PDF tool touches. Empty means every page.
+
+**Engine.** An external program (qpdf, ffmpeg, LibreOffice, and others) run as a subprocess with a timeout. The toolbox does not link them through cgo.
+
+**Client tool.** A catalogue entry that runs in the browser and does not enter the server pipeline.
+
+**Release.** The version on the GitHub tag, in the download file name, and at the bottom left of the window.

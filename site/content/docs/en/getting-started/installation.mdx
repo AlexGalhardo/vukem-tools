@@ -1,0 +1,34 @@
+---
+title: "Installation"
+description: "Run Vukem Tools with Docker Compose, or from a release download."
+---
+
+## Docker Compose
+
+The supported local stack is in `compose.yaml`: Postgres, ClamAV, a migration step, and the app on port 3000.
+
+```bash
+export APP_KEY="base64:$(openssl rand -base64 32)"
+docker compose up -d --build --wait
+curl -i http://127.0.0.1:3000/health
+```
+
+Open http://127.0.0.1:3000 and sign in. The development stack uses `APP_ENV=development` because production refuses to boot without object storage and a real mailer. The variables are listed in [Configuration](/docs/reference/configuration) and in `docs/deployment.md`.
+
+The image is `ghcr.io/alexgalhardo/vukem-tools`. A stable release also publishes the same digest to Docker Hub, with tags `X.Y.Z`, `X.Y`, and `latest`.
+
+## Desktop downloads
+
+A release publishes one file per system. From the build after 0.7.0, the version is in the file name, with dots written as hyphens:
+
+- `vukem-tools-0-7-1.exe` on Windows, for a 0.7.1 release
+- `vukem-tools-0-7-1-linux-amd64.AppImage` on Linux
+- `vukem-tools-0-7-1-darwin-arm64.dmg` on macOS
+
+Release 0.7.0 used `vukem-tools.exe`, `vukem-tools_0.7.0_linux_amd64.AppImage`, and `vukem-tools_0.7.0_darwin_arm64.dmg`.
+
+Each file is the desktop window. It opens the web app at `VUKEM_TOOLS_URL` (default `http://127.0.0.1:3000`). It does not contain a second copy of the tools. If nothing is listening, the window says so instead of showing a browser error. See [Desktop downloads](/docs/self-hosting/desktop-downloads).
+
+## The agent binary
+
+`vukem-tools` is the command-line program: `tools`, `pdf crop`, `mcp`, and `serve`. The desktop window and this command are different programs.

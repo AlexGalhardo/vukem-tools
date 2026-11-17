@@ -1,0 +1,19 @@
+---
+title: "Desktop window"
+description: "What the downloaded exe, AppImage, and dmg actually open."
+---
+
+The desktop program is a Wails v3 window around the web app. It does not embed a second copy of the tools, and it does not start Postgres.
+
+By default it opens `http://127.0.0.1:3000/tools/pdf-crop`. Point it somewhere else with:
+
+| Variable | Default | Meaning |
+| --- | --- | --- |
+| `VUKEM_TOOLS_URL` | `http://127.0.0.1:3000` | Origin of the web app |
+| `VUKEM_TOOLS_TOOL` | `pdf-crop` | Catalogue name to open |
+
+If that origin refuses the connection, the window stays open and explains that the server is not running. The release is in the bottom left of that page, and of the web app once the server answers.
+
+Start the server with the [Docker Compose](/docs/installation) stack, then press the button in the window.
+
+The file name carries the release: `vukem-tools-0-7-0.exe`, and the same pattern for the AppImage and the dmg. The macOS image is not signed. No signing certificate was supplied.

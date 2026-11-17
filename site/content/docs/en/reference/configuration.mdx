@@ -1,0 +1,26 @@
+---
+title: "Configuration"
+description: "Environment variables of the desktop window and of the server."
+---
+
+## Desktop window
+
+| Variable | Default |
+| --- | --- |
+| `VUKEM_TOOLS_URL` | `http://127.0.0.1:3000` |
+| `VUKEM_TOOLS_TOOL` | `pdf-crop` |
+
+## Web app
+
+| Variable | Role |
+| --- | --- |
+| `APP_KEY` | Cookie secret. Generate it once and keep it. |
+| `APP_URL` | Public origin used in links. |
+| `APP_ENV` | `development` for Compose. `production` also needs `S3_BUCKET`. |
+| `DATABASE_URL` | Postgres URL. The queue, sessions, and cache live here. |
+| `MAIL_MAILER` | `log` writes mail to the log. |
+| `CLAMAV_ADDR` | ClamAV address. |
+| `PORT` | `3000` |
+| `QPDF_PATH` | qpdf, when it is not on `PATH` |
+
+The agent server (`vukem-tools serve`) is separate and defaults to `127.0.0.1:8787`.

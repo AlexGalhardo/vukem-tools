@@ -1,0 +1,17 @@
+---
+title: "Docker"
+description: "The image, Compose, and what production still needs."
+---
+
+`compose.yaml` is the local stack: Postgres 18.1, ClamAV, migrate, then serve. The app is published on port 3000.
+
+```bash
+export APP_KEY="base64:$(openssl rand -base64 32)"
+docker compose up -d --build --wait
+```
+
+The image pins every conversion engine. It does not use `latest` for those packages. A stable GitHub release builds the image, signs it, and pushes `X.Y.Z`, `X.Y`, and `latest` to GHCR and Docker Hub.
+
+Production (`APP_ENV=production`) also needs `S3_BUCKET` and a real mailer, and it refuses to boot without `CLAMAV_ADDR` unless `CLAMAV_DISABLED=true`. Put Caddy in front if you want TLS. Do not put nginx in front.
+
+Railway builds this same Dockerfile. Attach the app to `app.tools.vukem.dev`. This docs site stays on `tools.vukem.dev`.

@@ -1,0 +1,14 @@
+---
+title: "Common problems"
+description: "The first failures of a crop and of a login."
+---
+
+| What you see | What to do |
+| --- | --- |
+| qpdf is not installed | Set `QPDF_PATH` or put qpdf on `PATH`. |
+| The crop refuses an empty margin | Set at least one margin. The agent default is 36 points on each side. |
+| `401` from the API | Send `Authorization: Bearer` or `X-API-Key`. The key's email has to be verified. |
+| `422` on `abilities` | Ask only for abilities `GET /api/v1/abilities` lists. |
+| The window says the server is not running | Start Compose, then open the tool again. See [Desktop window](/docs/troubleshooting/desktop-window). |
+
+Do not trust a file extension when a conversion rejects an upload. The server identifies the file from its bytes.

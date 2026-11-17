@@ -1,8 +1,9 @@
 ---
 import Base from "../layouts/Base.astro";
+import { NotFoundView } from "@/components/not-found-view";
+import { ui } from "@/lib/ui-text";
 ---
 
-<Base title="Not found">
-	<h1 class="text-3xl font-semibold">That page is not here.</h1>
-	<p class="mt-4"><a class="text-signal underline" href="/docs/">Back to the docs</a></p>
+<Base title={ui.notFoundTitle} description={ui.notFoundBody} noindex>
+	<NotFoundView />
 </Base>

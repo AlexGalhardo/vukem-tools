@@ -1,0 +1,14 @@
+---
+title: "Agents"
+description: "How an agent lists the tools and crops a PDF."
+---
+
+An agent is a first-class caller. It does not scrape the website. It uses one of three programs that share the catalogue:
+
+- [CLI](/docs/agents/cli) — `vukem-tools`
+- [MCP](/docs/agents/mcp) — newline-delimited JSON-RPC on stdin
+- [HTTP](/docs/api/overview) — the app's `/api/v1` routes, with an API key
+
+`pdf-crop` is the tool those three can run end to end today. The other catalogue names are on the web app. Asking an agent to invent a flag the CLI does not have will fail closed: the command prints an error and exits non-zero.
+
+A useful prompt names the file, the tool, and the output path. See [Prompts](/docs/prompts/overview).

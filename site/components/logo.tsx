@@ -1,0 +1,27 @@
+import { Link } from "@/components/link";
+import { ui as t } from "@/lib/ui-text";
+
+/** The Vukem Tools mark. */
+export function LogoMark({ className = "size-6" }: { className?: string }) {
+	return (
+		<svg viewBox="0 0 32 32" fill="none" aria-hidden className={className}>
+			<rect width="32" height="32" rx="8" fill="#00ADD8" />
+			<path d="M6.5 8h5.25l5.5 16h-5.25z" fill="#fff" />
+			<path d="M20.25 8h5.25l-5.5 16h-5.25z" fill="#fff" fillOpacity="0.72" />
+			<path d="M15.25 24h1.75l1.2-3.5-.88-2.55z" fill="#007D9C" />
+		</svg>
+	);
+}
+
+export function Logo() {
+	return (
+		<Link
+			href="/"
+			className="flex items-center gap-2 rounded-md font-semibold tracking-tight text-fg"
+			aria-label={t.logoLabel}
+		>
+			<LogoMark />
+			<span className="text-[0.9375rem]">Vukem Tools</span>
+		</Link>
+	);
+}

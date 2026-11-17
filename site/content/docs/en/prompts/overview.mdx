@@ -1,0 +1,14 @@
+---
+title: "Prompts"
+description: "What to tell an agent that has the vukem-tools CLI or MCP server."
+---
+
+Install the CLI or the MCP server first. Then name the tool and the files. An example that matches what the program can do:
+
+```text
+Use vukem-tools to crop every page of in.pdf by 36 points on each side and write out.pdf.
+```
+
+The agent should run `vukem-tools pdf crop` or call MCP `pdf-crop`. It should not ask you to type a password into the chat. A tool that needs a password, a page range, or a geometry stays in the web app.
+
+If qpdf is missing, the crop fails and the error says so. Install qpdf or set `QPDF_PATH`, then run the same command again.

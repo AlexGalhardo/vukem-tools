@@ -1,23 +1,13 @@
 ---
-import Base from "../../layouts/Base.astro";
-import { pages, type DocPage } from "../../data/pages";
+import DocPage from "@/src/components/DocPage.astro";
+import { getAllDocs, getDoc } from "@/lib/content";
 
-export function getStaticPaths(): { params: { slug: string }; props: { page: DocPage } }[] {
-	return pages
-		.filter((page) => page.slug.length > 0)
-		.map((page) => ({ params: { slug: page.slug }, props: { page } }));
+export function getStaticPaths() {
+	return getAllDocs().map((doc) => ({ params: { slug: doc.slug.join("/") } }));
 }
 
-const { page } = Astro.props;
+const doc = getDoc(Astro.params.slug?.split("/") ?? []);
+if (!doc) throw new Error(`missing doc ${Astro.params.slug}`);
 ---
 
-<Base title={page.title} summary={page.summary}>
-	<p class="text-sm text-signal">{page.section}</p>
-	<h1 class="mt-2 text-3xl font-semibold tracking-tight">{page.title}</h1>
-	<p class="mt-3 text-lg leading-relaxed">{page.summary}</p>
-	{
-		page.paragraphs.map((paragraph) => (
-			<p class="mt-4 leading-relaxed">{paragraph}</p>
-		))
-	}
-</Base>
+<DocPage doc={doc} />

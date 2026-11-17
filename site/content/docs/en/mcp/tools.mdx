@@ -1,0 +1,14 @@
+---
+title: "Tools"
+description: "tools/list and the pdf-crop call."
+---
+
+`tools/list` takes no arguments. The result is the same catalogue `vukem-tools tools` prints.
+
+`tools/call`:
+
+```json
+{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"pdf-crop","arguments":{"input":"in.pdf","output":"out.pdf","left":36,"bottom":36,"right":36,"top":36}}}
+```
+
+`input` and `output` are required. The result reports the output path and the size of the cropped file. A missing qpdf, a file that is not a PDF, or a crop that produces nothing is an error object, not a successful empty file.

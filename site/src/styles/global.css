@@ -1,8 +1,0 @@
-@import "tailwindcss";
-
-@theme {
-	--color-ink: #14221c;
-	--color-paper: #f4f1ea;
-	--color-signal: #0f6e56;
-	--font-sans: "Segoe UI", "Helvetica Neue", sans-serif;
-}

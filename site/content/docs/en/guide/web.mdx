@@ -1,0 +1,12 @@
+---
+title: "Web app"
+description: "Sign in, pick a tool, and convert a file in the browser."
+---
+
+The web app is the Inertia interface served by `cmd/app`. After you sign in, the sidebar lists the tools from the catalogue. Each tool is a form at `/tools/<name>`.
+
+The app stores sessions, the queue, and conversion rows in Postgres. Uploaded files are scanned when ClamAV is configured. Results are written to storage, not held in memory.
+
+`GET /health` is the liveness check. `GET /up?checks=1` adds the dependency checks.
+
+The docs site you are reading is static and lives at `https://tools.vukem.dev`. The app is a different host. The suggested name is `app.tools.vukem.dev`.

@@ -1,0 +1,18 @@
+---
+title: "API overview"
+description: "Authentication, abilities, and where the OpenAPI document lives."
+---
+
+The JSON API is under `/api/v1`. The running app publishes the OpenAPI document at `/openapi.json` and a rendered reference at `/docs` on the app host. Those two are generated from the routes, so they describe the server you are calling. This site is the orientation.
+
+Every route except `POST /api/v1/tokens` and `GET /api/v1/abilities` needs an API key:
+
+```bash
+curl -H "Authorization: Bearer $VUKEM_KEY" http://127.0.0.1:3000/api/v1/me
+```
+
+`X-API-Key` is also accepted. `Authorization` wins when both are present.
+
+Create a key with `POST /api/v1/tokens`. The account email has to be verified. The response shows the secret once. Keys expire 30 days after they are issued. Ask only for the abilities the script needs. There is no wildcard.
+
+`pdf-crop` is the conversion documented here end to end. The field list of every other route is the OpenAPI document on the app.

@@ -1,0 +1,20 @@
+---
+title: "Desktop downloads"
+description: "The file names of the Windows, Linux, and macOS builds."
+---
+
+Each stable release attaches three files to the GitHub release:
+
+| System | File |
+| --- | --- |
+| Windows | `vukem-tools-X-Y-Z.exe` |
+| Linux | `vukem-tools-X-Y-Z-linux-amd64.AppImage` |
+| macOS | `vukem-tools-X-Y-Z-darwin-arm64.dmg` |
+
+`X-Y-Z` is the release with the dots turned into hyphens, so 0.7.1 would be `vukem-tools-0-7-1.exe`. The release is also written at the bottom left of the window.
+
+Release 0.7.0 attached the older names: `vukem-tools.exe`, `vukem-tools_0.7.0_linux_amd64.AppImage`, and `vukem-tools_0.7.0_darwin_arm64.dmg`. That Windows file opened port 8080 and showed the browser error when the server was down.
+
+The Linux and macOS binaries are built with `CGO_ENABLED=0` and the `purego` tag. The Windows binary is built with `CGO_ENABLED=0` and the window subsystem. The macOS disk image is unsigned.
+
+The launcher that installs an update accepts only a strictly newer version, and only after the SHA-256 matches. A mismatch is deleted and is not installed. Signature checks wait until an owner public key is configured. The checksum check stays on.

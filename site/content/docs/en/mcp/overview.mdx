@@ -1,0 +1,15 @@
+---
+title: "MCP overview"
+description: "The local MCP server: one JSON object per line, two methods."
+---
+
+`vukem-tools mcp` is a newline-delimited JSON-RPC server. It does not open a port. The client is the process that spawned it.
+
+| Method | Result |
+| --- | --- |
+| `tools/list` | The catalogue, under `result.tools` |
+| `tools/call` | Runs `pdf-crop` when `params.name` is `pdf-crop` |
+
+Any other method returns JSON-RPC error `-32601`. Any other tool name returns `-32602`.
+
+The arguments of `pdf-crop` are `input`, `output`, `left`, `bottom`, `right`, and `top`. Omitted margins use the adapter default of 36 points. The page range is every page.

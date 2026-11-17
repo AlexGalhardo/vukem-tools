@@ -1,0 +1,20 @@
+---
+title: "Introduction"
+description: "What Vukem Tools is, and which surfaces share one catalogue."
+---
+
+Vukem Tools is an open source (MIT) file conversion toolbox. A person converts a file in the browser or in the desktop window. An agent uses the same tool names from the command line, the HTTP API, or MCP.
+
+The window does not draw a second interface. It opens the web app. A tool that runs in the browser is marked in the catalogue and does not go through the server pipeline.
+
+## What a conversion is
+
+A tool has a name, such as `pdf-crop` or `image-convert`. The web page is `/tools/<name>`. The agent adapters use that same name. File types are detected from the bytes of the file, not from the extension and not from the browser's content type.
+
+Login is required for every tool. An API key carries abilities, and a key cannot do more than those abilities allow.
+
+## Where to go next
+
+- [Install](/docs/installation) the server, or run it with Docker.
+- [Crop a PDF](/docs/quick-start) from the browser and from the CLI.
+- [Read the catalogue](/docs/concepts/catalogue).

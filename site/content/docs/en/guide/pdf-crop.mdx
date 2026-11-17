@@ -1,0 +1,12 @@
+---
+title: "PDF crop"
+description: "Margins, the qpdf subprocess, and the three agent callers."
+---
+
+`pdf-crop` needs the ability `pdf:structure`. The web route is `POST /api/v1/tools/pdf-crop`.
+
+Margins are PDF points. The CLI flags are `--left`, `--bottom`, `--right`, and `--top`. When an agent omits them, the adapters use 36 points on each side and every page.
+
+qpdf reads a JSON description of the pages. On Windows that file has to be closed before qpdf replaces it. The crop does that.
+
+A crop of a fixture PDF returns a non-empty PDF from the CLI, from `POST /pdf/crop` on the agent server, and from MCP `tools/call`.

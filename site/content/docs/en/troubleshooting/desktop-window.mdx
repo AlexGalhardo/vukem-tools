@@ -1,0 +1,14 @@
+---
+title: "Desktop window cannot connect"
+description: "The window opens, and the page says the server refused the connection."
+---
+
+The download is a window, not the server. It loads `http://127.0.0.1:3000` unless `VUKEM_TOOLS_URL` is set. If nothing is listening there, the window shows its own page, with the release at the bottom left, instead of the browser's connection error.
+
+1. Start the stack from the repository: set `APP_KEY`, then `docker compose up -d --build --wait`.
+2. Check `curl -i http://127.0.0.1:3000/health`.
+3. Open the window again, or press the button on the status page.
+
+A release older than 0.7.1 opened port 8080 and showed the browser error `ERR_CONNECTION_REFUSED` when the server was down. The app's port is 3000. Update to a release whose file name matches the version at the bottom left of the window.
+
+The docs site at `https://tools.vukem.dev` is not the app. Opening it in the window shows the documentation, not `/tools/pdf-crop`.

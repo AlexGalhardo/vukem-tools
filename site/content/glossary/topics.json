@@ -1,0 +1,62 @@
+[
+	{
+		"slug": "shooting-and-footage",
+		"title": "Shooting and footage",
+		"description": "The words of filming: what a camera records, how a shot is framed and what you call the pieces you bring into an editor.",
+		"intro": "These are the words people use before editing starts: the camera, the shot and the raw video you bring in."
+	},
+	{
+		"slug": "editing-and-timeline",
+		"title": "Editing and timeline",
+		"description": "The words of the editing screen: project, timeline, tracks, clips, playhead, markers, undo and the other tools you use every day.",
+		"intro": "These are the parts of the editing screen and the things you do there every day."
+	},
+	{
+		"slug": "cuts-and-transitions",
+		"title": "Cuts and transitions",
+		"description": "How one shot leads to the next: kinds of cuts, fades, dissolves, wipes and the edits that move the cut point.",
+		"intro": "A video is a chain of shots. These words describe how one shot turns into the next."
+	},
+	{
+		"slug": "audio",
+		"title": "Audio",
+		"description": "Sound in video: volume, decibels, loudness, fades, ducking, music beats and the words a sound editor uses.",
+		"intro": "Half of a video is what you hear. These are the words for sound."
+	},
+	{
+		"slug": "color",
+		"title": "Color",
+		"description": "How video stores and shows colour: brightness, contrast, saturation, white balance, grading, colour spaces and high dynamic range.",
+		"intro": "Colour decides how a video feels. These words say how it is measured, changed and kept the same from screen to screen."
+	},
+	{
+		"slug": "text-and-captions",
+		"title": "Text and captions",
+		"description": "Titles, captions and subtitles: how words appear on screen, how they are timed and how they are stored in files.",
+		"intro": "Words on a video help people who cannot hear, people who watch with the sound off and people who speak another language."
+	},
+	{
+		"slug": "effects-and-compositing",
+		"title": "Effects and compositing",
+		"description": "Putting layers together: opacity, blend modes, masks, green screen, keyframes, blur, filters and motion graphics.",
+		"intro": "Compositing means stacking pictures like sheets of glass. These words explain the stack and the tricks you do with it."
+	},
+	{
+		"slug": "formats-codecs-containers",
+		"title": "Formats, codecs and containers",
+		"description": "What is inside a video file: containers, codecs, bitrate, resolution, frame rate, pixel formats and the standards behind them.",
+		"intro": "A video file is a box (the container) that holds pictures and sound squeezed by a codec. These words tell the parts apart."
+	},
+	{
+		"slug": "delivery-and-platforms",
+		"title": "Delivery and platforms",
+		"description": "Getting the finished video to people: exporting, aspect ratios for each app, safe areas, thumbnails, proxies and hand-off files.",
+		"intro": "A video is only done when someone can watch it. These words are about exporting it and sending it where it belongs."
+	},
+	{
+		"slug": "industry-slang",
+		"title": "Industry slang",
+		"description": "What people on a film or video team really say: B-roll, rough cut, picture lock, wrap, \"fix it in post\" and many more.",
+		"intro": "Every job has its own way of talking. This is how video teams talk, with what each word really means."
+	}
+]

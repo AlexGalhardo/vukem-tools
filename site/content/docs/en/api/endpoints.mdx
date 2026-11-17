@@ -1,0 +1,18 @@
+---
+title: "Endpoints"
+description: "The routes an agent uses first: session, abilities, and pdf-crop."
+---
+
+| Method and path | Auth | Purpose |
+| --- | --- | --- |
+| `POST /api/v1/tokens` | Public | Exchange an email and password for a key |
+| `GET /api/v1/abilities` | Public | The closed list of abilities |
+| `GET /api/v1/me` | Key | The account of the key |
+| `GET /api/v1/tokens` | Key | The keys of the account, without secrets |
+| `DELETE /api/v1/tokens/current` | Key | Revoke the key that made the request |
+| `POST /api/v1/tools/pdf-crop` | Key with `pdf:structure` | Crop every page of a PDF |
+| `GET /health` | Public | Liveness |
+
+Device links (`POST /api/v1/device-links`) exist for a program that cannot show a login form, such as the Telegram bot. One approval yields one key. The bot cannot choose abilities.
+
+The agent binary's `vukem-tools serve` is a smaller HTTP surface on port 8787: `GET /tools` and `POST /pdf/crop`. It is not `/api/v1`.

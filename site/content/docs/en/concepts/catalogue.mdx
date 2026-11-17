@@ -1,0 +1,21 @@
+---
+title: "Catalogue"
+description: "The named tools this build can run, and which ones stay in the browser."
+---
+
+`vukem-tools tools` prints a JSON list of tools. Each entry has a name. That name is the last segment of `/tools/<name>`. MCP `tools/call` accepts `pdf-crop` only.
+
+The families in this build include:
+
+| Family | Examples |
+| --- | --- |
+| PDF | `pdf-crop`, `pdf-merge`, `pdf-compress`, `pdf-ocr` |
+| Image | `image-convert`, `image-compress`, `pixels-to-svg` |
+| Audio and video | `audio-convert`, `video-convert`, `video-clip`, `video-download` |
+| Archives | `archive-create`, `archive-extract` |
+| Sprites | `sprite-split`, `sprite-build` |
+| Browser tools | `json-format`, `hash`, `base64`, `uuid` |
+
+A browser tool is marked `Client` in the catalogue. It runs in the page and does not enter the conversion pipeline.
+
+Engines such as qpdf, ffmpeg, and LibreOffice run as separate processes with a timeout. The server detects the input from magic bytes.

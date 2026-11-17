@@ -1,0 +1,16 @@
+---
+title: "MCP"
+description: "Connect an agent to vukem-tools mcp and call pdf-crop."
+---
+
+`vukem-tools mcp` reads one JSON-RPC object per line and writes one object per line.
+
+`tools/list` returns the catalogue. `tools/call` with the name `pdf-crop` crops every page. The arguments are `input`, `output`, and optional `left`, `bottom`, `right`, and `top`. Any other tool name is an error. The call uses the same crop as the CLI.
+
+Add it to a client as a local stdio server:
+
+```bash
+claude mcp add vukem-tools -- vukem-tools mcp
+```
+
+The command name on your machine has to be the `vukem-tools` binary from this repository. Details of the methods are on the [MCP pages](/docs/mcp/overview).

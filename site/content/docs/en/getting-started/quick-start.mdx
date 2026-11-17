@@ -1,0 +1,24 @@
+---
+title: "Crop a PDF"
+description: "Crop every page of a PDF from the browser and from the command line."
+---
+
+`pdf-crop` trims the same margin, in PDF points, from every page. One point is 1/72 of an inch. An empty page range means every page.
+
+## In the browser
+
+1. Start the app and sign in.
+2. Open `/tools/pdf-crop`.
+3. Choose a PDF, set the margins, and run the tool.
+
+The desktop window opens that same page. Set `VUKEM_TOOLS_TOOL` to another catalogue name to open a different tool.
+
+## From the command line
+
+```bash
+vukem-tools pdf crop --input in.pdf --output out.pdf --left 36 --bottom 36 --right 36 --top 36
+```
+
+The command prints JSON with `output`, `cropped`, and `bytes`. A failure prints `{"error":"..."}` on stderr and exits non-zero. `qpdf` has to be on `PATH`, or set `QPDF_PATH`.
+
+The same crop is `POST /api/v1/tools/pdf-crop` and the MCP tool `pdf-crop`. Both are described under [Agents](/docs/agents/overview).

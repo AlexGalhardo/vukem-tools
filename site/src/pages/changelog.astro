@@ -1,0 +1,17 @@
+---
+import Base from "../layouts/Base.astro";
+import { changelogMetadata } from "@/lib/ui-text";
+import { renderChangelog } from "../prerender";
+
+const meta = changelogMetadata();
+const html = await renderChangelog();
+---
+
+<Base
+	title={meta.title}
+	description={meta.description}
+	canonical="/changelog"
+	progress
+>
+	<Fragment set:html={html} />
+</Base>

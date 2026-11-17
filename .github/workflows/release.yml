@@ -122,9 +122,90 @@ jobs:
           subject-digest: ${{ steps.build.outputs.digest }}
           push-to-registry: true
 
+  # The desktop shell is the same window on every OS. Linux and macOS use the
+  # purego Wails backend so the build does not need GTK or WebKit headers.
+  desktop-windows:
+    name: Windows executable
+    needs: test
+    runs-on: windows-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version-file: go.mod
+          cache: true
+      - name: Build the desktop executable
+        shell: pwsh
+        run: |
+          $env:CGO_ENABLED = "0"
+          go build -trimpath -ldflags "-s -w -H windowsgui" -o vukem-tools.exe ./cmd/desktop
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: desktop-windows
+          path: vukem-tools.exe
+          if-no-files-found: error
+
+  desktop-linux:
+    name: Linux AppImage
+    needs: test
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version-file: go.mod
+          cache: true
+      - name: Build the desktop binary
+        run: |
+          set -euo pipefail
+          mkdir -p out
+          CGO_ENABLED=0 go build -tags purego -trimpath -ldflags "-s -w" -o out/vukem-tools ./cmd/desktop
+      - name: Build the AppImage
+        run: bash desktop/packaging/linux/build-appimage.sh out/vukem-tools "${GITHUB_REF_NAME}" dist
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: desktop-linux
+          path: dist/*.AppImage
+          if-no-files-found: error
+
+  desktop-macos:
+    name: macOS disk image
+    needs: test
+    runs-on: macos-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version-file: go.mod
+          cache: true
+      - name: Build the desktop binary
+        run: |
+          set -euo pipefail
+          mkdir -p out
+          CGO_ENABLED=0 GOARCH=arm64 go build -tags purego -trimpath -ldflags "-s -w" -o out/vukem-tools ./cmd/desktop
+      - name: Build the disk image
+        run: bash desktop/packaging/macos/build-dmg.sh out/vukem-tools "${GITHUB_REF_NAME}" arm64 dist
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: desktop-macos
+          path: dist/*.dmg
+          if-no-files-found: error
+
   release:
     name: GitHub release
-    needs: image
+    needs: [image, desktop-windows, desktop-linux, desktop-macos]
     runs-on: ubuntu-latest
     permissions:
       contents: write # create the GitHub release
@@ -132,6 +213,11 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
+      - uses: actions/download-artifact@9000827ccba6bdabf93d22962f4752f3646cd9 # v8.0.2
+        with:
+          pattern: desktop-*
+          path: dist
+          merge-multiple: true
       - name: Extract the changelog section
         run: |
           version="${GITHUB_REF_NAME#v}"
@@ -140,3 +226,7 @@ jobs:
       - uses: softprops/action-gh-release@e598afbe1493e6b1bafb1f389cabb956eab91231 # v3.0.3
         with:
           body_path: release-notes.md
+          files: |
+            dist/vukem-tools.exe
+            dist/*.AppImage
+            dist/*.dmg

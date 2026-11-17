@@ -5,11 +5,11 @@ Where the project is, and what is next. Updated at the end of every completed ta
 
 ## Now
 
-**Version:** `v0.7.0` adds the Wails v3 desktop shell, the CLI, local HTTP and MCP adapters over the
-tool catalog, a latest-only launcher, and the static docs site. `v0.6.1` is the previous app
-release (`v0.6.0` plus the sidebar's stacked theme options), with `v0.2.0` to `v0.4.0` added as
-tags on the commits that finished archives, image compression and sprite sheets (see
-[brainstorming.md § 9.7](brainstorming.md)).
+**Version:** `v0.6.0` is the latest GitHub release, on the tip of `main`. The `v0.1.0`–`v0.6.0`
+tags were reset so the 180 commits on `main` split into six releases of about 30 commits each.
+`v0.6.1` was removed in that reset. The draft for `v0.7.0` has no tag yet. It adds the Wails v3
+desktop shell, the CLI, local HTTP and MCP adapters over the tool catalog, a latest-only launcher,
+and the static docs site.
 **Next:** the owner points DNS, GitHub Pages and Railway (see `questions-to-dev.md`), supplies the
 launcher signing key, and records peak memory for LibreOffice and OCR in
 [benchmarks.md](benchmarks.md).

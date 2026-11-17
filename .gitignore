@@ -63,3 +63,6 @@ vukem-feedback.md
 
 # scripts/engine-tests.sh build output
 /.engine-tests/
+
+# Static docs export
+/site/dist/

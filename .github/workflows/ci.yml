@@ -103,7 +103,12 @@ jobs:
       # It is reachable only through markdownlint-cli2 > globby > fast-glob >
       # micromatch > braces, a dev CLI we run over our own files, and braces is in
       # no shipped artifact. Drop the ignore as soon as braces publishes a fix.
-      - run: bun audit --audit-level=high --ignore=GHSA-vfj7-8cjw-p6xm
+      # GHSA-fc5q-39xc-vjpf (picomatch <=4.0.7, ReDoS on a repeated extglob) also
+      # has no fixed release: 4.0.7 and 2.3.2 are the newest versions on npm.
+      # Vite and markdownlint-cli2 use it to glob our own build and doc files.
+      # It is not in the Go server or the browser bundle. Drop the ignore when
+      # picomatch publishes a version above 4.0.7.
+      - run: bun audit --audit-level=high --ignore=GHSA-vfj7-8cjw-p6xm --ignore=GHSA-fc5q-39xc-vjpf
 
   markdown:
     name: Markdown (markdownlint-cli2)

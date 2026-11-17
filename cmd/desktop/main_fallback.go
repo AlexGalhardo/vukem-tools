@@ -15,7 +15,7 @@ import (
 func main() {
 	base := os.Getenv("VUKEM_TOOLS_URL")
 	if base == "" {
-		base = "http://127.0.0.1:8080"
+		base = desktop.DefaultOrigin
 	}
 
 	name := os.Getenv("VUKEM_TOOLS_TOOL")

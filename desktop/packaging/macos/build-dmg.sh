@@ -10,6 +10,7 @@ fi
 
 desktop="$1"
 version="${2#v}"
+slug="${version//./-}"
 arch="$3"
 out="$4"
 case "$arch" in
@@ -35,7 +36,7 @@ install -m 0755 "$desktop" "$app/Contents/MacOS/vukem-tools"
 sed "s/@VERSION@/${version}/g" "$here/Info.plist" >"$app/Contents/Info.plist"
 ln -s /Applications "$stage/Applications"
 
-dmg="$out/vukem-tools_${version}_darwin_${arch}.dmg"
+dmg="$out/vukem-tools-${slug}-darwin-${arch}.dmg"
 rm -f "$dmg"
 hdiutil create -quiet -volname "Vukem Tools" -srcfolder "$stage" -ov -format UDZO "$dmg"
 echo "$dmg"

@@ -9,8 +9,12 @@ import (
 	"strings"
 )
 
+// DefaultOrigin is the web app the window opens when VUKEM_TOOLS_URL is unset.
+// The server listens on port 3000. Port 8080 is not the app.
+const DefaultOrigin = "http://127.0.0.1:3000"
+
 // ToolURL is the page the desktop window opens for a catalog tool.
-// base is the local server origin, for example http://127.0.0.1:8080.
+// base is the server origin, for example http://127.0.0.1:3000.
 func ToolURL(base, name string) (string, error) {
 	if strings.TrimSpace(name) == "" {
 		return "", errors.New("desktop: a tool name is required")

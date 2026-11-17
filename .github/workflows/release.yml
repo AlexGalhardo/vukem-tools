@@ -142,11 +142,15 @@ jobs:
         shell: pwsh
         run: |
           $env:CGO_ENABLED = "0"
-          go build -trimpath -ldflags "-s -w -H windowsgui" -o vukem-tools.exe ./cmd/desktop
+          $tag = $env:GITHUB_REF_NAME
+          if ($tag -notmatch '^v(\d+\.\d+\.\d+)$') { throw "release tag must be vX.Y.Z, got $tag" }
+          $ver = $Matches[1]
+          $slug = $ver.Replace('.', '-')
+          go build -trimpath -ldflags "-s -w -H windowsgui -X main.version=$ver" -o "vukem-tools-$slug.exe" ./cmd/desktop
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: desktop-windows
-          path: vukem-tools.exe
+          path: vukem-tools-*.exe
           if-no-files-found: error
 
   desktop-linux:
@@ -167,7 +171,7 @@ jobs:
         run: |
           set -euo pipefail
           mkdir -p out
-          CGO_ENABLED=0 go build -tags purego -trimpath -ldflags "-s -w" -o out/vukem-tools ./cmd/desktop
+          CGO_ENABLED=0 go build -tags purego -trimpath -ldflags "-s -w -X main.version=${GITHUB_REF_NAME#v}" -o out/vukem-tools ./cmd/desktop
       - name: Build the AppImage
         run: bash desktop/packaging/linux/build-appimage.sh out/vukem-tools "${GITHUB_REF_NAME}" dist
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
@@ -194,7 +198,7 @@ jobs:
         run: |
           set -euo pipefail
           mkdir -p out
-          CGO_ENABLED=0 GOARCH=arm64 go build -tags purego -trimpath -ldflags "-s -w" -o out/vukem-tools ./cmd/desktop
+          CGO_ENABLED=0 GOARCH=arm64 go build -tags purego -trimpath -ldflags "-s -w -X main.version=${GITHUB_REF_NAME#v}" -o out/vukem-tools ./cmd/desktop
       - name: Build the disk image
         run: bash desktop/packaging/macos/build-dmg.sh out/vukem-tools "${GITHUB_REF_NAME}" arm64 dist
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
@@ -227,6 +231,6 @@ jobs:
         with:
           body_path: release-notes.md
           files: |
-            dist/vukem-tools.exe
+            dist/vukem-tools-*.exe
             dist/*.AppImage
             dist/*.dmg

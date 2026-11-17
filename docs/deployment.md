@@ -312,8 +312,10 @@ Railway builds the same `Dockerfile`. Set those variables on the service and att
 
 ## Desktop downloads
 
-A version tag publishes three desktop artifacts next to this image: `vukem-tools.exe` (Windows),
-`vukem-tools_<version>_linux_amd64.AppImage`, and `vukem-tools_<version>_darwin_arm64.dmg`. Each
-one is the Wails window. It opens the web UI at `VUKEM_TOOLS_URL` (default
-`http://127.0.0.1:8080`) on the tool named by `VUKEM_TOOLS_TOOL` (default `pdf-crop`). The window
-does not ship a second copy of a tool.
+A version tag publishes three desktop artifacts next to this image. Dots in the version become
+hyphens, so 0.7.0 is `vukem-tools-0-7-0.exe` (Windows),
+`vukem-tools-0-7-0-linux-amd64.AppImage`, and `vukem-tools-0-7-0-darwin-arm64.dmg`. Each one is
+the Wails window. It opens the web UI at `VUKEM_TOOLS_URL` (default `http://127.0.0.1:3000`) on
+the tool named by `VUKEM_TOOLS_TOOL` (default `pdf-crop`). When that origin is not listening, the
+window shows a page that says so, with the release at the bottom left. The window does not ship a
+second copy of a tool.

@@ -3,6 +3,7 @@ import type { ReactNode } from "react";
 
 import Icon from "../components/Icon";
 import Sidebar from "../components/Sidebar";
+import { release } from "../release";
 import type { SharedProps } from "../types";
 
 /**
@@ -27,6 +28,8 @@ export default function AppLayout({ children }: { children: ReactNode }): React.
       </a>
 
       <Sidebar />
+
+      <p className="fixed bottom-3 left-3 z-50 text-xs text-ink-soft">v{release}</p>
 
       <div className="flex min-h-dvh flex-col md:min-h-dvh">
       <main id="main" className="edge-safe mx-auto w-full max-w-5xl flex-1 py-10">

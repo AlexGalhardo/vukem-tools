@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
-# Builds vukem-tools_<version>_linux_amd64.AppImage from the desktop binary.
+# Builds vukem-tools-<version>-linux-amd64.AppImage from the desktop binary.
+# Dots in the version become hyphens: 0.7.0 is vukem-tools-0-7-0-linux-amd64.AppImage.
 # appimagetool 1.9.1 is downloaded and checked before it runs.
 set -euo pipefail
 
@@ -10,6 +11,7 @@ fi
 
 desktop="$1"
 version="${2#v}"
+slug="${version//./-}"
 out="$3"
 here="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
@@ -39,6 +41,6 @@ install -m 0644 "$here/vukem-tools.desktop" "$appdir/vukem-tools.desktop"
 printf '%s' 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==' |
 	base64 -d >"$appdir/vukem-tools.png"
 
-file="$out/vukem-tools_${version}_linux_amd64.AppImage"
+file="$out/vukem-tools-${slug}-linux-amd64.AppImage"
 ARCH=x86_64 APPIMAGE_EXTRACT_AND_RUN=1 "$tool" --no-appstream "$appdir" "$file" >&2
 echo "$file"

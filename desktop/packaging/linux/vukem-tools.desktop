@@ -1,0 +1,7 @@
+[Desktop Entry]
+Name=Vukem Tools
+Exec=vukem-tools
+Icon=vukem-tools
+Type=Application
+Categories=Utility;
+Terminal=false

@@ -118,8 +118,21 @@ func TestOpenWriteRoutesAreRateLimited(t *testing.T) {
 			continue
 		}
 
-		if !slices.Contains(rt.Middleware, "ratelimit.Middleware") {
+		if !hasRateLimit(rt.Middleware) {
 			t.Errorf("POST %s is open and has no rate limit (%v)", rt.Path, rt.Middleware)
 		}
 	}
+}
+
+// hasRateLimit reports whether the route recorded a rate-limit middleware.
+// vukem v0.46 implements ratelimit.Middleware by returning ratelimit.MiddlewareWith,
+// and the router records that name.
+func hasRateLimit(names []string) bool {
+	for _, name := range names {
+		if strings.HasPrefix(name, "ratelimit.Middleware") {
+			return true
+		}
+	}
+
+	return false
 }

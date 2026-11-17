@@ -281,3 +281,39 @@ and should not look the same.
 `ENGINE_WORKDIR` defaults to `/app/work`, on the image's own filesystem rather than `/tmp`.
 Conversions write large intermediate files, and `/tmp` is a tmpfs on several platforms, which would
 put them in RAM.
+
+## Run the image on a VPS
+
+[`compose.yaml`](../compose.yaml) is the supported way to run the image: Postgres 18.1, ClamAV, a
+migrate step, then `serve`. It uses `APP_ENV=development` because production refuses to boot
+without `S3_BUCKET` and a real mailer.
+
+```bash
+export APP_KEY="base64:$(openssl rand -base64 32)"
+docker compose up -d --build --wait
+curl -i http://localhost:3000/health
+```
+
+The app container reads:
+
+| Variable | Role |
+| --- | --- |
+| `APP_KEY` | Cookie secret. Generate it once and keep it. |
+| `APP_URL` | Public origin used in links. |
+| `APP_ENV` | `development` for this stack. `production` also needs `S3_BUCKET`. |
+| `DATABASE_URL` | Postgres URL. The queue, sessions and cache live here. |
+| `MAIL_MAILER` | `log` writes mail to the log. |
+| `CLAMAV_ADDR` | ClamAV address. Production refuses to boot when this is empty unless `CLAMAV_DISABLED=true`. |
+
+Railway builds the same `Dockerfile`. Set those variables on the service and attach
+`app.tools.vukem.dev`. `tools.vukem.dev` is the documentation site, not this container.
+
+`GET /health` is the liveness check. `GET /up?checks=1` adds the dependency checks.
+
+## Desktop downloads
+
+A version tag publishes three desktop artifacts next to this image: `vukem-tools.exe` (Windows),
+`vukem-tools_<version>_linux_amd64.AppImage`, and `vukem-tools_<version>_darwin_arm64.dmg`. Each
+one is the Wails window. It opens the web UI at `VUKEM_TOOLS_URL` (default
+`http://127.0.0.1:8080`) on the tool named by `VUKEM_TOOLS_TOOL` (default `pdf-crop`). The window
+does not ship a second copy of a tool.

@@ -67,3 +67,5 @@ vukem-feedback.md
 # Static docs export
 /site/dist/
 /site/out/
+
+development/

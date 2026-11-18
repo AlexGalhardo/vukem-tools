@@ -42,6 +42,17 @@ func NewDownloadPages(live []string, maxBytes int64, tusPath string, clipLimit t
 	return &DownloadPages{live: live, maxBytes: maxBytes, tusPath: tusPath, clipLimit: clipLimit}
 }
 
+// downloadPlatformView is one platform as the video-download page receives it.
+//
+// The domain value has no JSON tags, so Inertia would spell the fields the
+// way Go does, and it also carries the yt-dlp extractor patterns. The page
+// reads name, label and hosts, and nothing else.
+type downloadPlatformView struct {
+	Name  string   `json:"name"`
+	Label string   `json:"label"`
+	Hosts []string `json:"hosts"`
+}
+
 // VideoDownload renders the download page: GET /tools/video-download.
 //
 // A tool that is not registered is a 404, not an empty form: without yt-dlp
@@ -53,12 +64,23 @@ func (p *DownloadPages) VideoDownload(c *web.Ctx) error {
 		return orm.ErrNotFound
 	}
 
+	listed := tools.DownloadPlatforms()
+	platforms := make([]downloadPlatformView, 0, len(listed))
+
+	for i := range listed {
+		platforms = append(platforms, downloadPlatformView{
+			Name:  listed[i].Name,
+			Label: listed[i].Label,
+			Hosts: listed[i].Hosts,
+		})
+	}
+
 	return inertia.Render(c, "Tools/VideoDownload", inertia.Props{
 		"tool": entry,
 		// The platform list is the server's to state: the interface must not
 		// repeat a list it can get wrong, and the same list is published on
 		// GET /api/v1/download-platforms for any other client.
-		"platforms":      tools.DownloadPlatforms(),
+		"platforms":      platforms,
 		"maxClipSeconds": int(editor.MaxClip.Seconds()),
 	})
 }

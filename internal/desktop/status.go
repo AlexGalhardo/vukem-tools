@@ -30,7 +30,7 @@ func OriginUp(ctx context.Context, base string) bool {
 	ctx, cancel := context.WithTimeout(ctx, 2*time.Second)
 	defer cancel()
 
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, strings.TrimRight(base, "/"), nil)
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, strings.TrimRight(base, "/"), http.NoBody)
 	if err != nil {
 		return false
 	}

@@ -21,6 +21,12 @@ import (
 var version = "dev"
 
 func main() {
+	// os.Exit lives here so a deferred close of the offline page still runs.
+	os.Exit(run())
+}
+
+// run returns the process status. The offline page is closed when it returns.
+func run() int {
 	base := os.Getenv("VUKEM_TOOLS_URL")
 	if base == "" {
 		base = desktop.DefaultOrigin
@@ -34,7 +40,7 @@ func main() {
 	page, err := desktop.ToolURL(base, name)
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err)
-		os.Exit(1)
+		return 1
 	}
 
 	open := page
@@ -42,7 +48,7 @@ func main() {
 		status, err := desktop.StartStatus(version, page)
 		if err != nil {
 			fmt.Fprintln(os.Stderr, err)
-			os.Exit(1)
+			return 1
 		}
 
 		defer func() { _ = status.Close(context.Background()) }()
@@ -64,6 +70,8 @@ func main() {
 
 	if err := app.Run(); err != nil {
 		fmt.Fprintln(os.Stderr, err)
-		os.Exit(1)
+		return 1
 	}
+
+	return 0
 }

@@ -52,8 +52,10 @@ func tools(stdout, stderr io.Writer) int {
 }
 
 func pdfCmd(ctx context.Context, args []string, stdout, stderr io.Writer) int {
+	const usage = "usage: vukem-tools pdf crop --input file --output file"
+
 	if len(args) == 0 || args[0] != "crop" {
-		agent.WriteError(stderr, errors.New("usage: vukem-tools pdf crop --input file --output file"))
+		agent.WriteError(stderr, errors.New(usage))
 		return 2
 	}
 
@@ -73,7 +75,7 @@ func pdfCmd(ctx context.Context, args []string, stdout, stderr io.Writer) int {
 	}
 
 	if *input == "" || *output == "" {
-		agent.WriteError(stderr, errors.New("--input and --output are required"))
+		agent.WriteError(stderr, errors.New(usage))
 		return 2
 	}
 

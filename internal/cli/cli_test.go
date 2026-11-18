@@ -63,6 +63,43 @@ func TestToolsListsTheRegisteredCatalog(t *testing.T) {
 	}
 }
 
+func TestPDFCropWithoutFlagsPrintsUsage(t *testing.T) {
+	t.Parallel()
+
+	cases := [][]string{
+		{"pdf", "crop"},
+		{"pdf", "crop", "--input", "x.pdf"},
+	}
+
+	for _, args := range cases {
+		t.Run(strings.Join(args, " "), func(t *testing.T) {
+			t.Parallel()
+
+			var stdout, stderr bytes.Buffer
+			code := cli.Run(context.Background(), args, &stdout, &stderr)
+			if code != 2 {
+				t.Fatalf("exit %d, want 2: %s", code, stderr.String())
+			}
+
+			if stdout.Len() != 0 {
+				t.Fatalf("stdout = %q, want empty", stdout.String())
+			}
+
+			var body struct {
+				Error string `json:"error"`
+			}
+			if err := json.Unmarshal(stderr.Bytes(), &body); err != nil {
+				t.Fatalf("decode stderr: %v\n%s", err, stderr.String())
+			}
+
+			const want = "usage: vukem-tools pdf crop --input file --output file"
+			if body.Error != want {
+				t.Fatalf("error = %q, want %q", body.Error, want)
+			}
+		})
+	}
+}
+
 func TestCropEveryPageOnCLIHTTPAndMCP(t *testing.T) {
 	t.Parallel()
 

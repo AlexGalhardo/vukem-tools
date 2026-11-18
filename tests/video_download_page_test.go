@@ -17,12 +17,12 @@ import (
 // tags, so the browser received Label and Extractors and the notice read
 // ", , , ." instead of the four platform names.
 //
-// The page is registered only when yt-dlp resolves. CI does not install it,
-// and t.Setenv cannot run beside t.Parallel.
+// The page is registered only when yt-dlp resolves. The test app reads a
+// config map, not the process environment, and CI does not install yt-dlp.
 func TestVideoDownloadPageNamesThePlatforms(t *testing.T) {
-	stubYtDlp(t)
-
-	app := vukemtest.New(t, bootstrap.New)
+	app := vukemtest.New(t, bootstrap.New, vukemtest.Options{
+		Env: map[string]string{"YTDLP_PATH": stubYtDlp(t)},
+	})
 	client := app.Client(t).Inertia("")
 	register(t, app, client, "vt-002-platforms@example.com")
 
@@ -49,10 +49,11 @@ func TestVideoDownloadPageNamesThePlatforms(t *testing.T) {
 	}
 }
 
-// stubYtDlp points YTDLP_PATH at a program that only prints a version.
-// The download page stays unregistered without one, and the request is
-// redirected home.
-func stubYtDlp(t *testing.T) {
+// stubYtDlp returns a program that only prints a version. Pass it as
+// YTDLP_PATH in vukemtest.Options.Env: a path left only in the process
+// environment is invisible to the test app, the tool stays unregistered
+// and the request is redirected home.
+func stubYtDlp(t *testing.T) string {
 	t.Helper()
 
 	dir := t.TempDir()
@@ -69,5 +70,5 @@ func stubYtDlp(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	t.Setenv("YTDLP_PATH", path)
+	return path
 }

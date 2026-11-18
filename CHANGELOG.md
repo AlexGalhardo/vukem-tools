@@ -5,6 +5,20 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.8.0] - 2026-11-18
+
+### Added
+
+- **docs:** Document this toolbox on the static site ([c62d133](https://github.com/AlexGalhardo/vukem-tools/commit/c62d1335f1f120167f8a115b5a2f8041c3bd43d9))
+
+### Fixed
+
+- **ui:** Show the release when the desktop window cannot reach the app ([f05896e](https://github.com/AlexGalhardo/vukem-tools/commit/f05896edec30897411300e4162a9741b52add3ca))
+- **ui:** Correct the release label, auth copy, dates, and buttons ([bc0ef7e](https://github.com/AlexGalhardo/vukem-tools/commit/bc0ef7e036051ca8d9dc759ac1515b1542fdd2f7))
+- **downloader:** Send platform names the download page can read ([925558d](https://github.com/AlexGalhardo/vukem-tools/commit/925558da5b552e79b1efa73b738d0d56c658833e))
+- **pdf:** Print crop usage when the input or output is missing ([a7c646c](https://github.com/AlexGalhardo/vukem-tools/commit/a7c646c685374396e6a4a394a435686de429715d))
+- **ui:** Close the offline page when the desktop window fails to open ([a598524](https://github.com/AlexGalhardo/vukem-tools/commit/a5985244bff5a02435d1d1030e029c0195828614))
+
 ## [0.7.0] - 2026-11-17
 
 ### Added
@@ -207,6 +221,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - OpenAPI document and Scalar API reference ([8e3918b](https://github.com/AlexGalhardo/vukem-tools/commit/8e3918b5b33675e837ddd3e7969ba0c9110a208f))
 
+[0.8.0]: https://github.com/AlexGalhardo/vukem-tools/compare/v0.7.0...v0.8.0
 [0.7.0]: https://github.com/AlexGalhardo/vukem-tools/compare/v0.6.0...v0.7.0
 [0.6.0]: https://github.com/AlexGalhardo/vukem-tools/compare/v0.5.0...v0.6.0
 [0.5.0]: https://github.com/AlexGalhardo/vukem-tools/compare/v0.4.0...v0.5.0

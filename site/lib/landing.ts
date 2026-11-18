@@ -69,7 +69,7 @@ export const landing = {
 			id: "desktop",
 			tab: "Desktop",
 			title: "The window is the web app",
-			text: "The Windows, Linux, and macOS downloads open the web app. They do not ship a second copy of a tool. The release is shown at the bottom left of the window.",
+			text: "The Windows, Linux, and macOS downloads open the web app. They do not ship a second copy of a tool. The release is shown in the sidebar of the window.",
 			command: "VUKEM_TOOLS_URL=http://127.0.0.1:3000",
 			image: {
 				src: "/placeholders/compositing.svg",

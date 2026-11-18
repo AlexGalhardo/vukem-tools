@@ -5,10 +5,13 @@ Where the project is, and what is next. Updated at the end of every completed ta
 
 ## Now
 
-**Version:** `v0.7.0` is the latest GitHub release. It adds the Wails v3 desktop
-shell, the CLI, local HTTP and MCP adapters over the tool catalog, a latest-only
-launcher, and the static docs site. The `v0.1.0`–`v0.6.0` tags stay on the reset
-commits, about 30 commits each. `v0.6.1` stays deleted.
+**Version:** `v0.8.0` is the latest GitHub release. It keeps the `v0.7.0` desktop
+shell, CLI, local HTTP and MCP adapters, launcher, and docs site. It also places
+the release label in the sidebar, sends download-page platform names, prints CLI
+crop usage when a path is missing, states that no verification link was sent
+until one was, formats account dates and sample rates in English, and uses the
+signal colour on auth submit buttons. The `v0.1.0`–`v0.6.0` tags stay on the
+reset commits, about 30 commits each. `v0.6.1` stays deleted.
 **Next:** the owner points DNS, GitHub Pages and Railway (see `questions-to-dev.md`), supplies the
 launcher signing key, and records peak memory for LibreOffice and OCR in
 [benchmarks.md](benchmarks.md).

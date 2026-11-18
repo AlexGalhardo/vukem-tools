@@ -10,6 +10,7 @@ import {
   type AudioCapabilities,
   type AudioConvertOptions,
 } from "../../lib/conversions";
+import { englishInteger } from "../../lib/english";
 import { useToolRuns } from "../../lib/toolRun";
 
 interface Props {
@@ -223,7 +224,7 @@ function Options({
                 <option value={0}>keep the original</option>
                 {capabilities.sample_rates.map((rate) => (
                   <option key={rate} value={rate}>
-                    {rate.toLocaleString()} Hz
+                    {englishInteger(rate)} Hz
                   </option>
                 ))}
               </select>

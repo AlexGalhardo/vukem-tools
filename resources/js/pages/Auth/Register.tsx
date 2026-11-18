@@ -6,6 +6,7 @@ import PasswordField from "../../components/PasswordField";
 import SocialSignIn from "../../components/SocialSignIn";
 import type { SharedProps } from "../../types";
 import PasswordStrength from "../../components/PasswordStrength";
+import { authSubmitClass } from "./submitClass";
 
 export default function Register() {
 	// GET /register is not registered when PASSWORD_AUTH is off, so this branch
@@ -91,7 +92,7 @@ export default function Register() {
 					<button
 						type="submit"
 						disabled={form.processing}
-						className="rounded-md bg-indigo-600 px-4 py-2 font-medium text-white hover:bg-indigo-500 disabled:opacity-50"
+						className={authSubmitClass}
 					>
 						Create account
 					</button>

@@ -5,6 +5,7 @@ import Field from "../../components/Field";
 import PasswordField from "../../components/PasswordField";
 import SocialSignIn from "../../components/SocialSignIn";
 import type { SharedProps } from "../../types";
+import { authSubmitClass } from "./submitClass";
 
 export default function Login() {
 	// PASSWORD_AUTH is off until a real sending domain is verified: password
@@ -63,7 +64,7 @@ export default function Login() {
 					<button
 						type="submit"
 						disabled={form.processing}
-						className="rounded-md bg-indigo-600 px-4 py-2 font-medium text-white hover:bg-indigo-500 disabled:opacity-50"
+						className={authSubmitClass}
 					>
 						Log in
 					</button>

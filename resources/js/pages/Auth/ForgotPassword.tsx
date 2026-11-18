@@ -2,6 +2,7 @@ import { Head, useForm } from "@inertiajs/react";
 import type { FormEvent } from "react";
 
 import Field from "../../components/Field";
+import { authSubmitClass } from "./submitClass";
 
 export default function ForgotPassword() {
   const form = useForm({ email: "" });
@@ -29,7 +30,7 @@ export default function ForgotPassword() {
         <button
           type="submit"
           disabled={form.processing}
-          className="rounded-md bg-indigo-600 px-4 py-2 font-medium text-white hover:bg-indigo-500 disabled:opacity-50"
+          className={authSubmitClass}
         >
           Email me a reset link
         </button>

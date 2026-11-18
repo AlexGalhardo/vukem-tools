@@ -5,6 +5,7 @@ import CommandPalette from "./CommandPalette";
 import Icon, { type IconName } from "./Icon";
 import ThemeToggle from "./ThemeToggle";
 import { footerPages, mainPages, type Page } from "../lib/nav";
+import { release } from "../release";
 import type { SharedProps, ToolGroup } from "../types";
 
 /**
@@ -14,7 +15,8 @@ import type { SharedProps, ToolGroup } from "../types";
  *
  * Top to bottom it is the site name, the search (Ctrl+K), the tool families as
  * dropdowns — the tool a visitor picks opens in the page on the right — and,
- * at the foot, the pages that are not tools, the theme and the account.
+ * at the foot, the pages that are not tools, the theme, the account and the
+ * release.
  *
  * The column is one element for both sizes, so the two cannot drift apart.
  * Closed on a phone it is `invisible`, which also takes it out of the tab
@@ -83,20 +85,21 @@ export default function Sidebar(): React.ReactElement {
           aria-expanded={open}
           aria-controls="sidebar"
           onClick={() => setOpen(true)}
-          className="flex size-11 items-center justify-center rounded-field text-ink-soft transition-colors duration-100 hover:bg-sunken hover:text-ink"
+          className="flex size-11 shrink-0 items-center justify-center rounded-field text-ink-soft transition-colors duration-100 hover:bg-sunken hover:text-ink"
         >
           <Icon name="menu" className="size-5" />
         </button>
         <Brand />
-        <div className="flex-1" />
+        <div className="min-w-0 flex-1" />
         <button
           type="button"
           aria-label="Search tools"
           onClick={() => setSearching(true)}
-          className="flex size-11 items-center justify-center rounded-field text-ink-soft hover:bg-sunken hover:text-ink"
+          className="flex size-11 shrink-0 items-center justify-center rounded-field text-ink-soft hover:bg-sunken hover:text-ink"
         >
           <Icon name="search" className="size-5" />
         </button>
+        <p className="shrink-0 text-xs text-ink-soft">v{release}</p>
       </header>
 
       {open && (
@@ -192,6 +195,8 @@ export default function Sidebar(): React.ReactElement {
               Log in
             </Link>
           ) : null}
+
+          <p className="mt-2 px-1 text-xs text-ink-soft">v{release}</p>
         </div>
       </aside>
 

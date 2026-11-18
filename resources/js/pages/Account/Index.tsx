@@ -3,6 +3,7 @@ import { useEffect, useState } from "react";
 
 import PasswordField from "../../components/PasswordField";
 import PasswordStrength from "../../components/PasswordStrength";
+import { englishDateTime } from "../../lib/english";
 import type { SharedProps } from "../../types";
 
 interface Profile {
@@ -449,13 +450,13 @@ function KeyRow({ entry }: { entry: Key }): React.ReactElement {
 				</p>
 				<p className="mt-0.5 text-sm text-ink-soft">
 					{revoked
-						? `Revoked ${formatDate(entry.revoked_at)}`
+						? `Revoked ${englishDateTime(entry.revoked_at)}`
 						: entry.last_used_at
-							? `Last used ${formatDate(entry.last_used_at)}`
+							? `Last used ${englishDateTime(entry.last_used_at)}`
 							: "Never used"}
 					{!revoked &&
 						entry.expires_at &&
-						` · expires ${formatDate(entry.expires_at)}`}
+						` · expires ${englishDateTime(entry.expires_at)}`}
 				</p>
 			</div>
 
@@ -523,7 +524,7 @@ function UsageSection({ usage }: { usage: Usage }): React.ReactElement {
 					</div>
 					<p className="mt-2 text-sm text-ink-soft">
 						{share >= 100 ? "Spent for today. Resets" : "Resets"}{" "}
-						{formatDate(usage.resets_at)}.
+						{englishDateTime(usage.resets_at)}.
 					</p>
 				</>
 			)}
@@ -546,21 +547,4 @@ function formatDuration(seconds: number): string {
 	const rest = minutes % 60;
 
 	return rest === 0 ? `${hours} h` : `${hours} h ${rest} min`;
-}
-
-/** formatDate renders a timestamp in the reader's own locale and zone. */
-function formatDate(iso: string | null): string {
-	if (!iso) {
-		return "never";
-	}
-
-	const at = new Date(iso);
-	if (Number.isNaN(at.getTime())) {
-		return "unknown";
-	}
-
-	return at.toLocaleString(undefined, {
-		dateStyle: "medium",
-		timeStyle: "short",
-	});
 }

@@ -4,6 +4,7 @@ import type { FormEvent } from "react";
 import Field from "../../components/Field";
 import PasswordField from "../../components/PasswordField";
 import PasswordStrength from "../../components/PasswordStrength";
+import { authSubmitClass } from "./submitClass";
 
 export default function ResetPassword({ token, email }: { token: string; email: string }) {
   const form = useForm({ token, email, password: "", password_confirmation: "" });
@@ -56,7 +57,7 @@ export default function ResetPassword({ token, email }: { token: string; email: 
         <button
           type="submit"
           disabled={form.processing}
-          className="rounded-md bg-indigo-600 px-4 py-2 font-medium text-white hover:bg-indigo-500 disabled:opacity-50"
+          className={authSubmitClass}
         >
           Reset password
         </button>

@@ -1,0 +1,1754 @@
+[
+	{
+		"name": "archive-create",
+		"title": "Create an archive",
+		"summary": "Packs several files into one ZIP, TAR.GZ, TAR or GZ, with the compression level yours to set.",
+		"description": "ZIP, TAR.GZ, TAR or GZ. The order of file_ids is the order of the entries, and each entry keeps the name its upload had. gz is the exception: it compresses a single stream, so submitting more than one file for it is a validation error rather than an archive holding only the first. XZ and ZSTD are not offered — neither is in the Go standard library, and the four formats here cover what a web service is sent.",
+		"group": "Archives and data",
+		"kind": "pipeline",
+		"area": "archive",
+		"command": "create",
+		"operation": "tools.archive-create",
+		"files": {
+			"field": "file_ids",
+			"min": 1,
+			"max": 64
+		},
+		"options": {
+			"description": "The format, the compression level and the archive's name. Every field is optional.",
+			"properties": {
+				"format": {
+					"description": "zip, tar.gz, tar or gz. Default zip.",
+					"maxLength": 8,
+					"type": "string"
+				},
+				"level": {
+					"description": "Compression level, 1 to 9. 0 uses the format's default.",
+					"maximum": 9,
+					"minimum": 0,
+					"type": "integer"
+				},
+				"name": {
+					"description": "The archive's name, without an extension. Default archive.",
+					"maxLength": 64,
+					"type": "string"
+				}
+			},
+			"type": "object"
+		}
+	},
+	{
+		"name": "archive-extract",
+		"title": "Extract an archive",
+		"summary": "Unpacks a ZIP, TAR, TAR.GZ or GZ into its files, each one a download of its own.",
+		"description": "Each member becomes a result of its own with its own expiry, so all of them have to be downloaded within the result lifetime. The format is read from the archive's bytes rather than its name. Folders are flattened: only a member's filename survives, and two members that then share a name are both kept, numbered. An archive is refused if it holds more than 64 files or unpacks to more than 512 MB, or if any member is a link or a device rather than a file.",
+		"group": "Archives and data",
+		"kind": "pipeline",
+		"area": "archive",
+		"command": "extract",
+		"operation": "tools.archive-extract",
+		"files": {
+			"field": "file_id",
+			"min": 1,
+			"max": 1
+		},
+		"options": {
+			"description": "Extracting has no options: the archive says what it is.",
+			"properties": {},
+			"type": "object"
+		}
+	},
+	{
+		"name": "audio-convert",
+		"title": "Convert audio",
+		"summary": "Between MP3, WAV, FLAC, Ogg and AAC, with the bitrate under your control.",
+		"description": "The same operation either way: a video input has its picture dropped and its audio encoded. Loudness normalisation aims at -16 LUFS, the figure streaming platforms use, and the two-pass form measures the whole recording first so it actually hits the target.",
+		"group": "Video and audio",
+		"kind": "pipeline",
+		"area": "audio",
+		"command": "convert",
+		"operation": "tools.audio-convert",
+		"files": {
+			"field": "file_id",
+			"min": 1,
+			"max": 1
+		},
+		"options": {
+			"description": "How to convert. Only the output format is required. A video input has its soundtrack extracted.",
+			"properties": {
+				"bitrate": {
+					"description": "Bit rate in kbit/s for MP3, Opus and AAC. 0 uses the format's default. Ignored by FLAC and WAV, which are lossless.",
+					"maximum": 320,
+					"minimum": 0,
+					"type": "integer"
+				},
+				"channels": {
+					"description": "1 for mono, 2 for stereo. 0 keeps the source's.",
+					"maximum": 2,
+					"minimum": 0,
+					"type": "integer"
+				},
+				"normalise": {
+					"description": "Normalise the loudness to -16 LUFS, the figure streaming platforms use.",
+					"type": "boolean"
+				},
+				"sample_rate": {
+					"description": "Resample, in hertz. 0 keeps the source's rate.",
+					"maximum": 192000,
+					"minimum": 0,
+					"type": "integer"
+				},
+				"to": {
+					"description": "mp3, wav, flac, opus or aac. GET /api/v1/tools/audio-convert/formats lists what this server can write.",
+					"maxLength": 8,
+					"type": "string"
+				},
+				"two_pass": {
+					"description": "Measure the whole recording before correcting it. Costs a second decode and is the only way to hit the target reliably.",
+					"type": "boolean"
+				}
+			},
+			"type": "object"
+		}
+	},
+	{
+		"name": "base64",
+		"title": "Base64 encode and decode",
+		"summary": "Encodes and decodes text or a file as Base64 or URL-safe Base64.",
+		"group": "Developer tools",
+		"kind": "browser"
+	},
+	{
+		"name": "cep-lookup",
+		"title": "Look up a CEP",
+		"summary": "Finds a Brazilian address from its CEP through ViaCEP.",
+		"group": "Brazil",
+		"kind": "browser"
+	},
+	{
+		"name": "chat-template",
+		"title": "Convert chat messages",
+		"summary": "Converts a conversation between the OpenAI and Anthropic message formats.",
+		"group": "LLM and agents",
+		"kind": "browser"
+	},
+	{
+		"name": "cnpj-lookup",
+		"title": "Look up a CNPJ",
+		"summary": "Finds a company's registration data from its CNPJ through BrasilAPI.",
+		"group": "Brazil",
+		"kind": "browser"
+	},
+	{
+		"name": "cpf-cnpj",
+		"title": "CPF and CNPJ",
+		"summary": "Generates and validates CPF and CNPJ numbers by their check digits, including the alphanumeric CNPJ.",
+		"group": "Brazil",
+		"kind": "browser"
+	},
+	{
+		"name": "data-convert",
+		"title": "Convert JSON, YAML, CSV and XML",
+		"summary": "Converts between JSON, YAML, CSV and XML in the browser; nothing is uploaded.",
+		"group": "Developer tools",
+		"kind": "browser"
+	},
+	{
+		"name": "diff",
+		"title": "Diff JSON and text",
+		"summary": "Compares two texts line by line, or two JSON documents key by key, and shows what changed.",
+		"group": "Developer tools",
+		"kind": "browser"
+	},
+	{
+		"name": "excel-to-pdf",
+		"title": "Excel to PDF",
+		"summary": "Converts a spreadsheet to PDF, each sheet paginated by its own print settings.",
+		"description": "Converted with LibreOffice from the document's own page setup. A font the server does not have is replaced by a similar one, so line breaks can differ from the original application, and macros never run. Linked images that need the network are left out. Each sheet is paginated by its own print settings.",
+		"group": "PDF tools",
+		"kind": "pipeline",
+		"area": "office",
+		"command": "excel-to-pdf",
+		"operation": "tools.excel-to-pdf",
+		"files": {
+			"field": "file_id",
+			"min": 1,
+			"max": 1
+		},
+		"options": {
+			"description": "No options.",
+			"properties": {},
+			"type": "object"
+		}
+	},
+	{
+		"name": "fake-person",
+		"title": "Fake person generator",
+		"summary": "Generates people with valid-looking Brazilian documents and addresses for test data. None of them is real.",
+		"group": "Brazil",
+		"kind": "browser"
+	},
+	{
+		"name": "hash",
+		"title": "Hash and HMAC",
+		"summary": "MD5, SHA-1, SHA-256, SHA-384 and SHA-512 of a text or a file, with an optional HMAC key.",
+		"group": "Developer tools",
+		"kind": "browser"
+	},
+	{
+		"name": "image-compress",
+		"title": "Compress an image",
+		"summary": "Makes an image smaller without a visible difference, and reports exactly how much was saved.",
+		"description": "The format never changes; image-convert is what changes a format. Each mode runs every encoder setting worth trying and keeps the smallest file, so a lossy compression can legitimately come back lossless when that was smaller. A file this encoder cannot beat is returned unchanged with the fact stated, rather than re-encoded into something larger. PNG and GIF compress losslessly by default, JPEG and WebP lossily; lossless is refused for JPEG, because libvips has no lossless JPEG re-encode and jpegtran is not in this image. Metadata is always removed.",
+		"group": "Images",
+		"kind": "pipeline",
+		"area": "image",
+		"command": "compress",
+		"operation": "tools.image-compress",
+		"files": {
+			"field": "file_id",
+			"min": 1,
+			"max": 1
+		},
+		"options": {
+			"description": "How hard to compress. Every field is optional.",
+			"properties": {
+				"effort": {
+					"description": "1 to 10, meaning depends on the format. 0 uses the highest the encoder supports.",
+					"maximum": 10,
+					"minimum": 0,
+					"type": "integer"
+				},
+				"mode": {
+					"description": "lossless or lossy. Empty picks by format: lossless for PNG and GIF, lossy for JPEG and WebP.",
+					"maxLength": 16,
+					"type": "string"
+				},
+				"quality": {
+					"description": "1 to 100, for a lossy compression. 0 uses the format's default.",
+					"maximum": 100,
+					"minimum": 0,
+					"type": "integer"
+				}
+			},
+			"type": "object"
+		}
+	},
+	{
+		"name": "image-convert",
+		"title": "Convert an image",
+		"summary": "Between PNG, JPEG, WebP, AVIF and more, with control over quality and whether transparency is kept.",
+		"description": "One libvips pass does all of it: a resize is a re-encode with a target size, and the orientation and colour handling happen on the same pass. EXIF is removed unless you ask for it, because a photograph's EXIF often carries GPS coordinates and a device serial number.",
+		"group": "Images",
+		"kind": "pipeline",
+		"area": "image",
+		"command": "convert",
+		"operation": "tools.image-convert",
+		"files": {
+			"field": "file_id",
+			"min": 1,
+			"max": 1
+		},
+		"options": {
+			"description": "How to convert. Only the output format is required.",
+			"properties": {
+				"crop_height": {
+					"description": "Crop height. 0 means no crop.",
+					"maximum": 20000,
+					"minimum": 0,
+					"type": "integer"
+				},
+				"crop_left": {
+					"description": "Crop origin from the left, in source pixels.",
+					"maximum": 20000,
+					"minimum": 0,
+					"type": "integer"
+				},
+				"crop_top": {
+					"description": "Crop origin from the top, in source pixels.",
+					"maximum": 20000,
+					"minimum": 0,
+					"type": "integer"
+				},
+				"crop_width": {
+					"description": "Crop width. 0 means no crop.",
+					"maximum": 20000,
+					"minimum": 0,
+					"type": "integer"
+				},
+				"effort": {
+					"description": "0 to 10, meaning depends on the format. 0 uses the default.",
+					"maximum": 10,
+					"minimum": 0,
+					"type": "integer"
+				},
+				"flip": {
+					"description": "horizontal or vertical. Empty means no flip.",
+					"maxLength": 16,
+					"type": "string"
+				},
+				"height": {
+					"description": "Target height in pixels. 0 leaves that axis open.",
+					"maximum": 20000,
+					"minimum": 0,
+					"type": "integer"
+				},
+				"keep_animation": {
+					"description": "Keep every frame of an animated GIF or WebP. Off by default; only applies when the output format is animated too.",
+					"type": "boolean"
+				},
+				"keep_metadata": {
+					"description": "Keep EXIF, XMP and IPTC. Off by default: a photograph's EXIF often carries GPS coordinates and a device serial number.",
+					"type": "boolean"
+				},
+				"lossless": {
+					"description": "Lossless encoding for WebP, AVIF and JPEG XL. Ignored by formats with no lossless mode.",
+					"type": "boolean"
+				},
+				"quality": {
+					"description": "1 to 100 for JPEG, WebP, AVIF and JPEG XL. 0 uses the format's default.",
+					"maximum": 100,
+					"minimum": 0,
+					"type": "integer"
+				},
+				"resize": {
+					"description": "fit, fill or exact. Empty leaves the size alone.",
+					"maxLength": 8,
+					"type": "string"
+				},
+				"rotate": {
+					"description": "Quarter turns clockwise: 0, 90, 180 or 270.",
+					"maximum": 270,
+					"minimum": 0,
+					"type": "integer"
+				},
+				"to": {
+					"description": "Output format. GET /api/v1/tools/image-convert/formats lists the ones this server can write.",
+					"maxLength": 16,
+					"type": "string"
+				},
+				"upscale": {
+					"description": "Allow making the image larger. Off by default: upscaling produces a bigger file that looks worse.",
+					"type": "boolean"
+				},
+				"width": {
+					"description": "Target width in pixels. 0 leaves that axis open.",
+					"maximum": 20000,
+					"minimum": 0,
+					"type": "integer"
+				}
+			},
+			"type": "object"
+		}
+	},
+	{
+		"name": "images-to-pdf",
+		"title": "Images to PDF",
+		"summary": "Binds JPEG, PNG, WebP, TIFF and AVIF into one PDF, one image per page. A JPEG is embedded without being re-encoded.",
+		"description": "A JPEG input is embedded exactly as uploaded, re-encoded zero times. Anything else is converted to JPEG once, with transparency flattened onto white. The order of file_ids is the page order.",
+		"group": "PDF tools",
+		"kind": "pipeline",
+		"area": "image",
+		"command": "to-pdf",
+		"operation": "tools.images-to-pdf",
+		"files": {
+			"field": "file_ids",
+			"min": 1,
+			"max": 50
+		},
+		"options": {
+			"description": "Page size, orientation, fit and margin.",
+			"properties": {
+				"fit": {
+					"description": "contain fits inside the margins, fill covers the page, exact makes the page the image's own size. Default contain.",
+					"maxLength": 16,
+					"type": "string"
+				},
+				"margin": {
+					"description": "Points of space around the image, 0 to 144. Default 0.",
+					"format": "double",
+					"maximum": 144,
+					"minimum": 0,
+					"type": "number"
+				},
+				"orientation": {
+					"description": "auto turns each page to match its image. Also portrait or landscape. Default auto.",
+					"maxLength": 16,
+					"type": "string"
+				},
+				"page_size": {
+					"description": "a4, a3, a5, letter or legal. Default a4.",
+					"maxLength": 16,
+					"type": "string"
+				},
+				"quality": {
+					"description": "Quality for images that have to be converted, 1 to 100. Default 90. A JPEG input is never re-encoded.",
+					"maximum": 100,
+					"minimum": 0,
+					"type": "integer"
+				}
+			},
+			"type": "object"
+		}
+	},
+	{
+		"name": "json-format",
+		"title": "Format and validate JSON",
+		"summary": "Pretty-prints, minifies and validates JSON, and points at the line and column of the first error.",
+		"group": "Developer tools",
+		"kind": "browser"
+	},
+	{
+		"name": "json-schema",
+		"title": "Validate against a JSON Schema",
+		"summary": "Checks a JSON document against a JSON Schema, or an LLM tool definition against the shape agents expect.",
+		"group": "Developer tools",
+		"kind": "browser"
+	},
+	{
+		"name": "jwt-decode",
+		"title": "Decode a JWT",
+		"summary": "Shows a JSON Web Token's header, payload and expiry. It does not verify the signature.",
+		"group": "Developer tools",
+		"kind": "browser"
+	},
+	{
+		"name": "llm-clean",
+		"title": "Clean LLM output",
+		"summary": "Extracts JSON from a model's reply and strips code fences, preambles and stray markdown.",
+		"group": "LLM and agents",
+		"kind": "browser"
+	},
+	{
+		"name": "llm-cost",
+		"title": "Estimate LLM cost",
+		"summary": "Turns input and output token counts into a price for the models in a table you can edit.",
+		"group": "LLM and agents",
+		"kind": "browser"
+	},
+	{
+		"name": "password",
+		"title": "Strong password generator",
+		"summary": "Generates random passwords and passphrases with the browser's secure random source, and shows their entropy.",
+		"group": "Developer tools",
+		"kind": "browser"
+	},
+	{
+		"name": "pdf-compare",
+		"title": "Compare two PDFs",
+		"summary": "A page-aligned difference of the two documents' text. A change to a font, a margin or a picture does not change the text, so it does not appear.",
+		"description": "Exactly two uploads, the earlier document first. The result is a Markdown report of the lines that differ on each page. It compares text: a change to a font, a margin or a picture does not change the text, so it does not appear.",
+		"group": "PDF tools",
+		"kind": "pipeline",
+		"area": "pdf",
+		"command": "compare",
+		"operation": "tools.pdf-compare",
+		"files": {
+			"field": "file_ids",
+			"min": 2,
+			"max": 2
+		},
+		"options": {
+			"description": "Comparison has no options.",
+			"properties": {},
+			"type": "object"
+		}
+	},
+	{
+		"name": "pdf-compress",
+		"title": "Compress a PDF",
+		"summary": "Makes a PDF smaller at one of three levels, and returns it unchanged rather than larger when it is already optimised.",
+		"description": "Three levels, which differ in the resolution images are downsampled to: 300, 150 or 96 DPI. A document that is already smaller than the compressed version is returned unchanged rather than re-encoded into something larger, and the conversion says which happened.",
+		"group": "PDF tools",
+		"kind": "pipeline",
+		"area": "pdf",
+		"command": "compress",
+		"operation": "tools.pdf-compress",
+		"files": {
+			"field": "file_id",
+			"min": 1,
+			"max": 1
+		},
+		"options": {
+			"description": "Which compression level to use.",
+			"properties": {
+				"level": {
+					"description": "light keeps every page's appearance, balanced is the default, strong is for email.",
+					"maxLength": 16,
+					"type": "string"
+				}
+			},
+			"type": "object"
+		}
+	},
+	{
+		"name": "pdf-crop",
+		"title": "Crop a PDF",
+		"summary": "Trims the margins by setting the crop box. The content is hidden rather than deleted, so the crop can be undone.",
+		"description": "Sets the crop box, which is what a reader displays and prints. The trimmed content is hidden rather than deleted, so the crop can be undone, and everything else about the document is left alone.",
+		"group": "PDF tools",
+		"kind": "pipeline",
+		"area": "pdf",
+		"command": "crop",
+		"operation": "tools.pdf-crop",
+		"files": {
+			"field": "file_id",
+			"min": 1,
+			"max": 1
+		},
+		"options": {
+			"description": "How many points to trim from each edge.",
+			"properties": {
+				"bottom": {
+					"description": "Points to trim from the bottom edge.",
+					"format": "double",
+					"maximum": 1000,
+					"minimum": 0,
+					"type": "number"
+				},
+				"left": {
+					"description": "Points to trim from the left edge.",
+					"format": "double",
+					"maximum": 1000,
+					"minimum": 0,
+					"type": "number"
+				},
+				"pages": {
+					"description": "Pages to crop, as 1-3,5. Empty crops every page.",
+					"maxLength": 512,
+					"type": "string"
+				},
+				"right": {
+					"description": "Points to trim from the right edge.",
+					"format": "double",
+					"maximum": 1000,
+					"minimum": 0,
+					"type": "number"
+				},
+				"top": {
+					"description": "Points to trim from the top edge.",
+					"format": "double",
+					"maximum": 1000,
+					"minimum": 0,
+					"type": "number"
+				}
+			},
+			"type": "object"
+		},
+		"options_required": true
+	},
+	{
+		"name": "pdf-extract-pages",
+		"title": "Extract pages",
+		"summary": "Pulls the pages you name into one new PDF. The bookmarks are dropped, because some would point at pages that are no longer there.",
+		"description": "Pages are named as 1-3,5,8-z, where z is the last page. A page the document does not have is a validation error rather than a page quietly skipped. The bookmarks are dropped, because some would point at pages that are no longer there.",
+		"group": "PDF tools",
+		"kind": "pipeline",
+		"area": "pdf",
+		"command": "extract-pages",
+		"operation": "tools.pdf-extract-pages",
+		"files": {
+			"field": "file_id",
+			"min": 1,
+			"max": 1
+		},
+		"options": {
+			"description": "Which pages to keep.",
+			"properties": {
+				"pages": {
+					"description": "Pages, as 1-3,5,8-z. z is the last page.",
+					"maxLength": 512,
+					"minLength": 1,
+					"type": "string"
+				}
+			},
+			"required": [
+				"pages"
+			],
+			"type": "object"
+		},
+		"options_required": true
+	},
+	{
+		"name": "pdf-forms",
+		"title": "PDF forms",
+		"summary": "Lists a form's fields as JSON, fills them by name, and flattens the result into plain page content.",
+		"description": "The list action returns every field as JSON: its full name, type (text, checkbox, radio, choice), current value, options and whether it is read-only. The fill action sets the values you give, by field name; a checkbox takes true or false, and a radio group or a choice takes one of its listed options. A field that does not exist, is read-only, or is given a value it cannot hold is refused rather than skipped. The flatten action, or flatten on a fill, turns the form into plain page content. Scripts in the form do not run, so calculated fields are not recalculated.",
+		"group": "PDF tools",
+		"kind": "pipeline",
+		"area": "pdf",
+		"command": "forms",
+		"operation": "tools.pdf-forms",
+		"files": {
+			"field": "file_id",
+			"min": 1,
+			"max": 1
+		},
+		"options": {
+			"description": "What to do with the form, and the values to fill.",
+			"properties": {
+				"action": {
+					"description": "list reports the fields as JSON; fill sets the values given; flatten turns the form into plain page content. Default list.",
+					"maxLength": 16,
+					"type": "string"
+				},
+				"flatten": {
+					"description": "Flatten the form after filling it, so the values can no longer be edited.",
+					"type": "boolean"
+				},
+				"values": {
+					"description": "The fields to fill, for the fill action.",
+					"items": {
+						"properties": {
+							"name": {
+								"description": "The field's full name, as the list action reports it.",
+								"maxLength": 512,
+								"minLength": 1,
+								"type": "string"
+							},
+							"value": {
+								"description": "The value. A checkbox takes true or false; a radio group or a choice takes one of its options.",
+								"maxLength": 10000,
+								"type": "string"
+							}
+						},
+						"required": [
+							"name"
+						],
+						"type": "object"
+					},
+					"maxItems": 1000,
+					"type": "array"
+				}
+			},
+			"type": "object"
+		}
+	},
+	{
+		"name": "pdf-merge",
+		"title": "Merge PDFs",
+		"summary": "Joins several PDFs into one, in the order you arrange them. Keeps the first document's bookmarks and every document's links.",
+		"description": "The order of file_ids is the order of the pages. The first document's bookmarks and every document's links are kept; the later documents' bookmarks cannot be, because there is nowhere to graft them on. An encrypted input is refused.",
+		"group": "PDF tools",
+		"kind": "pipeline",
+		"area": "pdf",
+		"command": "merge",
+		"operation": "tools.pdf-merge",
+		"files": {
+			"field": "file_ids",
+			"min": 2,
+			"max": 50
+		},
+		"options": {
+			"description": "Merging has no options; the order of file_ids is the order of the pages.",
+			"properties": {},
+			"type": "object"
+		}
+	},
+	{
+		"name": "pdf-ocr",
+		"title": "OCR a PDF",
+		"summary": "Recognises the text of a scanned PDF and adds it as a hidden layer, so it can be searched and copied. English and Portuguese.",
+		"description": "Recognises the text of scanned pages with Tesseract and adds it as an invisible layer, so the document can be searched and copied from. Pages that already have text are left as they are. English and Portuguese are installed; name both for a mixed document. At most 100 pages. Recognition makes mistakes: check names and numbers.",
+		"group": "PDF tools",
+		"kind": "pipeline",
+		"area": "pdf",
+		"command": "ocr",
+		"operation": "tools.pdf-ocr",
+		"files": {
+			"field": "file_id",
+			"min": 1,
+			"max": 1
+		},
+		"options": {
+			"description": "The languages in the scan.",
+			"properties": {
+				"deskew": {
+					"description": "Straighten pages that were scanned at a slight angle.",
+					"type": "boolean"
+				},
+				"languages": {
+					"description": "Languages in the scan: eng, por. Several may be combined. Default eng.",
+					"items": {
+						"maxLength": 8,
+						"type": "string"
+					},
+					"maxItems": 4,
+					"type": "array"
+				}
+			},
+			"type": "object"
+		}
+	},
+	{
+		"name": "pdf-organise",
+		"title": "Organise a PDF",
+		"summary": "Reorders and duplicates pages from one page list. A pure reordering keeps the bookmarks, because every page is still there.",
+		"description": "The page list is the new order, and a page may appear twice. A list that is a pure reordering keeps the bookmarks, because every page is still there; one that drops a page does not.",
+		"group": "PDF tools",
+		"kind": "pipeline",
+		"area": "pdf",
+		"command": "organise",
+		"operation": "tools.pdf-organise",
+		"files": {
+			"field": "file_id",
+			"min": 1,
+			"max": 1
+		},
+		"options": {
+			"description": "The pages in the order they should appear.",
+			"properties": {
+				"pages": {
+					"description": "Pages, as 1-3,5,8-z. z is the last page.",
+					"maxLength": 512,
+					"minLength": 1,
+					"type": "string"
+				}
+			},
+			"required": [
+				"pages"
+			],
+			"type": "object"
+		},
+		"options_required": true
+	},
+	{
+		"name": "pdf-page-numbers",
+		"title": "Add page numbers",
+		"summary": "Stamps page numbers in the position and format you choose, over the whole document or a range, starting at any number.",
+		"description": "The label is a template: {n} is the number and {total} the count, so \"Page {n} of {total}\" and \"- {n} -\" both work. Numbering can start at any number and cover a page range, which is what a document with a cover page needs.",
+		"group": "PDF tools",
+		"kind": "pipeline",
+		"area": "pdf",
+		"command": "page-numbers",
+		"operation": "tools.pdf-page-numbers",
+		"files": {
+			"field": "file_id",
+			"min": 1,
+			"max": 1
+		},
+		"options": {
+			"description": "The label, the position and which pages.",
+			"properties": {
+				"format": {
+					"description": "The label, with {n} for the number and {total} for the count. Default {n}.",
+					"maxLength": 200,
+					"type": "string"
+				},
+				"pages": {
+					"description": "Pages to number, as 2-z. Empty numbers every page.",
+					"maxLength": 512,
+					"type": "string"
+				},
+				"position": {
+					"description": "top-left to bottom-right. Default bottom-center.",
+					"maxLength": 16,
+					"type": "string"
+				},
+				"size": {
+					"description": "Font size in points, 4 to 144. Default 10.",
+					"format": "double",
+					"maximum": 144,
+					"minimum": 0,
+					"type": "number"
+				},
+				"start_at": {
+					"description": "The number on the first numbered page. Default 1.",
+					"maximum": 100000,
+					"minimum": 0,
+					"type": "integer"
+				}
+			},
+			"type": "object"
+		}
+	},
+	{
+		"name": "pdf-protect",
+		"title": "Protect a PDF",
+		"summary": "Encrypts with AES-256 and sets what a reader may print, change and copy. Nobody, including this service, can recover a password you lose.",
+		"description": "AES-256, with the printing, modification and extraction permissions you choose. The owner password is required, because permissions without one can be removed by any PDF tool. Nobody, including this service, can recover a password you lose.",
+		"group": "PDF tools",
+		"kind": "pipeline",
+		"area": "pdf",
+		"command": "protect",
+		"operation": "tools.pdf-protect",
+		"files": {
+			"field": "file_id",
+			"min": 1,
+			"max": 1
+		},
+		"options": {
+			"description": "The passwords and the permissions.",
+			"properties": {
+				"allow_extract": {
+					"description": "Allow text to be copied out. Screen-reader access is always allowed.",
+					"type": "boolean"
+				},
+				"modify": {
+					"description": "all, annotate, form, assembly or none. Default all.",
+					"maxLength": 16,
+					"type": "string"
+				},
+				"owner_password": {
+					"description": "The password that lifts the restrictions. Required, and must differ from the opening password.",
+					"maxLength": 256,
+					"minLength": 1,
+					"type": "string"
+				},
+				"print": {
+					"description": "full, low or none. Default full.",
+					"maxLength": 8,
+					"type": "string"
+				},
+				"user_password": {
+					"description": "The password needed to open the document. Leave empty to restrict permissions only.",
+					"maxLength": 256,
+					"type": "string"
+				}
+			},
+			"required": [
+				"owner_password"
+			],
+			"type": "object"
+		},
+		"options_required": true
+	},
+	{
+		"name": "pdf-remove-pages",
+		"title": "Remove pages",
+		"summary": "Deletes the pages you name and keeps the rest, in their original order.",
+		"description": "The inverse of extracting: the pages named are removed and the rest keep their order. Removing every page is refused.",
+		"group": "PDF tools",
+		"kind": "pipeline",
+		"area": "pdf",
+		"command": "remove-pages",
+		"operation": "tools.pdf-remove-pages",
+		"files": {
+			"field": "file_id",
+			"min": 1,
+			"max": 1
+		},
+		"options": {
+			"description": "Which pages to remove.",
+			"properties": {
+				"pages": {
+					"description": "Pages, as 1-3,5,8-z. z is the last page.",
+					"maxLength": 512,
+					"minLength": 1,
+					"type": "string"
+				}
+			},
+			"required": [
+				"pages"
+			],
+			"type": "object"
+		},
+		"options_required": true
+	},
+	{
+		"name": "pdf-repair",
+		"title": "Repair a PDF",
+		"summary": "Rebuilds a damaged PDF's structure. It recovers the structure, not content the file no longer holds, and it says so rather than returning a document that opens empty.",
+		"description": "Best effort, and honest about the limit: it rebuilds the cross-reference table and the object graph, not content the file no longer holds. A file it cannot rebuild into a readable document is refused rather than returned as a document that opens empty.",
+		"group": "PDF tools",
+		"kind": "pipeline",
+		"area": "pdf",
+		"command": "repair",
+		"operation": "tools.pdf-repair",
+		"files": {
+			"field": "file_id",
+			"min": 1,
+			"max": 1
+		},
+		"options": {
+			"description": "Repair has no options.",
+			"properties": {},
+			"type": "object"
+		}
+	},
+	{
+		"name": "pdf-rotate",
+		"title": "Rotate a PDF",
+		"summary": "Turns pages by 90, 180 or 270 degrees, all of them or the ones you name. Nothing else about the document changes.",
+		"description": "By default the rotation is added to each page's own; set absolute to replace it. Nothing else about the document changes: the bookmarks, the links and the page content are untouched.",
+		"group": "PDF tools",
+		"kind": "pipeline",
+		"area": "pdf",
+		"command": "rotate",
+		"operation": "tools.pdf-rotate",
+		"files": {
+			"field": "file_id",
+			"min": 1,
+			"max": 1
+		},
+		"options": {
+			"description": "How far to rotate, and which pages.",
+			"properties": {
+				"absolute": {
+					"description": "Set the rotation rather than add to the page's current one.",
+					"type": "boolean"
+				},
+				"degrees": {
+					"description": "90, 180 or 270, clockwise. Default 90.",
+					"maximum": 360,
+					"minimum": 0,
+					"type": "integer"
+				},
+				"pages": {
+					"description": "Pages to rotate, as 1-3,5. Empty rotates every page.",
+					"maxLength": 512,
+					"type": "string"
+				}
+			},
+			"type": "object"
+		}
+	},
+	{
+		"name": "pdf-sign",
+		"title": "Sign a PDF",
+		"summary": "Applying a cryptographic signature to a document.",
+		"description": "Exactly two uploads: the PDF and a .p12 (or .pfx) bundle holding your certificate and private key, with the bundle's password in the options. The signature is an invisible, detached CMS signature (adbe.pkcs7.detached) with SHA-256, RSA or ECDSA, and any PDF reader can verify it. The key is used for this one signature and is not kept: the bundle is deleted with the other uploads when they expire. A self-signed certificate proves the document has not changed since signing, but a reader will not vouch for who signed it until it trusts that certificate; this is not a qualified electronic signature. An expired certificate, an encrypted document, and a document that is already signed are refused, because signing again would invalidate the first signature.",
+		"group": "PDF tools",
+		"kind": "pipeline",
+		"area": "pdf",
+		"command": "sign",
+		"operation": "tools.pdf-sign",
+		"files": {
+			"field": "file_ids",
+			"min": 2,
+			"max": 2
+		},
+		"options": {
+			"description": "The bundle's password and what to show beside the signature.",
+			"properties": {
+				"contact": {
+					"description": "How to reach the signer. Optional.",
+					"maxLength": 200,
+					"type": "string"
+				},
+				"location": {
+					"description": "Where you are signing. Optional.",
+					"maxLength": 200,
+					"type": "string"
+				},
+				"password": {
+					"description": "The password of the .p12 certificate bundle. The key is used for this one signature and is not kept.",
+					"maxLength": 256,
+					"minLength": 1,
+					"type": "string"
+				},
+				"reason": {
+					"description": "Why you are signing. Shown beside the signature. Optional.",
+					"maxLength": 200,
+					"type": "string"
+				}
+			},
+			"required": [
+				"password"
+			],
+			"type": "object"
+		},
+		"options_required": true
+	},
+	{
+		"name": "pdf-split",
+		"title": "Split a PDF",
+		"summary": "Breaks a PDF into separate files, either every n pages or by the ranges you name. Each part has to be downloaded before the result expires.",
+		"description": "Either every n pages or by the ranges you name. Every part is a result of its own with its own expiry, so all of them have to be downloaded within the result lifetime. The parts do not carry the original's bookmarks, because a part holds a subset of the pages.",
+		"group": "PDF tools",
+		"kind": "pipeline",
+		"area": "pdf",
+		"command": "split",
+		"operation": "tools.pdf-split",
+		"files": {
+			"field": "file_id",
+			"min": 1,
+			"max": 1
+		},
+		"options": {
+			"description": "How to split. Every field is optional.",
+			"properties": {
+				"every": {
+					"description": "Pages per file, for the every mode. Default 1.",
+					"maximum": 10000,
+					"minimum": 0,
+					"type": "integer"
+				},
+				"mode": {
+					"description": "every splits into groups of n pages; ranges uses the ranges given. Default every.",
+					"maxLength": 16,
+					"type": "string"
+				},
+				"ranges": {
+					"description": "One range per output file, for the ranges mode.",
+					"items": {
+						"maxLength": 512,
+						"type": "string"
+					},
+					"maxItems": 500,
+					"type": "array"
+				}
+			},
+			"type": "object"
+		}
+	},
+	{
+		"name": "pdf-to-image",
+		"title": "PDF to JPG or PNG",
+		"summary": "Renders each page to an image at the resolution you choose, from 36 to 600 DPI.",
+		"description": "One image per page, at 36 to 600 DPI. Pages are rendered from the crop box, so the image matches what a reader shows rather than the untrimmed sheet.",
+		"group": "PDF tools",
+		"kind": "pipeline",
+		"area": "pdf",
+		"command": "to-image",
+		"operation": "tools.pdf-to-image",
+		"files": {
+			"field": "file_id",
+			"min": 1,
+			"max": 1
+		},
+		"options": {
+			"description": "Format, resolution and which pages.",
+			"properties": {
+				"dpi": {
+					"description": "Resolution, 36 to 600. Default 150.",
+					"maximum": 600,
+					"minimum": 0,
+					"type": "integer"
+				},
+				"format": {
+					"description": "png or jpeg. Default png.",
+					"maxLength": 8,
+					"type": "string"
+				},
+				"pages": {
+					"description": "Pages to render, as 1-3,5. Empty renders every page.",
+					"maxLength": 512,
+					"type": "string"
+				},
+				"quality": {
+					"description": "JPEG quality, 1 to 100. Default 85.",
+					"maximum": 100,
+					"minimum": 0,
+					"type": "integer"
+				}
+			},
+			"type": "object"
+		}
+	},
+	{
+		"name": "pdf-to-pdfa",
+		"title": "PDF to PDF/A",
+		"summary": "Converts to the archival format, PDF/A-1b, 2b or 3b, and reports the converter's own conformance verdict rather than assuming it.",
+		"description": "Targets PDF/A-1b, 2b or 3b. Content is kept in preference to conformance: a document that cannot be made conformant comes back with its pages intact and the converter's own list of what is wrong, rather than conformant with content silently removed.",
+		"group": "PDF tools",
+		"kind": "pipeline",
+		"area": "pdf",
+		"command": "to-pdfa",
+		"operation": "tools.pdf-to-pdfa",
+		"files": {
+			"field": "file_id",
+			"min": 1,
+			"max": 1
+		},
+		"options": {
+			"description": "Which conformance level to target.",
+			"properties": {
+				"part": {
+					"description": "PDF/A conformance: 1 for 1b, 2 for 2b, 3 for 3b. Default 2.",
+					"maximum": 3,
+					"minimum": 0,
+					"type": "integer"
+				}
+			},
+			"type": "object"
+		}
+	},
+	{
+		"name": "pdf-to-text",
+		"title": "PDF to text or Markdown",
+		"summary": "Extracts the text, optionally as Markdown with headings and lists recognised. It is a text conversion, not a layout reconstruction.",
+		"description": "The Markdown form recognises numbered and capitalised headings, bulleted and numbered lists, and joins the extractor's hard-wrapped lines back into paragraphs. It is a text conversion with heuristics, not a layout reconstruction: a document whose headings are marked only by font size comes out as paragraphs, and a table comes out as spaced text. A scanned document has no text to extract.",
+		"group": "PDF tools",
+		"kind": "pipeline",
+		"area": "pdf",
+		"command": "to-text",
+		"operation": "tools.pdf-to-text",
+		"files": {
+			"field": "file_id",
+			"min": 1,
+			"max": 1
+		},
+		"options": {
+			"description": "Text or Markdown, and which pages.",
+			"properties": {
+				"format": {
+					"description": "text or markdown. Default text.",
+					"maxLength": 16,
+					"type": "string"
+				},
+				"layout": {
+					"description": "Keep the page's column spacing, for the text format.",
+					"type": "boolean"
+				},
+				"page_rules": {
+					"description": "Write a rule between pages, for the markdown format.",
+					"type": "boolean"
+				},
+				"pages": {
+					"description": "One continuous range such as 1-20. Empty reads the whole document.",
+					"maxLength": 512,
+					"type": "string"
+				}
+			},
+			"type": "object"
+		}
+	},
+	{
+		"name": "pdf-unlock",
+		"title": "Unlock a PDF",
+		"summary": "Removes a password you already know. It tries that password once; there is no recovery of a password you do not have, and no code path that guesses.",
+		"description": "The password you supply is tried exactly once. There is no recovery of a password you do not have and no brute-force path in the code. A wrong password is refused with one message that does not say whether the document had a user password, an owner password or both.",
+		"group": "PDF tools",
+		"kind": "pipeline",
+		"area": "pdf",
+		"command": "unlock",
+		"operation": "tools.pdf-unlock",
+		"files": {
+			"field": "file_id",
+			"min": 1,
+			"max": 1
+		},
+		"options": {
+			"description": "The password that opens the document.",
+			"properties": {
+				"password": {
+					"description": "The password that opens the document. It is tried once; there is no recovery of a password you do not have.",
+					"maxLength": 256,
+					"minLength": 1,
+					"type": "string"
+				}
+			},
+			"required": [
+				"password"
+			],
+			"type": "object"
+		},
+		"options_required": true
+	},
+	{
+		"name": "pdf-watermark",
+		"title": "Add a watermark",
+		"summary": "Stamps text across pages, at the angle, size and opacity you choose. A watermark is a visible mark, not protection.",
+		"description": "Position, size, angle, opacity and ink are all yours to set. The text is limited to unaccented Latin letters, digits and punctuation, because the standard PDF fonts are the only ones stamped without embedding a font file. A watermark is a visible mark, not protection.",
+		"group": "PDF tools",
+		"kind": "pipeline",
+		"area": "pdf",
+		"command": "watermark",
+		"operation": "tools.pdf-watermark",
+		"files": {
+			"field": "file_id",
+			"min": 1,
+			"max": 1
+		},
+		"options": {
+			"description": "The text and how to draw it.",
+			"properties": {
+				"bold": {
+					"description": "Use the bold face.",
+					"type": "boolean"
+				},
+				"gray": {
+					"description": "0 black to 1 white. Default 0.",
+					"format": "double",
+					"maximum": 1,
+					"minimum": 0,
+					"type": "number"
+				},
+				"opacity": {
+					"description": "0 invisible to 1 opaque. Default 0.18.",
+					"format": "double",
+					"maximum": 1,
+					"minimum": 0,
+					"type": "number"
+				},
+				"pages": {
+					"description": "Pages to stamp, as 1-3,5. Empty stamps every page.",
+					"maxLength": 512,
+					"type": "string"
+				},
+				"position": {
+					"description": "top-left to bottom-right, or center. Default center.",
+					"maxLength": 16,
+					"type": "string"
+				},
+				"rotate": {
+					"description": "Angle in degrees anticlockwise. 45 is the usual diagonal.",
+					"format": "double",
+					"maximum": 360,
+					"minimum": -360,
+					"type": "number"
+				},
+				"size": {
+					"description": "Font size in points, 4 to 144. 0 picks a size from the page width.",
+					"format": "double",
+					"maximum": 144,
+					"minimum": 0,
+					"type": "number"
+				},
+				"text": {
+					"description": "The text to stamp. Unaccented Latin letters, digits and punctuation.",
+					"maxLength": 200,
+					"minLength": 1,
+					"type": "string"
+				}
+			},
+			"required": [
+				"text"
+			],
+			"type": "object"
+		},
+		"options_required": true
+	},
+	{
+		"name": "pixels-to-svg",
+		"title": "Pixel art to SVG",
+		"summary": "Traces pixel art into clean vector shapes, one path per colour region, with no blurring or smoothing.",
+		"description": "Traces an uploaded image into SVG. The upload and the conversion are bound in one transaction, so a conversion always has its input. Send an idempotency_key to make a retry safe.",
+		"group": "Images",
+		"kind": "pipeline",
+		"area": "image",
+		"command": "to-svg",
+		"operation": "tools.pixels-to-svg",
+		"files": {
+			"field": "file_id",
+			"min": 1,
+			"max": 1
+		},
+		"options": {
+			"description": "How to convert. Every field is optional.",
+			"properties": {
+				"alpha": {
+					"description": "opacity keeps partial transparency, drop removes it. Default opacity.",
+					"maxLength": 16,
+					"type": "string"
+				},
+				"max_colors": {
+					"description": "Palette cap, 1 to 256. 0 uses the default, -1 means no reduction.",
+					"maximum": 256,
+					"minimum": -1,
+					"type": "integer"
+				},
+				"mode": {
+					"description": "square, rect or contour. Default rect.",
+					"maxLength": 16,
+					"type": "string"
+				},
+				"scale": {
+					"description": "Multiplies the rendered size. 0 and 1 both mean actual size.",
+					"maximum": 64,
+					"minimum": 0,
+					"type": "integer"
+				},
+				"simplify": {
+					"description": "Contour simplification in pixels, contour mode only. 0 keeps it pixel-exact.",
+					"format": "double",
+					"maximum": 16,
+					"minimum": 0,
+					"type": "number"
+				},
+				"tolerance": {
+					"description": "Merge colours closer than this (0 to 255). 0 disables merging.",
+					"maximum": 255,
+					"minimum": 0,
+					"type": "integer"
+				}
+			},
+			"type": "object"
+		}
+	},
+	{
+		"name": "powerpoint-to-pdf",
+		"title": "PowerPoint to PDF",
+		"summary": "Converts a presentation to PDF, one slide per page.",
+		"description": "Converted with LibreOffice from the document's own page setup. A font the server does not have is replaced by a similar one, so line breaks can differ from the original application, and macros never run. Linked images that need the network are left out. One slide is one page.",
+		"group": "PDF tools",
+		"kind": "pipeline",
+		"area": "office",
+		"command": "powerpoint-to-pdf",
+		"operation": "tools.powerpoint-to-pdf",
+		"files": {
+			"field": "file_id",
+			"min": 1,
+			"max": 1
+		},
+		"options": {
+			"description": "No options.",
+			"properties": {},
+			"type": "object"
+		}
+	},
+	{
+		"name": "sprite-build",
+		"title": "Build a sprite sheet",
+		"summary": "Packs a ZIP of frames into one sheet, with the atlas that describes it.",
+		"description": "Takes a ZIP of frames. The grid layout gives every frame an identical cell and is the default, because it is what Godot 4 and Unity import with no metadata file at all; compact packs frames of differing sizes more tightly. Frames that do not fit are refused with the count that fitted and the size that would be needed, never silently dropped. The packer never rotates a frame.",
+		"group": "Images",
+		"kind": "pipeline",
+		"area": "sprite",
+		"command": "build",
+		"operation": "tools.sprite-build",
+		"files": {
+			"field": "file_id",
+			"min": 1,
+			"max": 1
+		},
+		"options": {
+			"description": "How to pack the frames, and which metadata to write.",
+			"properties": {
+				"aseprite": {
+					"description": "Add Aseprite's per-frame duration and frameTags to the JSON formats.",
+					"type": "boolean"
+				},
+				"extrude": {
+					"description": "Repeat each frame's edge pixels into the padding, which is the fix for the dark halo transparent padding leaves.",
+					"maximum": 8,
+					"minimum": 0,
+					"type": "integer"
+				},
+				"frame_ms": {
+					"description": "Per-frame duration in milliseconds for the Aseprite extensions. 0 means 100.",
+					"maximum": 60000,
+					"minimum": 0,
+					"type": "integer"
+				},
+				"layout": {
+					"description": "grid or compact. Default grid, which Godot 4 and Unity import with no metadata file.",
+					"maxLength": 8,
+					"type": "string"
+				},
+				"margin": {
+					"description": "Transparent gutter at the sheet's edges.",
+					"maximum": 256,
+					"minimum": 0,
+					"type": "integer"
+				},
+				"max_size": {
+					"description": "Cap the sheet's width and height. 0 means 4096, which every GPU handles as one texture.",
+					"maximum": 8192,
+					"minimum": 0,
+					"type": "integer"
+				},
+				"metadata": {
+					"description": "Metadata formats to write, at most four.",
+					"items": {
+						"maxLength": 16,
+						"type": "string"
+					},
+					"maxItems": 4,
+					"type": "array"
+				},
+				"padding": {
+					"description": "Transparent gutter between two frames, which stops a neighbour's colour bleeding in.",
+					"maximum": 256,
+					"minimum": 0,
+					"type": "integer"
+				},
+				"pot": {
+					"description": "Round the sheet up to a power of two on both axes.",
+					"type": "boolean"
+				}
+			},
+			"type": "object"
+		}
+	},
+	{
+		"name": "sprite-split",
+		"title": "Split a sprite sheet",
+		"summary": "Cuts a sheet into frames and writes the atlas a game engine imports.",
+		"description": "Grid mode cuts the sheet on a grid you describe and is exact; auto mode finds each frame's bounding box from the sheet's own content, which is the answer for a hand-drawn sheet. A fully opaque sheet with no background colour named is refused rather than guessed at. The result is one archive — the frames and the metadata together, so one download is self-contained — plus each metadata file on its own. Trimming is refused with the css format, which has nowhere to record the offset.",
+		"group": "Images",
+		"kind": "pipeline",
+		"area": "sprite",
+		"command": "split",
+		"operation": "tools.sprite-split",
+		"files": {
+			"field": "file_id",
+			"min": 1,
+			"max": 1
+		},
+		"options": {
+			"description": "How to find the frames, and which metadata to write.",
+			"properties": {
+				"aseprite": {
+					"description": "Add Aseprite's per-frame duration and frameTags to the JSON formats.",
+					"type": "boolean"
+				},
+				"background": {
+					"description": "Hex colour auto mode treats as empty, e.g. #ff00ff. Empty means transparency.",
+					"maxLength": 9,
+					"type": "string"
+				},
+				"background_tolerance": {
+					"description": "How far a pixel may be from the background colour and still count as background.",
+					"maximum": 255,
+					"minimum": 0,
+					"type": "integer"
+				},
+				"cell_h": {
+					"description": "Cell height in pixels.",
+					"maximum": 8192,
+					"minimum": 0,
+					"type": "integer"
+				},
+				"cell_w": {
+					"description": "Cell width in pixels. Give this and cell_h, or cols and rows.",
+					"maximum": 8192,
+					"minimum": 0,
+					"type": "integer"
+				},
+				"cols": {
+					"description": "Column count, as an alternative to the cell size.",
+					"maximum": 2048,
+					"minimum": 0,
+					"type": "integer"
+				},
+				"frame_ms": {
+					"description": "Per-frame duration in milliseconds for the Aseprite extensions. 0 means 100.",
+					"maximum": 60000,
+					"minimum": 0,
+					"type": "integer"
+				},
+				"margin": {
+					"description": "Gutter between the sheet's edge and the first cell.",
+					"maximum": 256,
+					"minimum": 0,
+					"type": "integer"
+				},
+				"metadata": {
+					"description": "Metadata formats to write, at most four. GET /api/v1/tools/sprite-split/formats lists them.",
+					"items": {
+						"maxLength": 16,
+						"type": "string"
+					},
+					"maxItems": 4,
+					"type": "array"
+				},
+				"min_frame": {
+					"description": "Drop a detected frame smaller than this many pixels, as noise. Auto mode only.",
+					"maximum": 1000000,
+					"minimum": 0,
+					"type": "integer"
+				},
+				"mode": {
+					"description": "grid or auto. Default grid.",
+					"maxLength": 8,
+					"type": "string"
+				},
+				"prefix": {
+					"description": "Frame name prefix; the nth frame is prefix plus a zero-padded index. Default frame.",
+					"maxLength": 64,
+					"type": "string"
+				},
+				"rows": {
+					"description": "Row count.",
+					"maximum": 2048,
+					"minimum": 0,
+					"type": "integer"
+				},
+				"spacing": {
+					"description": "Gutter between two neighbouring cells.",
+					"maximum": 256,
+					"minimum": 0,
+					"type": "integer"
+				},
+				"trim": {
+					"description": "Shrink each frame to its opaque box, recording the offset so an importer can re-inflate it. Refused with the css metadata format, which has nowhere to put the offset.",
+					"type": "boolean"
+				}
+			},
+			"type": "object"
+		}
+	},
+	{
+		"name": "token-count",
+		"title": "Count tokens",
+		"summary": "Estimates how many tokens a text costs in GPT and Claude models. The count is an estimate, not the provider's tokenizer.",
+		"group": "LLM and agents",
+		"kind": "browser"
+	},
+	{
+		"name": "uuid",
+		"title": "UUID and ULID",
+		"summary": "Generates UUID v4, UUID v7 and ULID, and decodes the time inside a v7 or ULID.",
+		"group": "Developer tools",
+		"kind": "browser"
+	},
+	{
+		"name": "video-clip",
+		"title": "Cut and crop a video",
+		"summary": "Trims to a range, crops the frame, or splits a long recording into clips of up to a minute. Cuts on a keyframe without re-encoding unless you ask for an exact cut.",
+		"description": "Trims an uploaded video to a range, crops the frame, or splits it into consecutive clips of up to a minute. A cut that lands on a keyframe is copied rather than re-encoded, which is an order of magnitude cheaper; frame_accurate forces the re-encode. A crop is validated against the real stream dimensions, and a crop outside them is refused with those dimensions named.",
+		"group": "Video and audio",
+		"kind": "pipeline",
+		"area": "video",
+		"command": "clip",
+		"operation": "tools.video-clip",
+		"files": {
+			"field": "file_id",
+			"min": 1,
+			"max": 1
+		},
+		"options": {
+			"description": "How to cut. Every field is optional.",
+			"properties": {
+				"clip_seconds": {
+					"description": "Clip length in seconds for split mode, 1 to 60. Default 60.",
+					"maximum": 60,
+					"minimum": 0,
+					"type": "integer"
+				},
+				"crop": {
+					"description": "The area to keep, in pixels. Leave it out to keep the whole frame.",
+					"properties": {
+						"height": {
+							"type": "integer"
+						},
+						"width": {
+							"type": "integer"
+						},
+						"x": {
+							"type": "integer"
+						},
+						"y": {
+							"type": "integer"
+						}
+					},
+					"type": "object"
+				},
+				"duration_seconds": {
+					"description": "How much to keep, in seconds. 0 means to the end.",
+					"format": "double",
+					"minimum": 0,
+					"type": "number"
+				},
+				"frame_accurate": {
+					"description": "Cut exactly, by re-encoding. Slower; off by default, which cuts at the nearest keyframe.",
+					"type": "boolean"
+				},
+				"mode": {
+					"description": "trim keeps one range, split cuts the whole video into clips. Default trim.",
+					"maxLength": 16,
+					"type": "string"
+				},
+				"start_seconds": {
+					"description": "Where the cut starts, in seconds. Default 0.",
+					"format": "double",
+					"minimum": 0,
+					"type": "number"
+				}
+			},
+			"type": "object"
+		}
+	},
+	{
+		"name": "video-compress",
+		"title": "Compress a video or audio file",
+		"summary": "Makes a video or an audio file smaller and reports exactly how much was saved. When it cannot be improved you get the original back, unchanged, and it says so.",
+		"description": "Re-encodes an uploaded file and returns whichever is smaller, the result or the original. When the original wins, the conversion still finishes: bytes_out equals bytes_in and the result is the file you sent, which is the honest answer for something that is already optimal.",
+		"group": "Video and audio",
+		"kind": "pipeline",
+		"area": "video",
+		"command": "compress",
+		"operation": "tools.video-compress",
+		"files": {
+			"field": "file_id",
+			"min": 1,
+			"max": 1
+		}
+	},
+	{
+		"name": "video-convert",
+		"title": "Convert a video",
+		"summary": "Between MP4, WebM and MKV, with the codec and the resolution under your control.",
+		"description": "Progress is reported on the conversion's event stream. A codec the container cannot carry usefully, or that this build cannot encode, is refused here rather than by the engine a minute later.",
+		"group": "Video and audio",
+		"kind": "pipeline",
+		"area": "video",
+		"command": "convert",
+		"operation": "tools.video-convert",
+		"files": {
+			"field": "file_id",
+			"min": 1,
+			"max": 1
+		},
+		"options": {
+			"description": "How to convert. Only the container is required; the codecs default to the ones that container plays everywhere.",
+			"properties": {
+				"audio": {
+					"description": "aac, opus, mp3, flac, vorbis, copy or mute. Empty uses the container's default.",
+					"maxLength": 8,
+					"type": "string"
+				},
+				"audio_bitrate": {
+					"description": "Audio bit rate in kbit/s. 0 uses the codec's default.",
+					"maximum": 512,
+					"minimum": 0,
+					"type": "integer"
+				},
+				"container": {
+					"description": "mp4, webm, mkv or mov.",
+					"maxLength": 8,
+					"type": "string"
+				},
+				"crf": {
+					"description": "Quality on the codec's own scale; the scales are not comparable between codecs. 0 uses the codec's default.",
+					"maximum": 63,
+					"minimum": 0,
+					"type": "integer"
+				},
+				"frame_rate": {
+					"description": "Cap the frame rate. 0 leaves it alone.",
+					"format": "double",
+					"maximum": 240,
+					"minimum": 0,
+					"type": "number"
+				},
+				"height": {
+					"description": "Scale to this height, keeping the shape. Only downwards. 0 leaves the resolution alone.",
+					"maximum": 4320,
+					"minimum": 0,
+					"type": "integer"
+				},
+				"video": {
+					"description": "h264, h265, vp9 or av1. Empty uses the container's default. GET /api/v1/tools/video-convert/capabilities lists what this server has.",
+					"maxLength": 8,
+					"type": "string"
+				}
+			},
+			"type": "object"
+		}
+	},
+	{
+		"name": "video-download",
+		"title": "Download a video",
+		"summary": "Fetches a video from YouTube, Instagram, X or TikTok at the quality you pick, keeps the audio only if you prefer, and can split it into short clips.",
+		"description": "Fetches a video from YouTube, Instagram, X or TikTok. This is the one conversion with no upload: the input is the URL, so bytes_in is 0 until the download has happened. Ask for audio to get MP3, for clips to get consecutive segments delivered individually and as a zip, and for compression to have the result re-encoded and whichever file is smaller delivered. Downloading may breach a platform's terms of service and you are responsible for what you download.",
+		"group": "Video and audio",
+		"kind": "pipeline",
+		"area": "video",
+		"command": "download",
+		"operation": "tools.video-download",
+		"options": {
+			"description": "What to download and how.",
+			"properties": {
+				"clip_seconds": {
+					"description": "Clip length in seconds, 1 to 60. Default 60.",
+					"maximum": 60,
+					"minimum": 0,
+					"type": "integer"
+				},
+				"clips": {
+					"description": "Split the result into consecutive clips, delivered individually and as a zip.",
+					"type": "boolean"
+				},
+				"compress": {
+					"description": "Compress afterwards and keep whichever file is smaller.",
+					"type": "boolean"
+				},
+				"kind": {
+					"description": "video keeps the picture, audio gives MP3. Default video.",
+					"maxLength": 8,
+					"type": "string"
+				},
+				"quality": {
+					"description": "best or smallest. Default best.",
+					"maxLength": 16,
+					"type": "string"
+				},
+				"url": {
+					"description": "A YouTube, Instagram, X or TikTok URL.",
+					"maxLength": 2048,
+					"minLength": 1,
+					"type": "string"
+				}
+			},
+			"required": [
+				"url"
+			],
+			"type": "object"
+		}
+	},
+	{
+		"name": "video-to-gif",
+		"title": "Video to GIF",
+		"summary": "Turns a few seconds of a video into an animated GIF, with a palette computed from the clip itself rather than a fixed one.",
+		"description": "Two passes: a palette is computed from the frames in the clip and the frames are then mapped onto it, which is the difference between a GIF that looks like the video and one that bands. Capped at 15 seconds, because a GIF's size grows linearly with its duration.",
+		"group": "Video and audio",
+		"kind": "pipeline",
+		"area": "video",
+		"command": "to-gif",
+		"operation": "tools.video-to-gif",
+		"files": {
+			"field": "file_id",
+			"min": 1,
+			"max": 1
+		},
+		"options": {
+			"description": "Which part of the video, and how. Every field is optional.",
+			"properties": {
+				"dither": {
+					"description": "Dithering mode. Empty uses sierra2_4a.",
+					"maxLength": 20,
+					"type": "string"
+				},
+				"duration_seconds": {
+					"description": "How long, in seconds. 0 takes the rest of the video, up to the 15 second limit.",
+					"format": "double",
+					"minimum": 0,
+					"type": "number"
+				},
+				"fps": {
+					"description": "Frames per second. 0 uses 12, which divides 100 evenly and so plays evenly.",
+					"maximum": 50,
+					"minimum": 0,
+					"type": "integer"
+				},
+				"start_seconds": {
+					"description": "Where to start, in seconds.",
+					"format": "double",
+					"minimum": 0,
+					"type": "number"
+				},
+				"width": {
+					"description": "Width in pixels. 0 uses 480: a GIF has no interframe compression, so doubling the width quadruples the file.",
+					"maximum": 1920,
+					"minimum": 0,
+					"type": "integer"
+				}
+			},
+			"type": "object"
+		}
+	},
+	{
+		"name": "word-to-pdf",
+		"title": "Word to PDF",
+		"summary": "Converts a Word or OpenDocument text file to PDF with LibreOffice. Macros never run.",
+		"description": "Converted with LibreOffice from the document's own page setup. A font the server does not have is replaced by a similar one, so line breaks can differ from the original application, and macros never run. Linked images that need the network are left out.",
+		"group": "PDF tools",
+		"kind": "pipeline",
+		"area": "office",
+		"command": "word-to-pdf",
+		"operation": "tools.word-to-pdf",
+		"files": {
+			"field": "file_id",
+			"min": 1,
+			"max": 1
+		},
+		"options": {
+			"description": "No options.",
+			"properties": {},
+			"type": "object"
+		}
+	}
+]

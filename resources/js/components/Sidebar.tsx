@@ -5,7 +5,6 @@ import CommandPalette from "./CommandPalette";
 import Icon, { type IconName } from "./Icon";
 import ThemeToggle from "./ThemeToggle";
 import { footerPages, mainPages, type Page } from "../lib/nav";
-import { release } from "../release";
 import type { SharedProps, ToolGroup } from "../types";
 
 /**
@@ -15,8 +14,8 @@ import type { SharedProps, ToolGroup } from "../types";
  *
  * Top to bottom it is the site name, the search (Ctrl+K), the tool families as
  * dropdowns — the tool a visitor picks opens in the page on the right — and,
- * at the foot, the pages that are not tools, the theme, the account and the
- * release.
+ * at the foot, the pages that are not tools, the theme and the account. The
+ * release is not here: `ReleaseLabel` shows it in the corner of every page.
  *
  * The column is one element for both sizes, so the two cannot drift apart.
  * Closed on a phone it is `invisible`, which also takes it out of the tab
@@ -99,7 +98,6 @@ export default function Sidebar(): React.ReactElement {
         >
           <Icon name="search" className="size-5" />
         </button>
-        <p className="shrink-0 text-xs text-ink-soft">v{release}</p>
       </header>
 
       {open && (
@@ -195,8 +193,6 @@ export default function Sidebar(): React.ReactElement {
               Log in
             </Link>
           ) : null}
-
-          <p className="mt-2 px-1 text-xs text-ink-soft">v{release}</p>
         </div>
       </aside>
 

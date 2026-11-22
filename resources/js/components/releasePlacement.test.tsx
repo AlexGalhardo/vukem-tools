@@ -32,49 +32,57 @@ mock.module("@inertiajs/react", () => ({
 
 const { default: AppLayout } = await import("../layouts/AppLayout");
 const { default: Sidebar } = await import("./Sidebar");
+const { default: ReleaseLabel } = await import("./ReleaseLabel");
 const { release } = await import("../release");
 
 const label = `v${release}`;
 
-function between(html: string, start: string, end: string): string {
-	const from = html.indexOf(start);
-	const to = html.indexOf(end, from);
-	expect(from).toBeGreaterThanOrEqual(0);
-	expect(to).toBeGreaterThan(from);
-	return html.slice(from, to);
-}
+test("the release label is fixed in the bottom-right corner and takes no clicks", () => {
+	const html = renderToStaticMarkup(createElement(ReleaseLabel));
 
-test("the release label sits in the phone header and under Log in", () => {
-	page.props.auth = {};
-	const html = renderToStaticMarkup(createElement(Sidebar));
-	const header = between(html, "<header", "</header>");
-	const aside = between(html, "<aside", "</aside>");
-
-	expect(header.indexOf('aria-label="Search tools"')).toBeGreaterThanOrEqual(0);
-	expect(header.indexOf(`>${label}<`)).toBeGreaterThan(header.indexOf('aria-label="Search tools"'));
-	expect(aside.indexOf(">Log in<")).toBeGreaterThanOrEqual(0);
-	expect(aside.indexOf(`>${label}<`)).toBeGreaterThan(aside.indexOf(">Log in<"));
-	expect(html).not.toContain("bottom-3");
-	expect(html).not.toContain("left-3");
+	expect(html).toContain(`>${label}<`);
+	expect(html).toContain("fixed");
+	expect(html).toContain("right-0");
+	expect(html).toContain("bottom-0");
+	expect(html).toContain("pointer-events-none");
+	expect(html).toContain("print:hidden");
 });
 
-test("the release label sits under the account row when someone is signed in", () => {
-	page.props.auth = { user: { name: "QA", email: "qa@example.com" } };
-	const html = renderToStaticMarkup(createElement(Sidebar));
-	const aside = between(html, "<aside", "</aside>");
+test("the label keeps clear of a home bar and a notch", () => {
+	const html = renderToStaticMarkup(createElement(ReleaseLabel));
 
-	expect(aside.indexOf(">qa@example.com<")).toBeGreaterThanOrEqual(0);
-	expect(aside.indexOf(`>${label}<`)).toBeGreaterThan(aside.indexOf(">qa@example.com<"));
-	expect(aside).not.toContain(">Log in<");
+	expect(html).toContain("env(safe-area-inset-bottom");
+	expect(html).toContain("env(safe-area-inset-right");
 });
 
-test("the shell does not paint a fixed release overlay", () => {
-	page.props.auth = {};
-	const html = renderToStaticMarkup(createElement(AppLayout, null, "page"));
-	const marks = html.split(label).length - 1;
+test("a screen reader hears the word release before the version", () => {
+	const html = renderToStaticMarkup(createElement(ReleaseLabel));
 
-	expect(marks).toBe(2);
-	expect(html).not.toContain("fixed bottom-3 left-3");
-	expect(html).toContain("<header");
-	expect(html).toContain(">Log in<");
+	expect(html).toContain('<span class="sr-only">Release </span>');
+});
+
+test("every page shows the label once, signed in or not", () => {
+	const accounts: Account[] = [{}, { user: { name: "QA", email: "qa@example.com" } }];
+
+	for (const auth of accounts) {
+		page.props.auth = auth;
+		const html = renderToStaticMarkup(createElement(AppLayout, null, "page"));
+
+		expect(html.split(label).length - 1).toBe(1);
+		expect(html).toContain("data-release-label");
+	}
+});
+
+test("the sidebar no longer carries a copy of the release", () => {
+	page.props.auth = {};
+	const html = renderToStaticMarkup(createElement(Sidebar));
+
+	expect(html).not.toContain(label);
+});
+
+test("the label sits below the menu, the drawer and the search", () => {
+	const html = renderToStaticMarkup(createElement(ReleaseLabel));
+
+	// The sticky header and the drawer backdrop are z-30, the drawer z-40 and the search z-50.
+	expect(html).toContain("z-20");
 });

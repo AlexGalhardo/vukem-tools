@@ -2,6 +2,7 @@ import { Link, usePage } from "@inertiajs/react";
 import type { ReactNode } from "react";
 
 import Icon from "../components/Icon";
+import ReleaseLabel from "../components/ReleaseLabel";
 import Sidebar from "../components/Sidebar";
 import type { SharedProps } from "../types";
 
@@ -10,6 +11,8 @@ import type { SharedProps } from "../types";
  * on the right. The column is its own component because it is a fixed panel on
  * a wide screen and a drawer behind a hamburger on a phone; the footer holds
  * the one thing a visitor legally needs to find, which is the licence notice.
+ * The release sits fixed in the bottom-right corner of every page, and the
+ * footer leaves room so the last line is never under it.
  */
 export default function AppLayout({ children }: { children: ReactNode }): React.ReactElement {
   const page = usePage<SharedProps>();
@@ -27,6 +30,7 @@ export default function AppLayout({ children }: { children: ReactNode }): React.
       </a>
 
       <Sidebar />
+      <ReleaseLabel />
 
       <div className="flex min-h-dvh flex-col md:min-h-dvh">
       <main id="main" className="edge-safe mx-auto w-full max-w-5xl flex-1 py-10">
@@ -42,7 +46,7 @@ export default function AppLayout({ children }: { children: ReactNode }): React.
         {children}
       </main>
 
-      <footer className="border-t border-edge">
+      <footer className="border-t border-edge pb-8">
         <div className="edge-safe mx-auto flex max-w-5xl flex-col gap-3 py-6 text-sm text-ink-soft sm:flex-row sm:items-center sm:justify-between">
           <p>
             Open source, self-hosted, MIT.{" "}

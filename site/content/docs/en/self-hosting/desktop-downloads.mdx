@@ -1,20 +1,47 @@
 ---
 title: "Desktop downloads"
-description: "The file names of the Windows, Linux, and macOS builds."
+description: "The Windows installer, the CLI, the Linux and macOS builds, and how to verify them."
 ---
 
-Each stable release attaches three files to the GitHub release:
+Each release attaches these files to the GitHub release, with a `checksums.txt`:
 
-| System | File |
+| What | File |
 | --- | --- |
-| Windows | `vukem-tools-X-Y-Z.exe` |
-| Linux | `vukem-tools-X-Y-Z-linux-amd64.AppImage` |
-| macOS | `vukem-tools-X-Y-Z-darwin-arm64.dmg` |
+| Windows installer (per user) | `vukem-tools-X-Y-Z-windows-amd64-setup.exe` |
+| Windows portable zip | `vukem-tools-X-Y-Z-windows-amd64-portable.zip` |
+| Linux desktop | `vukem-tools-X-Y-Z-linux-amd64.AppImage` |
+| macOS desktop | `vukem-tools-X-Y-Z-darwin-arm64.dmg` |
+| CLI, Windows | `vukem-tools-cli-X-Y-Z-windows-amd64.exe` |
+| CLI, Linux | `vukem-tools-cli-X-Y-Z-linux-amd64`, `vukem-tools-cli-X-Y-Z-linux-arm64` |
+| CLI, macOS | `vukem-tools-cli-X-Y-Z-darwin-arm64` |
+| SHA-256 sums | `checksums.txt` |
 
-`X-Y-Z` is the release with the dots turned into hyphens, so 0.7.1 would be `vukem-tools-0-7-1.exe`. The release is also written in the sidebar of the window.
+`X-Y-Z` is the release with the dots turned into hyphens, so 0.9.0 is `vukem-tools-0-9-0-windows-amd64-setup.exe`. The release is also written in the sidebar of the window.
 
-Release 0.7.0 attached the older names: `vukem-tools.exe`, `vukem-tools_0.7.0_linux_amd64.AppImage`, and `vukem-tools_0.7.0_darwin_arm64.dmg`. That Windows file opened port 8080 and showed the browser error when the server was down.
+## Install on Windows
 
-The Linux and macOS binaries are built with `CGO_ENABLED=0` and the `purego` tag. The Windows binary is built with `CGO_ENABLED=0` and the window subsystem. The macOS disk image is unsigned.
+Run the setup file. It installs for your user only, so it asks for no administrator rights. It adds a Start menu entry and an uninstaller (Settings, Apps). The portable zip holds `vukem-tools.exe`; unzip it anywhere and run it.
+
+The files are not signed, so Windows SmartScreen shows "Windows protected your PC". Choose "More info", then "Run anyway", after you check the SHA-256 below.
+
+## Verify a download
+
+Put the file and `checksums.txt` in one folder.
+
+```bash
+sha256sum --ignore-missing -c checksums.txt
+```
+
+On Windows, compare the hash by hand:
+
+```powershell
+Get-FileHash .\vukem-tools-0-9-0-windows-amd64-setup.exe -Algorithm SHA256
+```
+
+## Build notes
+
+The Linux and macOS binaries are built with `CGO_ENABLED=0` and the `purego` tag. The Windows binary is built with `CGO_ENABLED=0` and the window subsystem. The CLI is built with `-trimpath`. None of the Windows, macOS or Linux files is signed, and the disk image is not notarized.
 
 The launcher that installs an update accepts only a strictly newer version, and only after the SHA-256 matches. A mismatch is deleted and is not installed. Signature checks wait until an owner public key is configured. The checksum check stays on.
+
+Release 0.8.0 and older attached a bare `vukem-tools-X-Y-Z.exe` and no CLI.

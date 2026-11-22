@@ -13,6 +13,8 @@ and Tailwind CSS v4.
    unless that file is updated first.
 3. Read [docs/web-research.md](docs/web-research.md) before touching any conversion engine: its
    licence, its version and its traps are there.
+4. For planned work, read [docs/plans/00-roadmap.md](docs/plans/00-roadmap.md) (the epics and their
+   status) and the workflow in [.agents/README.md](.agents/README.md): plans, orchestration, QA.
 
 ## Commands
 
@@ -58,6 +60,9 @@ Regenerate the API clients after any change to `/api/v1` ([docs/api.md](docs/api
 | Path | What |
 | --- | --- |
 | `ROADMAP.md` | Every task and its quality asserts, by phase |
+| `docs/plans/` | Epics (`NN-<slug>.md`) and their roadmap |
+| `development/feedbacks/` | Git-ignored queues: `vukem.md` (framework friction, `VF-NNN`) and `vukem-tools.md` (QA bugs, `QA-<letter><n>`) |
+| `.agents/` | Workflow rules and skills: plans, orchestration, epic loop, QA campaign |
 | `app/` | Controllers, models, requests, jobs, listeners, mailables; `catalog/` entries with `Client: true` run in the browser and need no pipeline tool |
 | `bootstrap/` | App wiring: providers, commands |
 | `cmd/app/` | The binary |

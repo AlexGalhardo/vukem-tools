@@ -105,6 +105,16 @@ func TestMain(m *testing.M) {
 		_ = conn.Close()
 
 		os.Exit(0)
+	case "limits":
+		// Reports the limits the kernel applied to this very process, which is what
+		// a test can check without trusting the arguments the runner built.
+		data, err := os.ReadFile("/proc/self/limits")
+		if err != nil {
+			os.Exit(1)
+		}
+
+		os.Stdout.Write(data)
+		os.Exit(0)
 	case "write":
 		// Writes until it is stopped or the file-size limit kills it.
 		f, err := os.Create(filepath.Join(os.Getenv("HOME"), "big"))

@@ -1,17 +1,38 @@
 ---
 title: "Docker"
-description: "The image, Compose, and what production still needs."
+description: "The image, the Compose stack, and what production still needs."
 ---
 
-`compose.yaml` is the local stack: Postgres 18.1, ClamAV, migrate, then serve. The app is published on port 3000.
+`compose.yaml` is the supported local stack: Postgres 18.1, ClamAV, a migration step, and the app. The app is published on port 3000.
 
 ```bash
 export APP_KEY="base64:$(openssl rand -base64 32)"
 docker compose up -d --build --wait
+curl -i http://127.0.0.1:3000/health
 ```
 
-The image pins every conversion engine. It does not use `latest` for those packages. A stable GitHub release builds the image, signs it, and pushes `X.Y.Z`, `X.Y`, and `latest` to GHCR and Docker Hub.
+`APP_KEY` encrypts cookies. Generate it once and keep it: a new key signs everyone out.
 
-Production (`APP_ENV=production`) also needs `S3_BUCKET` and a real mailer, and it refuses to boot without `CLAMAV_ADDR` unless `CLAMAV_DISABLED=true`. Put Caddy in front if you want TLS. Do not put nginx in front.
+## The image
 
-Railway builds this same Dockerfile. Attach the app to `app.tools.vukem.dev`. This docs site stays on `tools.vukem.dev`.
+The image pins every conversion engine to an exact version. It does not use `latest` for those packages. A stable GitHub release builds the image, signs it with build provenance, and pushes `X.Y.Z`, `X.Y` and `latest` to GHCR (`ghcr.io/alexgalhardo/vukem-tools`) and to Docker Hub (`alexgalhardo/vukem-tools`).
+
+The container runs the engines in an empty network namespace, so a conversion cannot reach the network. The downloader is the one tool that has network access.
+
+## Production
+
+`APP_ENV=production` is stricter than the Compose stack:
+
+- It needs `S3_BUCKET` for results and a real mailer, and refuses to boot without them.
+- It refuses to boot without a malware scanner. Set `CLAMAV_ADDR` to a clamd (Compose runs one), or `CLAMAV_DISABLED=true` to store uploads unscanned on purpose.
+- Put Caddy in front for TLS. Do not put nginx in front.
+
+The full list of variables is in [Configuration](/docs/reference/configuration).
+
+## Using it from agents
+
+Point the CLI or the MCP server at the container: set `VUKEM_TOOLS_URL` to its address and `VUKEM_TOOLS_API_KEY` to a key you created in **Account**. See [MCP overview](/docs/mcp/overview).
+
+## Next step
+
+Set it up: [Configuration](/docs/reference/configuration).

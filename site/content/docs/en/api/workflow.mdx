@@ -1,0 +1,105 @@
+---
+title: "Convert a file"
+description: "Upload a file, submit it to a tool, follow the conversion and download the result, with curl."
+---
+
+Every conversion follows the same path, whatever the tool. This page does it once with a PDF crop as the example, then lists what changes for other tools.
+
+The examples read `VUKEM_TOOLS_URL` and `VUKEM_TOOLS_API_KEY`, set in the [overview](/docs/api/overview#before-you-start). The key needs the `pdf:structure` ability. They use [`jq`](https://jqlang.org/) to pick fields out of the JSON.
+
+## 1. Upload the file
+
+Uploads use the [tus](https://tus.io/protocols/resumable-upload) protocol, version 1.0.0, at `/uploads/tus/`. It is resumable, so a large file survives a dropped connection. The route is outside `/api/v1` because it speaks tus, not JSON. It takes the same key and is limited to 30 new uploads a minute per key.
+
+Create the upload with the size and the file name, then send the bytes in one `PATCH`:
+
+```bash
+FILE=in.pdf
+SIZE=$(wc -c < "$FILE" | tr -d ' ')
+
+LOCATION=$(curl -sS -i -X POST "$VUKEM_TOOLS_URL/uploads/tus/" \
+  -H "Authorization: Bearer $VUKEM_TOOLS_API_KEY" \
+  -H "Tus-Resumable: 1.0.0" \
+  -H "Upload-Length: $SIZE" \
+  -H "Upload-Metadata: filename $(printf '%s' "$FILE" | base64)" \
+  | tr -d '\r' | awk 'tolower($1)=="location:" {print $2}')
+
+curl -sS -X PATCH "$VUKEM_TOOLS_URL$LOCATION" \
+  -H "Authorization: Bearer $VUKEM_TOOLS_API_KEY" \
+  -H "Tus-Resumable: 1.0.0" \
+  -H "Upload-Offset: 0" \
+  -H "Content-Type: application/offset+octet-stream" \
+  --data-binary "@$FILE"
+```
+
+The `PATCH` answers `204 No Content` with no body. The id you submit with is not the tus location: ask for your unclaimed uploads, newest first.
+
+```bash
+FILE_ID=$(curl -sS "$VUKEM_TOOLS_URL/api/v1/uploads" \
+  -H "Authorization: Bearer $VUKEM_TOOLS_API_KEY" | jq -r '.data[0].id')
+```
+
+The server reads the type from the bytes. `GET /api/v1/upload-types` lists every type an upload may have. The largest file is 500 MB unless the operator changed `MAX_UPLOAD_SIZE_MB`. An upload nobody uses is deleted after 30 minutes. A server may scan uploads for malware, and refuses an infected file.
+
+## 2. Submit it to a tool
+
+The body names the upload and the tool's options. Each tool's fields are in its section of the [reference](/docs/api/endpoints). A tool that takes several files has `file_ids` instead of `file_id`. `video-download` takes a URL and no upload.
+
+```bash
+CONVERSION_ID=$(curl -sS -X POST "$VUKEM_TOOLS_URL/api/v1/tools/pdf-crop" \
+  -H "Authorization: Bearer $VUKEM_TOOLS_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d "{\"file_id\":\"$FILE_ID\",\"options\":{\"left\":36,\"bottom\":36,\"right\":36,\"top\":36}}" \
+  | jq -r '.id')
+```
+
+The answer is a conversion with `status` `pending`. Add an `idempotency_key` of your own (up to 128 characters) to the body and a retry of the same call returns the same conversion instead of starting a second one. At most 30 submissions a minute per key.
+
+## 3. Follow the conversion
+
+Poll it until `status` is `finished`, `error` or `cancelled`:
+
+```bash
+curl -sS "$VUKEM_TOOLS_URL/api/v1/conversions/$CONVERSION_ID" \
+  -H "Authorization: Bearer $VUKEM_TOOLS_API_KEY" | jq '{status, progress, phase, error_type}'
+```
+
+Or hold a connection open and let the server tell you, with [the event stream](/docs/api/conversions#get-apiv1conversionsidevents). It resumes with `Last-Event-ID`, so a dropped connection does not lose events.
+
+`DELETE /api/v1/conversions/$CONVERSION_ID` cancels a conversion that has not ended.
+
+## 4. Download the result
+
+When the conversion is `finished`, ask for the links. A link is signed when you ask, so it is never older than your request:
+
+```bash
+curl -sS "$VUKEM_TOOLS_URL/api/v1/conversions/$CONVERSION_ID/result" \
+  -H "Authorization: Bearer $VUKEM_TOOLS_API_KEY" | jq -r '.data[] | .name, .url'
+```
+
+Each entry has `name`, `mime`, `size_bytes`, `expires_at` and a `url`. A tool that makes several files, such as `pdf-split`, has one entry for each. The link carries its own signature and needs no key, so it works in another tab, in `curl` and in a download manager:
+
+```bash
+curl -sS -o out.pdf "$(curl -sS "$VUKEM_TOOLS_URL/api/v1/conversions/$CONVERSION_ID/result" \
+  -H "Authorization: Bearer $VUKEM_TOOLS_API_KEY" | jq -r '.data[0].url')"
+```
+
+## How long things live
+
+| What | Lives |
+| --- | --- |
+| An upload no conversion has claimed | 30 minutes by default |
+| A result | 5 minutes by default. `expires_at` on the conversion and on each link says when. |
+
+An operator can change both with `UPLOAD_TTL_MINUTES` and `RESULT_TTL_MINUTES`. Download as soon as the conversion finishes. Asking for the links of a result that has expired is a `410`, and of one that has not finished is a `409`.
+
+## What changes for other tools
+
+- The route is `POST /api/v1/tools/<name>` and the key needs that tool's ability. See [Authentication](/docs/api/authentication#abilities).
+- `options` is the tool's own object. Some tools need it, such as `pdf-crop`; for others it can be left out.
+- Several files: `file_ids`, in the order the tool uses them.
+- Ask the server first: `GET /api/v1/tools` lists the tools it offers, and `GET /api/v1/capabilities` says which engines it has and what its limits are. A tool whose engine is missing is hidden.
+
+## Next step
+
+Know what a failure looks like: [Errors and limits](/docs/api/errors).

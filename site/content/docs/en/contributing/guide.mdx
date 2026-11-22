@@ -1,14 +1,47 @@
 ---
 title: "Contributing"
-description: "How a change is reviewed and what the repository expects."
+description: "How to build the project, what a change must pass, and what the repository expects."
 ---
 
-Reviews use three severities: Important, Nit, and Pre-existing. Important blocks the merge. A nit is a small fix in the same change. Pre-existing is named and left for its own change.
+Read `CONTRIBUTING.md` and `AGENTS.md` in the repository first. They are the source of the rules below.
 
-CODEOWNERS covers the review rules, the workflows, the image, and the desktop packaging.
+## Build and check
 
-Code, comments, docs, and the interface are English. There is no translation layer.
+You need Go (the version in `go.mod`) and [Bun](https://bun.com).
 
-A change to a route, an upload, a job, or an engine follows the security checklist in the repository skills. Stream files. Do not buffer a whole file. Detect types from magic bytes.
+```bash
+go build ./... && go vet ./... && golangci-lint run ./...
+go test -race -count=1 ./...
+bun run typecheck && bun run build
+bun run lint:md
+```
+
+While you work, run one package, for example `go test -race -count=1 ./internal/toolkit/...`. Before you hand a change back, run the wide `go test -race -count=1 ./...`: `./tests/` holds the checks that cut across packages, and a narrow run never reaches them.
+
+## Rules that matter
+
+- Code, comments, docs and the interface are English. There is no translation layer.
+- Test first. A task is done when its tests pass and you can show the command and its result.
+- Stream files. Do not buffer a whole file in memory.
+- Every conversion engine runs as a subprocess, with a timeout, a process-group kill and resource limits. No cgo.
+- Detect file types from magic bytes. Never trust the extension or the client's `Content-Type`.
+- Secure by default. A change to a route, an upload, a job or an engine follows the security checklist in the repository's skills.
+- Fix the cause. Do not silence an error, skip a test or add `//nolint` to make a check pass.
+
+## Commits
+
+Conventional Commits, in English: `type(scope): description`, with a lowercase imperative description and a header of at most 100 characters. The scopes are in `.claude/rules/commits.md`. One logical change per commit. A `commit-msg` hook and the CI check them.
+
+## When you change the API
+
+A new or changed route under `/api/v1` needs its request and response types, an example for each, and regenerated clients. The tests fail until they agree. Then refresh the [API reference](/docs/api/overview): its pages are generated from the running app's OpenAPI document, so run the generator in `site/` (see `site/scripts/generate-api-docs.ts`).
+
+## Review
+
+Reviews use three severities: Important, Nit and Pre-existing. Important blocks the merge. A nit is a small fix in the same change. Pre-existing is named and left for its own change.
 
 Framework bugs go in the shared `vukem-feedback.md` next to the vukem checkout, after you confirm the gap against the version `go.mod` pins. Do not edit the vukem repository from this one.
+
+## Next step
+
+How a version ships: [Releases](/docs/contributing/releases).

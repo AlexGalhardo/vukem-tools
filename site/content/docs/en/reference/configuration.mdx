@@ -1,26 +1,71 @@
 ---
 title: "Configuration"
-description: "Environment variables of the desktop window and of the server."
+description: "The environment variables of the server, the desktop app and the command-line program."
 ---
 
-## Desktop window
+Everything is an environment variable. The server reads them from the process environment and from a `.env` file. `.env.example` in the repository lists them all with comments; this page covers the ones you are likely to change.
 
-| Variable | Default |
+## Command-line program and MCP server
+
+| Variable | Default | Meaning |
+| --- | --- | --- |
+| `VUKEM_TOOLS_URL` | `http://localhost:3000` | The server to call. |
+| `VUKEM_TOOLS_API_KEY` | none | The API key. Kept in memory only. |
+
+## Desktop app
+
+| Variable | Default | Meaning |
+| --- | --- | --- |
+| `VUKEM_TOOLS_URL` | none | Show this server instead of starting one. |
+| `VUKEM_TOOLS_TOOL` | none | Open a tool page instead of the home page. |
+
+## Server
+
+| Variable | Default | Meaning |
+| --- | --- | --- |
+| `APP_KEY` | none | Encrypts cookies. Generate it once and keep it. |
+| `APP_URL` | `http://localhost:3000` | Public origin, used in links. |
+| `APP_ENV` | `development` | `development`, `test` or `production`. Production is stricter: see [Docker](/docs/self-hosting/docker#production). |
+| `APP_MODE` | unset | `local` runs the server, the worker and the scheduler in one process on SQLite, with no Postgres and no object storage. Data goes in your user configuration directory, under `vukem-tools`. |
+| `HOST`, `PORT` | `localhost`, `3000` | Where the server listens. |
+| `DATABASE_URL` | Postgres | The database. The queue, sessions and cache live in it. |
+| `QUEUE_IN_SERVE`, `SCHEDULE_IN_SERVE` | `true` | Run the worker and the scheduler inside the server process. |
+| `QUEUE_CONCURRENCY` | `2` | Conversions that run at once. |
+| `MAIL_MAILER` | `log` | `log` writes mail to the log. |
+| `PASSWORD_AUTH` | on | Email and password sign-in. Set `off` to leave only social sign-in; `.env.example` does. Local mode forces it on. |
+| `SOCIAL_GOOGLE_CLIENT_ID`, `SOCIAL_GOOGLE_CLIENT_SECRET` | none | Turn on Google sign-in. |
+| `TRUSTED_PROXIES` | none | Proxies whose address headers are trusted, so rate limits see the visitor's address. |
+| `S3_BUCKET` | none | Object storage for results. Without it they stay on local disk, which production refuses. |
+| `CLAMAV_ADDR` | none | A clamd address for malware scanning. `CLAMAV_DISABLED=true` stores uploads unscanned. |
+
+## Limits
+
+| Variable | Default | Meaning |
+| --- | --- | --- |
+| `MAX_UPLOAD_SIZE_MB` | `500` | The largest upload. |
+| `MAX_STORED_MB_PER_USER` | `2048` | The most one account may keep stored. `0` for no cap. |
+| `QUOTA_CPU_MINUTES_PER_DAY` | `60` | Daily processing budget per account. `0` for no limit. |
+| `QUOTA_EXEMPT_USER_IDS` | none | Accounts the budget does not apply to. |
+| `RESULT_TTL_MINUTES` | `5` | How long a result can be downloaded. |
+| `UPLOAD_TTL_MINUTES` | `30` | How long an unused upload waits. |
+| `MAX_DOWNLOAD_SIZE_MB` | `500` | The largest video download. |
+| `MAX_EDIT_DURATION_MINUTES` | `30` | The longest output of a cut. |
+
+## Engines
+
+The server finds each engine on `PATH`, or at the path you give. It logs the version of each one at start, and hides the tools whose engine is missing.
+
+| Variable | Engine |
 | --- | --- |
-| `VUKEM_TOOLS_URL` | `http://127.0.0.1:3000` |
-| `VUKEM_TOOLS_TOOL` | `pdf-crop` |
+| `QPDF_PATH` | qpdf |
+| `PDFTOTEXT_PATH`, `PDFTOPPM_PATH` | Poppler tools |
+| `GHOSTSCRIPT_PATH` | Ghostscript |
+| `VIPS_PATH`, `VIPSHEADER_PATH` | libvips |
+| `FFMPEG_PATH`, `FFPROBE_PATH` | ffmpeg |
+| `YTDLP_PATH` | yt-dlp |
 
-## Web app
+`ENGINE_INSECURE_ALLOW_NETWORK=true` runs the engines with the container's network instead of an empty one. Leave it unset unless a firewall outside the container gives the same guarantee.
 
-| Variable | Role |
-| --- | --- |
-| `APP_KEY` | Cookie secret. Generate it once and keep it. |
-| `APP_URL` | Public origin used in links. |
-| `APP_ENV` | `development` for Compose. `production` also needs `S3_BUCKET`. |
-| `DATABASE_URL` | Postgres URL. The queue, sessions, and cache live here. |
-| `MAIL_MAILER` | `log` writes mail to the log. |
-| `CLAMAV_ADDR` | ClamAV address. |
-| `PORT` | `3000` |
-| `QPDF_PATH` | qpdf, when it is not on `PATH` |
+## Next step
 
-The agent server (`vukem-tools serve`) is separate and defaults to `127.0.0.1:8787`.
+[Docker](/docs/self-hosting/docker) shows these in a working stack.

@@ -1,16 +1,20 @@
 ---
 title: "MCP"
-description: "Connect an agent to vukem-tools mcp and call pdf-crop."
+description: "Connect an agent to vukem-tools mcp and let it run the server tools."
 ---
 
-`vukem-tools mcp` reads one JSON-RPC object per line and writes one object per line.
+`vukem-tools mcp` is a Model Context Protocol server. It reads one JSON-RPC message per line on standard input, writes one per line on standard output, and opens no port. `tools/list` returns the 54 tools of the catalogue and `tools/call` runs the 37 that work on files, through the HTTP API of a Vukem Tools server.
 
-`tools/list` returns the catalogue. `tools/call` with the name `pdf-crop` crops every page. The arguments are `input`, `output`, and optional `left`, `bottom`, `right`, and `top`. Any other tool name is an error. The call uses the same crop as the CLI.
-
-Add it to a client as a local stdio server:
+Add it to Claude Code as a local server:
 
 ```bash
-claude mcp add vukem-tools -- vukem-tools mcp
+claude mcp add --env VUKEM_TOOLS_URL=http://localhost:3000 \
+  --env VUKEM_TOOLS_API_KEY=vk_... \
+  --transport stdio vukem-tools -- vukem-tools mcp
 ```
 
-The command name on your machine has to be the `vukem-tools` binary from this repository. Details of the methods are on the [MCP pages](/docs/mcp/overview).
+The command is the `vukem-tools` program from a release, see [Installation](/docs/installation#the-command-line-program). Setups for Claude Desktop and Cursor, the protocol and every tool's arguments are in the [MCP section](/docs/mcp/overview).
+
+## Next step
+
+[Connect a client](/docs/mcp/connect).

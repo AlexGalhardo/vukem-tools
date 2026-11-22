@@ -1,20 +1,32 @@
 ---
 title: "Introduction"
-description: "What Vukem Tools is, and which surfaces share one catalogue."
+description: "What Vukem Tools is and the four ways to use the same tools."
 ---
 
-Vukem Tools is an open source (MIT) file conversion toolbox. A person converts a file in the browser or in the desktop window. An agent uses the same tool names from the command line, the HTTP API, or MCP.
+Vukem Tools is an open source (MIT) file toolbox that you run yourself. It converts, compresses and edits images, video, audio, PDFs and archives, and it has a set of small developer tools that run in your browser. Your files stay on your machine or on your own server.
 
-The window does not draw a second interface. It opens the web app. A tool that runs in the browser is marked in the catalogue and does not go through the server pipeline.
+You can use it in four ways, and they all reach the same tools:
 
-## What a conversion is
+- **The web app.** Sign in, pick a tool, drop a file.
+- **The desktop app.** A window that starts the whole server on your computer. No Docker and no database to set up.
+- **The HTTP API.** Every tool is a route, for scripts and programs.
+- **The command line and MCP.** The same tools for a terminal and for an AI agent such as Claude Code, Claude Desktop or Cursor.
 
-A tool has a name, such as `pdf-crop` or `image-convert`. The web page is `/tools/<name>`. The agent adapters use that same name. File types are detected from the bytes of the file, not from the extension and not from the browser's content type.
+## What a tool is
 
-Login is required for every tool. An API key carries abilities, and a key cannot do more than those abilities allow.
+A tool has a name, such as `pdf-crop` or `image-convert`. The web page of a tool is `/tools/<name>`, its API route is `POST /api/v1/tools/<name>`, and its command is `vukem-tools <area> <tool>`. There are 54 tools: 37 run on the server and 17 run in the browser. See the [catalogue](/docs/concepts/catalogue).
+
+The server reads a file's type from its bytes, not from its extension and not from what the browser says.
+
+## Who can use it
+
+Every tool needs an account. Programs use an API key that carries only the abilities you gave it, and a key can never do more than those. See [Authentication](/docs/api/authentication).
+
+Several conversion engines are licensed under the GPL or the AGPL, so Vukem Tools is not for commercial use. Every engine and its licence is on the `/licenses` page of the app and in [Licences](/docs/self-hosting/licences).
 
 ## Where to go next
 
-- [Install](/docs/installation) the server, or run it with Docker.
-- [Crop a PDF](/docs/quick-start) from the browser and from the CLI.
+- [Install](/docs/installation) the desktop app, the server or the command-line program.
+- [Crop a PDF](/docs/quick-start) in the browser, from the terminal and over the API.
 - [Read the catalogue](/docs/concepts/catalogue).
+- [Use the API](/docs/api/overview) or [connect an agent](/docs/mcp/overview).

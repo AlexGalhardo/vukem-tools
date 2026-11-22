@@ -1,0 +1,87 @@
+---
+title: "Authentication"
+description: "API keys, the abilities that limit them, and device links for programs that cannot show a login form."
+---
+
+Every route needs an API key, except the ones that issue a key or describe the server. A key is a login for one account, limited to the abilities you gave it.
+
+## Send the key
+
+Either header works. `Authorization` wins when both are present, so a stale `X-API-Key` in a shell profile cannot override a key you chose.
+
+```bash
+curl -sS "$VUKEM_TOOLS_URL/api/v1/me" -H "Authorization: Bearer $VUKEM_TOOLS_API_KEY"
+curl -sS "$VUKEM_TOOLS_URL/api/v1/me" -H "X-API-Key: $VUKEM_TOOLS_API_KEY"
+```
+
+## Get a key
+
+There are two ways.
+
+**In the web app.** Sign in, open **Account**, and create a key. Choose the abilities it needs. The secret is shown once.
+
+**Over the API.** Exchange the account's email and password for a key. The account's email has to be verified: a key is a login, and an unverified address may belong to someone else. On a local install the first account is verified when it is created.
+
+```bash
+curl -sS -X POST "$VUKEM_TOOLS_URL/api/v1/tokens" \
+  -H "Content-Type: application/json" \
+  -d '{"email":"you@example.com","password":"...","device_name":"my-script","abilities":["pdf:structure"]}'
+```
+
+The response carries the secret once. Only a hash of it is stored, so a lost key is replaced, not recovered.
+
+```json
+{
+  "id": "k_7f3c1b9e",
+  "token": "vk_7f3c1b9e.replace-this-with-the-key-you-receive",
+  "type": "Bearer",
+  "abilities": ["pdf:structure"],
+  "expires_at": "2026-12-22T10:00:00Z"
+}
+```
+
+A key expires 30 days after it is issued. [`POST /api/v1/tokens`](/docs/api/account#post-apiv1tokens) is limited to 5 calls a minute per address.
+
+## Abilities
+
+A key carries exactly the abilities you asked for. There is no default and no wildcard. Ask for the narrowest set the script needs. `GET /api/v1/abilities` lists the accepted values, so a client does not hardcode them. An unknown ability is a `422` on the `abilities` field.
+
+| Ability | Lets the key run |
+| --- | --- |
+| `pdf:structure` | `pdf-merge`, `pdf-split`, `pdf-extract-pages`, `pdf-remove-pages`, `pdf-organise`, `pdf-rotate`, `pdf-crop` |
+| `pdf:convert` | `images-to-pdf`, `pdf-to-image`, `pdf-to-pdfa`, `pdf-to-text`, `pdf-ocr`, `word-to-pdf`, `powerpoint-to-pdf`, `excel-to-pdf` |
+| `pdf:compress` | `pdf-compress`, `pdf-repair` |
+| `pdf:security` | `pdf-protect`, `pdf-unlock`, `pdf-compare`, `pdf-sign` |
+| `pdf:edit` | `pdf-forms`, `pdf-watermark`, `pdf-page-numbers` |
+| `image:convert` | `image-convert` |
+| `image:compress` | `image-compress` |
+| `pixels:svg` | `pixels-to-svg` |
+| `video:convert` | `video-convert`, `video-to-gif` |
+| `video:edit` | `video-clip`, `video-compress` |
+| `video:download` | `video-download` and its metadata route |
+| `audio:convert` | `audio-convert` |
+| `sprite:sheet` | `sprite-split`, `sprite-build` |
+| `archive:files` | `archive-create`, `archive-extract` |
+| `image:edit`, `video:transcribe` | Nothing yet: the server accepts them, but no route in this release requires them |
+
+Reading and cancelling your own conversions, uploading, and reading your account need a valid key but no ability. A key without the ability for a tool gets a `403` when it submits to that tool.
+
+## Manage keys
+
+- `GET /api/v1/tokens` lists your keys, newest first, revoked ones included. It never returns a secret.
+- `DELETE /api/v1/tokens/current` revokes the key that made the request.
+- `DELETE /api/v1/tokens/{token}` revokes one of your keys by id. Another account's id is answered exactly like an id that does not exist.
+
+## Link a program without a password
+
+A program that cannot show a login form, such as the Telegram bot, gets a key through a device link. Both calls are public and limited per address; the codes are the credential.
+
+1. `POST /api/v1/device-links` with `{"client": "telegram"}` returns a secret `device_code`, a short `user_code`, the `verification_url`, `expires_in` (ten minutes) and `interval`.
+2. The person opens the URL, signs in, checks that the code matches, and approves. Only an account with a verified email can approve.
+3. The program polls `POST /api/v1/device-links/token` with the `device_code` every `interval` seconds. `status` is `pending`, then `approved` with the key (shown once), or `denied` or `expired`.
+
+The server decides what the key may do for that kind of client. The program cannot ask for abilities. Both routes are in [Account and keys](/docs/api/account).
+
+## Next step
+
+Use your key: [Convert a file](/docs/api/workflow).

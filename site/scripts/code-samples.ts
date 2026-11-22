@@ -1,6 +1,6 @@
 // Request samples for the API reference: one template per language, filled from an operation of the OpenAPI
 // document. Every sample sends the secret as `Authorization: Bearer <secret>` (the local token in local mode,
-// an API key in network mode) and reads it from the environment variable VUKEM_VIDEO_KEY. Node strips the types.
+// an API key in network mode) and reads it from the environment variable VUKEM_TOOLS_API_KEY. Node strips the types.
 
 export type SampleRequest = {
 	method: string;
@@ -11,11 +11,13 @@ export type SampleRequest = {
 	body?: unknown;
 	/** Whether a successful answer is a JSON document (else the sample reports the status and the size). */
 	json: boolean;
+	/** A public route: the sample sends no credential. */
+	anonymous?: boolean;
 };
 
 export type Sample = { label: string; lang: string; code: string };
 
-export const SECRET_VARIABLE = "VUKEM_VIDEO_KEY";
+export const SECRET_VARIABLE = "VUKEM_TOOLS_API_KEY";
 
 const fullUrl = (r: SampleRequest): string => {
 	if (r.query.length === 0) return r.url;
@@ -25,6 +27,8 @@ const fullUrl = (r: SampleRequest): string => {
 const pretty = (value: unknown): string => JSON.stringify(value, null, 2);
 
 const hasBody = (r: SampleRequest): boolean => r.body !== undefined;
+
+const authed = (r: SampleRequest): boolean => !r.anonymous;
 
 const indent = (text: string, prefix: string): string =>
 	text
@@ -51,7 +55,8 @@ function py(value: unknown, level = 0): string {
 }
 
 export function curl(r: SampleRequest): Sample {
-	const lines = [`curl -X ${r.method} "${fullUrl(r)}"`, `  -H "Authorization: Bearer $${SECRET_VARIABLE}"`];
+	const lines = [`curl -X ${r.method} "${fullUrl(r)}"`];
+	if (authed(r)) lines.push(`  -H "Authorization: Bearer $${SECRET_VARIABLE}"`);
 	if (hasBody(r)) {
 		lines.push(`  -H "Content-Type: application/json"`);
 		lines.push(`  -d '${pretty(r.body).replace(/'/g, `'\\''`)}'`);
@@ -60,19 +65,21 @@ export function curl(r: SampleRequest): Sample {
 }
 
 export function python(r: SampleRequest): Sample {
-	const args = [`    "${r.url}",`, `    headers={"Authorization": f"Bearer {os.environ['${SECRET_VARIABLE}']}"},`];
+	const args = [`    "${r.url}",`];
+	if (authed(r)) args.push(`    headers={"Authorization": f"Bearer {os.environ['${SECRET_VARIABLE}']}"},`);
 	if (r.query.length) args.push(`    params={${r.query.map((q) => `${JSON.stringify(q.name)}: ${JSON.stringify(q.value)}`).join(", ")}},`);
 	if (hasBody(r)) args.push(`    json=${py(r.body, 1)},`);
 	args.push("    timeout=30,");
 	const tail = r.json ? "print(response.json())" : "print(response.status_code, len(response.content))";
-	const code = `import os\n\nimport requests\n\nresponse = requests.${r.method.toLowerCase()}(\n${args.join("\n")}\n)\nresponse.raise_for_status()\n${tail}`;
+	const code = `${authed(r) ? "import os\n\n" : ""}import requests\n\nresponse = requests.${r.method.toLowerCase()}(\n${args.join("\n")}\n)\nresponse.raise_for_status()\n${tail}`;
 	return { label: "Python", lang: "python", code };
 }
 
 export function javascript(r: SampleRequest): Sample {
-	const headers = [`    Authorization: \`Bearer \${process.env.${SECRET_VARIABLE}}\`,`];
+	const headers = authed(r) ? [`    Authorization: \`Bearer \${process.env.${SECRET_VARIABLE}}\`,`] : [];
 	if (hasBody(r)) headers.push(`    "Content-Type": "application/json",`);
-	const options = [`  method: "${r.method}",`, `  headers: {\n${headers.join("\n")}\n  },`];
+	const options = [`  method: "${r.method}",`];
+	if (headers.length) options.push(`  headers: {\n${headers.join("\n")}\n  },`);
 	if (hasBody(r)) options.push(`  body: JSON.stringify(${indent(pretty(r.body), "  ").trimStart()}),`);
 	const tail = r.json
 		? "console.log(await response.json());"
@@ -90,7 +97,7 @@ function goNewRequest(r: SampleRequest, body: string): string[] {
 }
 
 export function go(r: SampleRequest): Sample {
-	const imports = [...(hasBody(r) ? ['"strings"'] : []), '"fmt"', '"io"', '"net/http"', '"os"'].sort((a, b) => a.localeCompare(b));
+	const imports = [...(hasBody(r) ? ['"strings"'] : []), '"fmt"', '"io"', '"net/http"', ...(authed(r) ? ['"os"'] : [])].sort((a, b) => a.localeCompare(b));
 	const body = hasBody(r) ? "body" : "nil";
 	const lines = [
 		"package main",
@@ -105,7 +112,7 @@ export function go(r: SampleRequest): Sample {
 		"\tif err != nil {",
 		"\t\tpanic(err)",
 		"\t}",
-		`\treq.Header.Set("Authorization", "Bearer "+os.Getenv("${SECRET_VARIABLE}"))`,
+		...(authed(r) ? [`\treq.Header.Set("Authorization", "Bearer "+os.Getenv("${SECRET_VARIABLE}"))`] : []),
 		...(hasBody(r) ? [`\treq.Header.Set("Content-Type", "application/json")`] : []),
 		"",
 		"\tres, err := http.DefaultClient.Do(req)",
@@ -130,10 +137,14 @@ export function php(r: SampleRequest): Sample {
 	const options = [
 		`    CURLOPT_CUSTOMREQUEST => "${r.method}",`,
 		"    CURLOPT_RETURNTRANSFER => true,",
-		"    CURLOPT_HTTPHEADER => [",
-		`        "Authorization: Bearer " . getenv("${SECRET_VARIABLE}"),`,
-		...(hasBody(r) ? [`        "Content-Type: application/json",`] : []),
-		"    ],",
+		...(authed(r) || hasBody(r)
+			? [
+				"    CURLOPT_HTTPHEADER => [",
+				...(authed(r) ? [`        "Authorization: Bearer " . getenv("${SECRET_VARIABLE}"),`] : []),
+				...(hasBody(r) ? [`        "Content-Type: application/json",`] : []),
+				"    ],",
+			]
+			: []),
 		...(hasBody(r) ? [`    CURLOPT_POSTFIELDS => ${phpString(pretty(r.body))},`] : []),
 	];
 	const lines = [
@@ -177,7 +188,7 @@ export function java(r: SampleRequest): Sample {
 		"    public static void main(String[] args) throws Exception {",
 		"        HttpRequest request = HttpRequest.newBuilder()",
 		...javaUri(r),
-		`            .header("Authorization", "Bearer " + System.getenv("${SECRET_VARIABLE}"))`,
+		...(authed(r) ? [`            .header("Authorization", "Bearer " + System.getenv("${SECRET_VARIABLE}"))`] : []),
 		...(hasBody(r) ? [`            .header("Content-Type", "application/json")`] : []),
 		`            ${verb}`,
 		"            .build();",
@@ -201,13 +212,17 @@ export function csharp(r: SampleRequest): Sample {
 	const lines = [
 		"using System;",
 		"using System.Net.Http;",
-		"using System.Net.Http.Headers;",
+		...(authed(r) ? ["using System.Net.Http.Headers;"] : []),
 		...(hasBody(r) ? ["using System.Text;"] : []),
 		"",
 		"using var client = new HttpClient();",
 		...csharpRequest(r, method),
-		"request.Headers.Authorization = new AuthenticationHeaderValue(",
-		`    "Bearer", Environment.GetEnvironmentVariable("${SECRET_VARIABLE}"));`,
+		...(authed(r)
+			? [
+				"request.Headers.Authorization = new AuthenticationHeaderValue(",
+				`    "Bearer", Environment.GetEnvironmentVariable("${SECRET_VARIABLE}"));`,
+			]
+			: []),
 		...(hasBody(r) ? [`request.Content = new StringContent("""\n${pretty(r.body)}\n""", Encoding.UTF8, "application/json");`] : []),
 		"",
 		"using var response = await client.SendAsync(request);",
@@ -228,7 +243,7 @@ export function ruby(r: SampleRequest): Sample {
 		"",
 		`uri = URI("${fullUrl(r)}")`,
 		`request = Net::HTTP::${klass}.new(uri)`,
-		`request["Authorization"] = "Bearer #{ENV.fetch('${SECRET_VARIABLE}')}"`,
+		...(authed(r) ? [`request["Authorization"] = "Bearer #{ENV.fetch('${SECRET_VARIABLE}')}"`] : []),
 		...(hasBody(r) ? [`request["Content-Type"] = "application/json"`, `request.body = ${rubyString(pretty(r.body))}`] : []),
 		"",
 		'response = Net::HTTP.start(uri.hostname, uri.port, use_ssl: uri.scheme == "https") do |http|',

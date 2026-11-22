@@ -1,15 +1,24 @@
 ---
 title: "CLI"
-description: "vukem-tools tools, pdf crop, mcp, and serve."
+description: "Run any server tool from a terminal or from an agent's shell."
 ---
 
-```text
-vukem-tools tools
-vukem-tools pdf crop --input in.pdf --output out.pdf
-vukem-tools mcp
-vukem-tools serve
+`vukem-tools` is a client of the HTTP API. Every server tool is a subcommand: `vukem-tools <area> <tool> --input FILE --output PATH`. It uploads the file, waits for the conversion and downloads the result.
+
+```bash
+export VUKEM_TOOLS_URL="http://localhost:3000"
+export VUKEM_TOOLS_API_KEY="vk_..."
+
+vukem-tools pdf                      # list the PDF tools
+vukem-tools pdf crop --help          # the flags of one tool
+vukem-tools pdf crop --input in.pdf --output out.pdf --left 36 --right 36
+vukem-tools video compress --input clip.mp4 --output small.mp4 --json
 ```
 
-`tools` writes the catalogue as JSON. `pdf crop` writes `output`, `cropped`, and `bytes`. `mcp` speaks JSON-RPC on stdin and stdout until the pipe closes. `serve` listens on `127.0.0.1:8787` unless you pass another address, and serves `GET /tools` and `POST /pdf/crop`.
+For an agent that has a shell, `--json` is the useful flag: it prints the result as one JSON object, and an error as `{"error": {"code": ..., "message": ...}}` with a stable code and an exit status of `1` or `2`.
 
-Flags for the crop are `--input`, `--output`, `--left`, `--bottom`, `--right`, and `--top`. `--input` and `--output` are required.
+All commands, flags and exit codes are in the [CLI reference](/docs/reference/cli). The options of each tool are in [Tools](/docs/mcp/tools). To let an agent call the tools without a shell, use [MCP](/docs/mcp/overview).
+
+## Next step
+
+[CLI reference](/docs/reference/cli).

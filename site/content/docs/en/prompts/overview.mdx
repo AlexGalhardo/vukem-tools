@@ -1,14 +1,36 @@
 ---
 title: "Prompts"
-description: "What to tell an agent that has the vukem-tools CLI or MCP server."
+description: "What to tell an agent that has the vukem-tools MCP server or CLI."
 ---
 
-Install the CLI or the MCP server first. Then name the tool and the files. An example that matches what the program can do:
+Connect the [MCP server](/docs/mcp/connect) or install the [CLI](/docs/reference/cli) first. Then name the tool or the job, the files and where the result goes. Examples that match what the tools can do:
 
 ```text
 Use vukem-tools to crop every page of in.pdf by 36 points on each side and write out.pdf.
 ```
 
-The agent should run `vukem-tools pdf crop` or call MCP `pdf-crop`. It should not ask you to type a password into the chat. A tool that needs a password, a page range, or a geometry stays in the web app.
+```text
+Merge a.pdf and b.pdf into one PDF called merged.pdf, then compress it.
+```
 
-If qpdf is missing, the crop fails and the error says so. Install qpdf or set `QPDF_PATH`, then run the same command again.
+```text
+Convert photo.png to WebP at quality 80 and write photo.webp next to it.
+```
+
+```text
+Make clip.mp4 smaller and tell me how much space it saved.
+```
+
+The agent should call the matching MCP tool, or run the matching `vukem-tools` command, and it can chain tools: the output of one is a file path for the next.
+
+## Tips
+
+- Give paths, not descriptions. The agent passes them as `input` and `output`.
+- Name the tool if you know it. `tools/list` has all 37 with their options, and an agent that sees them will pick well.
+- Do not paste a password into the chat. `pdf-protect` and `pdf-unlock` take one as an option, so for those tools prefer to run the CLI yourself.
+- A tool that makes several files, such as `pdf-split`, needs a directory as `output`.
+- If a call fails, the error has a stable `code` and a `message`. Pass the message back to the agent. See [Protocol](/docs/mcp/protocol#tool-errors).
+
+## Next step
+
+[Browse the tools](/docs/mcp/tools).

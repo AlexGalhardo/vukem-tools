@@ -3,10 +3,32 @@ title: "Web app"
 description: "Sign in, pick a tool, and convert a file in the browser."
 ---
 
-The web app is the Inertia interface served by `cmd/app`. After you sign in, the sidebar lists the tools from the catalogue. Each tool is a form at `/tools/<name>`.
+The web app is the interface of the server. After you sign in, the sidebar lists the tools in groups, and `Ctrl+K` searches them. Each tool is a page at `/tools/<name>`: choose a file, set the options, run it, and download the result.
 
-The app stores sessions, the queue, and conversion rows in Postgres. Uploaded files are scanned when ClamAV is configured. Results are written to storage, not held in memory.
+## Accounts
 
-`GET /health` is the liveness check. `GET /up?checks=1` adds the dependency checks.
+Every tool needs an account. You can sign in with an email and a password. A server can also offer Google sign-in. Open **Account** to change your profile and password, to create and revoke [API keys](/docs/api/authentication), and to approve a [device link](/docs/api/authentication#link-a-program-without-a-password) for a program such as the Telegram bot.
 
-The docs site you are reading is static and lives at `https://tools.vukem.dev`. The app is a different host. The suggested name is `app.tools.vukem.dev`.
+## What happens to your file
+
+1. The file is uploaded to the server. Its type is read from its bytes. A server may scan uploads for malware.
+2. A worker runs the tool in an engine, as a separate process with a time limit. You see the progress on the page.
+3. The result is stored, not held in memory. You have five minutes to download it, then it is deleted.
+
+An upload that no conversion used is deleted after 30 minutes. An operator can change both times.
+
+## Tools that run in the page
+
+The developer tools, the LLM tools and the Brazil tools run in your browser. See the [catalogue](/docs/concepts/catalogue).
+
+## Health checks
+
+`GET /health` answers when the server is alive. `GET /health/deep` also checks its dependencies, hides versions from anonymous callers and is rate limited.
+
+## This documentation
+
+This site is static and lives at `https://tools.vukem.dev`. The app is a different program: it runs on your machine or your server, and the sidebar link **Documentation** opens this site.
+
+## Next step
+
+[Crop a PDF](/docs/quick-start), or [read the catalogue](/docs/concepts/catalogue).

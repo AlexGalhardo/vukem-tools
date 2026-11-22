@@ -1,15 +1,55 @@
 ---
 title: "MCP overview"
-description: "The local MCP server: one JSON object per line, two methods."
+description: "An MCP server that lets an AI agent run every tool of Vukem Tools on files on your machine."
 ---
 
-`vukem-tools mcp` is a newline-delimited JSON-RPC server. It does not open a port. The client is the process that spawned it.
+`vukem-tools mcp` is a [Model Context Protocol](https://modelcontextprotocol.io/) server. An agent in Claude Code, Claude Desktop, Cursor or any other MCP client sees 54 tools and can run the 37 that work on files: crop a PDF, compress a video, convert an image, pack an archive.
 
-| Method | Result |
-| --- | --- |
-| `tools/list` | The catalogue, under `result.tools` |
-| `tools/call` | Runs `pdf-crop` when `params.name` is `pdf-crop` |
+The server converts nothing itself. It is a thin client of the [HTTP API](/docs/api/overview). For each call it uploads your file to a Vukem Tools server, waits for the conversion, and downloads the result to the path you named. The [CLI](/docs/reference/cli) works the same way, from the same table of tools.
 
-Any other method returns JSON-RPC error `-32601`. Any other tool name returns `-32602`.
+## What you need
 
-The arguments of `pdf-crop` are `input`, `output`, `left`, `bottom`, `right`, and `top`. Omitted margins use the adapter default of 36 points. The page range is every page.
+- The `vukem-tools` command-line program. See [Installation](/docs/installation#the-command-line-program).
+- A running Vukem Tools server: the [desktop app](/docs/guide/desktop) or [Docker](/docs/self-hosting/docker).
+- An API key with the abilities of the tools the agent may use. See [Authentication](/docs/api/authentication).
+
+Two environment variables tell the server where to go:
+
+| Variable | Default | Meaning |
+| --- | --- | --- |
+| `VUKEM_TOOLS_URL` | `http://localhost:3000` | The Vukem Tools server. |
+| `VUKEM_TOOLS_API_KEY` | none | The API key. Without it a call fails with `missing_key`. |
+
+The key stays in memory. It is never printed, logged or written to disk.
+
+## How it runs
+
+The client starts the program and talks to it on standard input and output, one JSON-RPC message per line. No port is opened. When the client closes the pipe, calls still running are finished first.
+
+```text
+vukem-tools mcp
+```
+
+There is also a local HTTP form, `vukem-tools serve`, for a program that cannot spawn a process. See [Protocol](/docs/mcp/protocol#local-http).
+
+## What a call does
+
+Take `pdf-crop` with `input` set to `in.pdf` and `output` set to `out.pdf`:
+
+1. The server checks the arguments against the tool's schema before anything leaves your machine.
+2. It uploads `in.pdf` and submits the conversion.
+3. It polls until the conversion ends.
+4. It downloads the result to `out.pdf` at once, because a result expires in minutes.
+5. It answers with the output path, its size and the conversion id.
+
+A tool that makes several files, such as `pdf-split`, takes a directory as `output`.
+
+## What it can read and write
+
+The agent chooses the paths, and the process can read and write anything your user can. Only connect it to an agent you trust with those files, and prefer a client that asks you to approve each call.
+
+## Next steps
+
+- [Connect](/docs/mcp/connect) it to Claude Code, Claude Desktop or Cursor.
+- Read the [protocol](/docs/mcp/protocol): methods, results and errors.
+- Browse the [tools](/docs/mcp/tools) and their arguments.

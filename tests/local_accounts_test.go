@@ -339,8 +339,29 @@ func TestLocalPasswordResetSurvivesFourWrongCodes(t *testing.T) {
 
 	code := readResetCode(t, app)
 
-	for i := range 4 {
+	// Three here and one below make the four.
+	for i := range 3 {
 		submitReset(t, app, "WRONGCODE"+strconv.Itoa(i)).AssertRedirect("/reset-password")
+	}
+
+	// The refusal speaks of a code, not a link: this computer sends no link
+	// (QA-A19). One client, so the flashed error reaches the page it redirects to.
+	wrong := app.Client(t).Inertia("").WithHeader("Referer", "/reset-password")
+	wrong.PostJSON("/reset-password", map[string]any{
+		"email": "ana@example.com", "token": "WRONGCODE", "password": newPassword, "password_confirmation": newPassword,
+	}).AssertRedirect("/reset-password")
+
+	// The page that asks for the code does not promise an email either.
+	app.Client(t).
+		Inertia("").
+		Get("/forgot-password").
+		AssertOK().
+		AssertInertia("Auth/ForgotPassword").
+		PropEquals("local", true)
+
+	body := wrong.Get("/reset-password").AssertOK().Body()
+	if !strings.Contains(body, "This reset code is invalid or has expired.") || strings.Contains(body, "reset link") {
+		t.Error("the local refusal does not say \"reset code\" instead of \"reset link\"")
 	}
 
 	submitReset(t, app, code).AssertRedirect("/login")

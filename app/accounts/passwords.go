@@ -192,7 +192,13 @@ func (a *Accounts) storeResetToken(ctx context.Context, email string) (string, e
 }
 
 func (a *Accounts) errInvalidReset(ctx context.Context) error {
-	return errs.NewValidation().Add("email", a.T(ctx, "auth.reset_invalid"))
+	// A computer that sends no email has no link, only a code from the file.
+	key := "auth.reset_invalid"
+	if a.Local {
+		key = "auth.local_reset_invalid"
+	}
+
+	return errs.NewValidation().Add("email", a.T(ctx, key))
 }
 
 // ResetPassword checks the token (constant time, single use, ResetTTL) and

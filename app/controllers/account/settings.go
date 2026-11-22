@@ -157,6 +157,11 @@ func (s *Settings) UpdatePassword(c *web.Ctx) error {
 		return fmt.Errorf("account: change the password: %w", err)
 	}
 
+	// The version bump ended this session too: keep it, as the page promises.
+	if err := s.h.a.Web.RefreshSession(c); err != nil {
+		return fmt.Errorf("account: keep the session after the password change: %w", err)
+	}
+
 	inertia.Flash(c, "status",
 		"Your password has been changed. Every other session has been signed out.")
 

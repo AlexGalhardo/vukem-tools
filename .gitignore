@@ -61,6 +61,9 @@ questions-to-dev.md
 # Owner-local vukem framework feedback, handed to another agent.
 vukem-feedback.md
 
+# Owner-local prompts for generating the app icon.
+prompts-to-create-vukem-tools-icon.md
+
 # scripts/engine-tests.sh build output
 /.engine-tests/
 

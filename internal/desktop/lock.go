@@ -91,8 +91,10 @@ func acquireLock(ctx context.Context, dir string) (*instanceLock, error) {
 		switch {
 		case held.Origin != "" && probeUp(ctx, held.Origin):
 			return nil, &RunningError{Origin: held.Origin}
-		case held.Origin == "" && time.Now().Before(deadline):
-			// The holder is still booting.
+		case held.Origin == "" && time.Now().Before(deadline) && (held.PID <= 0 || processAlive(held.PID)):
+			// The holder is still booting. A pid that is gone means it died
+			// booting, so that falls through to the stale case. No pid at all
+			// is a file its writer has not filled in yet.
 			select {
 			case <-ctx.Done():
 				return nil, ctx.Err()

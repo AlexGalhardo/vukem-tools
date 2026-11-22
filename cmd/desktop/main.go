@@ -38,26 +38,24 @@ func run() int {
 	if os.Getenv("VUKEM_TOOLS_URL") == "" {
 		dir, err := bootstrap.DataDir()
 		if err != nil {
-			fmt.Fprintln(os.Stderr, err)
-			return 1
+			return failed(err, "")
 		}
 
 		opts.DataDir = dir
 
 		// The engine runner reads APP_ENV itself and refuses to start without a
-		// sandbox in production; a desktop install is not production.
-		if _, ok := os.LookupEnv("APP_ENV"); !ok {
+		// sandbox in production; a desktop install is not production, whatever
+		// the environment the app was launched from says.
+		if os.Getenv("APP_ENV") != "testing" {
 			if err := os.Setenv("APP_ENV", "local"); err != nil {
-				fmt.Fprintln(os.Stderr, err)
-				return 1
+				return failed(err, dir)
 			}
 		}
 	}
 
 	session, err := desktop.Open(context.Background(), os.Getenv, opts)
 	if err != nil {
-		fmt.Fprintln(os.Stderr, err)
-		return 1
+		return failed(err, opts.DataDir)
 	}
 
 	defer func() {
@@ -69,6 +67,38 @@ func run() int {
 		}
 	}()
 
+	if err := showWindow(session.URL, session.Done()); err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		return 1
+	}
+
+	return 0
+}
+
+// failed tells the person why the app could not start. The Windows build has no
+// console, so printing to stderr alone would close the app with nothing on
+// screen: the reason goes in a window as well.
+func failed(cause error, dataDir string) int {
+	fmt.Fprintln(os.Stderr, cause)
+
+	page, err := desktop.StartFailure(version, cause, dataDir)
+	if err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		return 1
+	}
+
+	defer func() { _ = page.Close(context.Background()) }()
+
+	if err := showWindow(page.URL, nil); err != nil {
+		fmt.Fprintln(os.Stderr, err)
+	}
+
+	return 1
+}
+
+// showWindow opens url in a window and returns when it closes. A server that
+// dies on its own leaves a window that cannot work, so done closes it.
+func showWindow(url string, done <-chan struct{}) error {
 	app := application.New(application.Options{
 		Name:        "Vukem Tools",
 		Description: "File conversion toolbox",
@@ -78,21 +108,15 @@ func run() int {
 		Title:  "Vukem Tools " + desktop.ReleaseLabel(version),
 		Width:  1200,
 		Height: 800,
-		URL:    session.URL,
+		URL:    url,
 	})
 
-	// A server that dies on its own leaves a window that cannot work: close it.
-	if done := session.Done(); done != nil {
+	if done != nil {
 		go func() {
 			<-done
 			app.Quit()
 		}()
 	}
 
-	if err := app.Run(); err != nil {
-		fmt.Fprintln(os.Stderr, err)
-		return 1
-	}
-
-	return 0
+	return app.Run()
 }

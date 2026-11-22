@@ -40,7 +40,7 @@ function SearchLauncher() {
 					setOpened(true);
 					setOpen(true);
 				}}
-				className="flex h-8 items-center gap-2 rounded-lg text-sm text-faint transition-colors hover:text-fg max-sm:w-8 max-sm:justify-center sm:w-64 lg:w-48 xl:w-64 sm:border sm:border-border sm:bg-subtle sm:pr-1.5 sm:pl-2.5 sm:hover:border-border-strong"
+				className="flex h-8 items-center gap-2 rounded-lg text-sm text-faint transition-colors hover:text-fg max-sm:w-8 max-sm:justify-center sm:w-64 lg:w-48 xl:w-40 min-[88rem]:w-64 sm:border sm:border-border sm:bg-subtle sm:pr-1.5 sm:pl-2.5 sm:hover:border-border-strong"
 			>
 				<Search aria-hidden className="size-4 shrink-0" />
 				<span className="hidden flex-1 text-left sm:inline">{t.searchButton}</span>
@@ -89,25 +89,25 @@ export function Header({ groups }: { groups: NavGroup[] }) {
 							href={withBase("/llms.txt")}
 							target="_blank"
 							rel="noreferrer"
-							className="hidden h-8 items-center rounded-lg px-2.5 text-sm font-medium text-muted transition-colors hover:bg-hover hover:text-fg sm:inline-flex"
+							className="hidden h-8 items-center rounded-lg px-2.5 text-sm font-medium text-muted transition-colors hover:bg-hover hover:text-fg xl:inline-flex"
 						>
 							{t.agents}
 						</a>
 						<Link
 							href="/docs/api/overview"
-							className="hidden h-8 items-center rounded-lg px-2.5 text-sm font-medium whitespace-nowrap text-muted transition-colors hover:bg-hover hover:text-fg lg:inline-flex"
+							className="hidden h-8 items-center rounded-lg px-2.5 text-sm font-medium whitespace-nowrap text-muted transition-colors hover:bg-hover hover:text-fg xl:inline-flex"
 						>
 							{t.apiReference}
 						</Link>
 						<Link
 							href="/docs/mcp/overview"
-							className="hidden h-8 items-center rounded-lg px-2.5 text-sm font-medium text-muted transition-colors hover:bg-hover hover:text-fg lg:inline-flex"
+							className="hidden h-8 items-center rounded-lg px-2.5 text-sm font-medium text-muted transition-colors hover:bg-hover hover:text-fg xl:inline-flex"
 						>
 							{t.mcp}
 						</Link>
 						<Link
 							href="/changelog"
-							className="hidden h-8 items-center rounded-lg px-2.5 text-sm font-medium text-muted transition-colors hover:bg-hover hover:text-fg sm:inline-flex"
+							className="hidden h-8 items-center rounded-lg px-2.5 text-sm font-medium text-muted transition-colors hover:bg-hover hover:text-fg xl:inline-flex"
 						>
 							{t.changelog}
 						</Link>

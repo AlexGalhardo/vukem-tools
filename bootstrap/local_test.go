@@ -142,3 +142,13 @@ func TestANonLocalRunGetsNoLocalOption(t *testing.T) {
 		t.Fatalf("localOption = %v, %v, want not local", local, err)
 	}
 }
+
+// Sign-in with Google needs the network, so a local install that a .env turned
+// password sign-in off for (as the hosted service does) would have no way in.
+func TestLocalEnvTurnsPasswordSignInOn(t *testing.T) {
+	t.Parallel()
+
+	if got := LocalEnv(t.TempDir())["PASSWORD_AUTH"]; got != "on" {
+		t.Errorf("PASSWORD_AUTH = %q, want on", got)
+	}
+}

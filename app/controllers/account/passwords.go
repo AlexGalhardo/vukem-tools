@@ -1,6 +1,10 @@
 package account
 
 import (
+	"net/url"
+	"strings"
+
+	"github.com/AlexGalhardo/vukem/errs"
 	"github.com/AlexGalhardo/vukem/inertia"
 	"github.com/AlexGalhardo/vukem/web"
 
@@ -18,6 +22,10 @@ func (h *Handlers) SendResetLink(c *web.Ctx) error {
 		return err
 	}
 
+	if h.a.Local {
+		return h.showLocalResetCode(c, in.Email)
+	}
+
 	if err := h.a.SendResetLink(c.Context(), in.Email); err != nil {
 		return err
 	}
@@ -25,6 +33,24 @@ func (h *Handlers) SendResetLink(c *web.Ctx) error {
 	inertia.Flash(c, "status", h.a.T(c.Context(), "auth.reset_link_sent"))
 
 	return c.Redirect("/forgot-password")
+}
+
+// showLocalResetCode is the local answer to "forgot password": no mail, so the
+// one-time code goes straight to the reset page in the redirect. The route's
+// token parameter is marked secret, so the request log never records it.
+func (h *Handlers) showLocalResetCode(c *web.Ctx, email string) error {
+	code, found, err := h.a.LocalResetCode(c.Context(), email)
+	if err != nil {
+		return err
+	}
+
+	if !found {
+		return errs.NewValidation().Add("email", h.a.T(c.Context(), "auth.local_no_account"))
+	}
+
+	return c.Redirect(
+		"/reset-password/" + code + "?email=" + url.QueryEscape(strings.ToLower(strings.TrimSpace(email))),
+	)
 }
 
 // ShowReset renders the new password page.

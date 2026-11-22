@@ -12,6 +12,7 @@ import (
 
 	"github.com/AlexGalhardo/vukem/auth"
 	"github.com/AlexGalhardo/vukem/database"
+	"github.com/AlexGalhardo/vukem/errs"
 	"github.com/AlexGalhardo/vukem/orm"
 
 	"github.com/AlexGalhardo/vukem-tools/app/mail"
@@ -36,7 +37,7 @@ func (a *Accounts) Register(ctx context.Context, in requests.Register) (bool, er
 
 	existing, err := orm.QueryOf[models.User](a.DB).Where("email", email).First(ctx)
 	if err == nil {
-		return false, a.notifyExisting(ctx, existing)
+		return false, a.existingAccount(ctx, existing)
 	}
 
 	if !errors.Is(err, orm.ErrNotFound) {
@@ -47,10 +48,16 @@ func (a *Accounts) Register(ctx context.Context, in requests.Register) (bool, er
 	if err := orm.Create(ctx, a.DB, &u); err != nil {
 		// A concurrent sign-up with the same email won the unique index.
 		if existing, findErr := orm.QueryOf[models.User](a.DB).Where("email", email).First(ctx); findErr == nil {
-			return false, a.notifyExisting(ctx, existing)
+			return false, a.existingAccount(ctx, existing)
 		}
 
 		return false, err
+	}
+
+	if a.Local {
+		if err := a.verifyFirstLocalAccount(ctx, u.ID); err != nil {
+			return false, err
+		}
 	}
 
 	// Owner's decision, 2026-10-18: an address is not confirmed before the
@@ -62,6 +69,37 @@ func (a *Accounts) Register(ctx context.Context, in requests.Register) (bool, er
 	// created with an address its owner does not control, so EmailVerifiedAt
 	// stays null and means what it says rather than being set without proof.
 	return true, nil
+}
+
+// existingAccount answers a sign-up for an address that has an account. Hosted,
+// it mails the owner and says nothing (no enumeration). Local, there is no
+// mailbox and one person uses the machine, so it says so plainly.
+func (a *Accounts) existingAccount(ctx context.Context, u models.User) error {
+	if a.Local {
+		return errs.NewValidation().Add("email", a.T(ctx, "auth.local_account_exists"))
+	}
+
+	return a.notifyExisting(ctx, u)
+}
+
+// verifyFirstLocalAccount marks id verified when it is the only account in the
+// database. Owner's decision (docs/brainstorming.md, local accounts): the
+// person who creates the first account on a machine is at its keyboard and
+// the server answers on loopback only, so there is nobody else whose address
+// it could be. One statement, so two concurrent sign-ups cannot both count as
+// first: each sees two rows and neither is verified (fail closed).
+func (a *Accounts) verifyFirstLocalAccount(ctx context.Context, id int64) error {
+	d := a.DB.Dialect()
+
+	_, err := a.DB.ExecContext(ctx,
+		"UPDATE users SET email_verified_at = "+d.Placeholder(1)+" WHERE id = "+d.Placeholder(2)+
+			" AND (SELECT COUNT(*) FROM users) = 1",
+		a.now().UTC(), id)
+	if err != nil {
+		return fmt.Errorf("accounts: verify the first local account: %w", err)
+	}
+
+	return nil
 }
 
 // notifyExisting tells the owner of an existing account that someone tried

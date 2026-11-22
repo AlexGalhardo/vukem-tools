@@ -99,6 +99,12 @@ func (h *Handlers) Resend(c *web.Ctx) error {
 		return err
 	}
 
+	if h.a.Local {
+		inertia.Flash(c, "status", h.a.T(c.Context(), "auth.local_mail_off"))
+
+		return c.Redirect("/email/verify")
+	}
+
 	if err := h.a.SendVerification(c.Context(), u); err != nil {
 		return err
 	}

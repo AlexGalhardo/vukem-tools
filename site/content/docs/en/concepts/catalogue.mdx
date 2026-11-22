@@ -1,21 +1,37 @@
 ---
 title: "Catalogue"
-description: "The named tools this build can run, and which ones stay in the browser."
+description: "The 54 tools: the 37 that run on the server and the 17 that run in the browser."
 ---
 
-`vukem-tools tools` prints a JSON list of tools. Each entry has a name. That name is the last segment of `/tools/<name>`. MCP `tools/call` accepts `pdf-crop` only.
+The catalogue has 54 tools. Each has a name, and the name is the same everywhere: the page `/tools/<name>`, the API route `POST /api/v1/tools/<name>`, and the MCP tool. `vukem-tools tools` prints the list as JSON.
 
-The families in this build include:
+## Tools that run on the server (37)
 
-| Family | Examples |
+They go through the conversion pipeline: upload, convert in an engine, download. You can run them from the web app, the API, the CLI and MCP. Each row links to the arguments and options of its tools.
+
+| Group | Tools | Reference |
+| --- | --- | --- |
+| PDF (24) | `pdf-merge`, `pdf-split`, `pdf-extract-pages`, `pdf-remove-pages`, `pdf-organise`, `pdf-rotate`, `pdf-crop`, `pdf-compress`, `pdf-repair`, `pdf-protect`, `pdf-unlock`, `pdf-sign`, `pdf-compare`, `pdf-forms`, `pdf-watermark`, `pdf-page-numbers`, `pdf-ocr`, `pdf-to-image`, `pdf-to-pdfa`, `pdf-to-text`, `images-to-pdf`, `word-to-pdf`, `powerpoint-to-pdf`, `excel-to-pdf` | [PDF tools](/docs/mcp/tools-pdf) |
+| Images (5) | `image-convert`, `image-compress`, `pixels-to-svg`, `sprite-split`, `sprite-build` | [Image tools](/docs/mcp/tools-image) |
+| Video and audio (6) | `video-convert`, `video-compress`, `video-clip`, `video-to-gif`, `video-download`, `audio-convert` | [Video and audio tools](/docs/mcp/tools-media) |
+| Archives (2) | `archive-create`, `archive-extract` | [Archive tools](/docs/mcp/tools-archives) |
+
+## Tools that run in the browser (17)
+
+They run in the page. Nothing is uploaded to a conversion engine, and they have no API route, no CLI command and no MCP call. In the catalogue they are marked `Client`.
+
+| Group | Tools |
 | --- | --- |
-| PDF | `pdf-crop`, `pdf-merge`, `pdf-compress`, `pdf-ocr` |
-| Image | `image-convert`, `image-compress`, `pixels-to-svg` |
-| Audio and video | `audio-convert`, `video-convert`, `video-clip`, `video-download` |
-| Archives | `archive-create`, `archive-extract` |
-| Sprites | `sprite-split`, `sprite-build` |
-| Browser tools | `json-format`, `hash`, `base64`, `uuid` |
+| Developer tools (9) | `base64`, `data-convert`, `diff`, `hash`, `json-format`, `json-schema`, `jwt-decode`, `password`, `uuid` |
+| LLM and agents (4) | `chat-template`, `llm-clean`, `llm-cost`, `token-count` |
+| Brazil (4) | `cep-lookup`, `cnpj-lookup`, `cpf-cnpj`, `fake-person` |
 
-A browser tool is marked `Client` in the catalogue. It runs in the page and does not enter the conversion pipeline.
+`cep-lookup` and `cnpj-lookup` ask a public service (ViaCEP and BrasilAPI) for the data they show. The rest compute in the page.
 
-Engines such as qpdf, ffmpeg, and LibreOffice run as separate processes with a timeout. The server detects the input from magic bytes.
+## What a server offers
+
+A server only offers a tool whose engine it has. Engines such as qpdf, ffmpeg, libvips and LibreOffice run as separate processes, each with a time limit. When one is missing, the server logs it and hides the tools that need it. `GET /api/v1/tools` lists what a server offers and `GET /api/v1/capabilities` says which engines it found and what its limits are. See [Catalog and capabilities](/docs/api/catalog).
+
+## Next step
+
+See how each way of using a tool differs: [One catalogue, four doors](/docs/concepts/interfaces).

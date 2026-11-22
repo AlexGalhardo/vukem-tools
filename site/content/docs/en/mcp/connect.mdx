@@ -1,14 +1,119 @@
 ---
 title: "Connect"
-description: "Register vukem-tools mcp with an agent client."
+description: "Add vukem-tools mcp to Claude Code, Claude Desktop or Cursor."
 ---
 
-The server is the binary, not a URL.
+Every client starts the same program: the command `vukem-tools` with the argument `mcp`, and two environment variables. There is no URL to paste and no port to open.
+
+Before you connect, [install the command-line program](/docs/installation#the-command-line-program), start a server, and [create an API key](/docs/api/authentication). If `vukem-tools` is not on your `PATH`, use its full path as the command in the snippets below.
+
+## Claude Code
 
 ```bash
-claude mcp add vukem-tools -- vukem-tools mcp
+claude mcp add --env VUKEM_TOOLS_URL=http://localhost:3000 \
+  --env VUKEM_TOOLS_API_KEY=vk_... \
+  --transport stdio vukem-tools -- vukem-tools mcp
 ```
 
-A client that asks for a command and arguments should use the command `vukem-tools` and the argument `mcp`. The working directory has to be one where qpdf and the binary can read the PDF you name.
+The `--` separates Claude Code's options from the command. Check it with `claude mcp list`. To share the setup with a project, put the same entry in `.mcp.json`:
 
-There is no network listener and no API key on this path. The process can read and write the paths you pass it. Do not point it at a directory you do not trust.
+```json
+{
+  "mcpServers": {
+    "vukem-tools": {
+      "command": "vukem-tools",
+      "args": ["mcp"],
+      "env": {
+        "VUKEM_TOOLS_URL": "http://localhost:3000",
+        "VUKEM_TOOLS_API_KEY": "vk_..."
+      }
+    }
+  }
+}
+```
+
+Do not commit a real key. See the [Claude Code documentation](https://code.claude.com/docs/en/mcp) for scopes and the `${VAR}` form.
+
+## Claude Desktop
+
+Open **Settings**, then **Developer**, then **Edit Config**. The file is `claude_desktop_config.json`:
+
+| System | Path |
+| --- | --- |
+| macOS | `~/Library/Application Support/Claude/claude_desktop_config.json` |
+| Windows | `%APPDATA%\Claude\claude_desktop_config.json` |
+| Linux | `~/.config/Claude/claude_desktop_config.json` |
+
+Add the server, then quit Claude Desktop completely and open it again:
+
+```json
+{
+  "mcpServers": {
+    "vukem-tools": {
+      "command": "vukem-tools",
+      "args": ["mcp"],
+      "env": {
+        "VUKEM_TOOLS_URL": "http://localhost:3000",
+        "VUKEM_TOOLS_API_KEY": "vk_..."
+      }
+    }
+  }
+}
+```
+
+On Windows, give the full path of the program in `command` and escape the backslashes, for example `C:\\Tools\\vukem-tools.exe`. See [Connect to local MCP servers](https://modelcontextprotocol.io/docs/develop/connect-local-servers) for the logs and for troubleshooting.
+
+## Cursor
+
+Cursor reads `.cursor/mcp.json` in a project, or `~/.cursor/mcp.json` for every project. The entry has the same shape:
+
+```json
+{
+  "mcpServers": {
+    "vukem-tools": {
+      "command": "vukem-tools",
+      "args": ["mcp"],
+      "env": {
+        "VUKEM_TOOLS_URL": "http://localhost:3000",
+        "VUKEM_TOOLS_API_KEY": "vk_..."
+      }
+    }
+  }
+}
+```
+
+See the [Cursor documentation](https://cursor.com/docs/context/mcp).
+
+## Any other client
+
+A client that asks for a command and arguments takes the command `vukem-tools`, the argument `mcp`, and the two variables.
+
+## Check the connection
+
+Run the server by hand and ask for the tools. This needs no server and no key, because listing is local:
+
+```bash
+printf '%s\n' '{"jsonrpc":"2.0","id":1,"method":"tools/list"}' | vukem-tools mcp
+```
+
+You should get one line of JSON with 54 tools. To see that the key and the server work too, ask your agent to run a tool on a small file, or call the API with the same variables:
+
+```bash
+curl -sS "$VUKEM_TOOLS_URL/api/v1/me" -H "Authorization: Bearer $VUKEM_TOOLS_API_KEY"
+```
+
+## When it does not connect
+
+| What you see | What to do |
+| --- | --- |
+| The client says the command was not found | Use the full path of `vukem-tools` as the command. |
+| A call fails with `missing_key` | `VUKEM_TOOLS_API_KEY` is not in the `env` of the entry. |
+| A call fails with `unauthorized` | The key is wrong, revoked or expired. Create another. |
+| A call fails with `missing_ability` | The key lacks the tool's ability. See [Authentication](/docs/api/authentication#abilities). |
+| A call fails with `network_error` | No server answers at `VUKEM_TOOLS_URL`. Start it. |
+
+Every error carries a stable code. The full list is in [Protocol](/docs/mcp/protocol#tool-errors).
+
+## Next step
+
+Learn what the server answers: [Protocol](/docs/mcp/protocol).

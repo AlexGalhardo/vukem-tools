@@ -1,11 +1,31 @@
 ---
 title: "Installation"
-description: "Run Vukem Tools with Docker Compose, or from a release download."
+description: "Run Vukem Tools as a desktop app, with Docker Compose, or from source, and install the command-line program."
 ---
+
+Vukem Tools has three parts, and you can install them separately:
+
+| Part | What it is | Install it when |
+| --- | --- | --- |
+| The server and web app | The conversion server with its web interface. | You want to convert files in a browser, or to give agents something to call. |
+| The desktop app | A window that starts the server for you on your machine. | You want the simplest setup on one computer. |
+| The command-line program | `vukem-tools`, a client of the server for the terminal and for AI agents. | You want the CLI or the MCP server. |
+
+Every file is on the [GitHub releases page](https://github.com/AlexGalhardo/vukem-tools/releases). The files are not signed: [verify the checksum](/docs/self-hosting/desktop-downloads#verify-a-download) first.
+
+## Desktop app
+
+Download the file for your system from a release. The version is in the file name, with the dots written as hyphens. For release 0.9.0:
+
+- `vukem-tools-0-9-0-windows-amd64-setup.exe`, or the `-portable.zip`, on Windows
+- `vukem-tools-0-9-0-linux-amd64.AppImage` on Linux
+- `vukem-tools-0-9-0-darwin-arm64.dmg` on macOS
+
+The app starts the server inside its own process, in local mode: one process, a SQLite database, no Postgres and no Docker. It stores everything in your user configuration directory. Create an account the first time you open it. See [Desktop app](/docs/guide/desktop) and [Desktop downloads](/docs/self-hosting/desktop-downloads).
 
 ## Docker Compose
 
-The supported local stack is in `compose.yaml`: Postgres, ClamAV, a migration step, and the app on port 3000.
+`compose.yaml` in the repository is the supported stack: Postgres, ClamAV, a migration step, and the app on port 3000.
 
 ```bash
 export APP_KEY="base64:$(openssl rand -base64 32)"
@@ -13,22 +33,40 @@ docker compose up -d --build --wait
 curl -i http://127.0.0.1:3000/health
 ```
 
-Open http://127.0.0.1:3000 and sign in. The development stack uses `APP_ENV=development` because production refuses to boot without object storage and a real mailer. The variables are listed in [Configuration](/docs/reference/configuration) and in `docs/deployment.md`.
+Open `http://127.0.0.1:3000`, create an account and sign in. The stack runs with `APP_ENV=development`, because production refuses to boot without object storage and a real mailer. See [Docker](/docs/self-hosting/docker) and [Configuration](/docs/reference/configuration).
 
-The image is `ghcr.io/alexgalhardo/vukem-tools`. A stable release also publishes the same digest to Docker Hub, with tags `X.Y.Z`, `X.Y`, and `latest`.
+The release image is `ghcr.io/alexgalhardo/vukem-tools`. A stable release also publishes it to Docker Hub as `alexgalhardo/vukem-tools`, with the tags `X.Y.Z`, `X.Y` and `latest`.
 
-## Desktop downloads
+## From source
 
-A release publishes one file per system. From the build after 0.7.0, the version is in the file name, with dots written as hyphens:
+You need Go (the version in `go.mod`) and [Bun](https://bun.com). To run the app in one process with SQLite, as the desktop app does:
 
-- `vukem-tools-0-7-1.exe` on Windows, for a 0.7.1 release
-- `vukem-tools-0-7-1-linux-amd64.AppImage` on Linux
-- `vukem-tools-0-7-1-darwin-arm64.dmg` on macOS
+```bash
+bun install && bun run build
+APP_MODE=local go run ./cmd/app migrate
+APP_MODE=local go run ./cmd/app serve
+```
 
-Release 0.7.0 used `vukem-tools.exe`, `vukem-tools_0.7.0_linux_amd64.AppImage`, and `vukem-tools_0.7.0_darwin_arm64.dmg`.
+On Windows, use the desktop app or Docker instead: the server limits each engine process with `prlimit`, which only Linux has, and the desktop app is the build that runs without those limits. The server above listens on port 3000 and keeps its data in your user configuration directory, under `vukem-tools`. A tool only appears when its engine is installed: `qpdf` for most PDF tools, `ffmpeg` for video and audio, and so on. The server logs which engines it found when it starts, and [Licences](/docs/self-hosting/licences) lists them all.
 
-Each file is the desktop window. It opens the web app at `VUKEM_TOOLS_URL` (default `http://127.0.0.1:3000`). It does not contain a second copy of the tools. If nothing is listening, the window says so instead of showing a browser error. See [Desktop downloads](/docs/self-hosting/desktop-downloads).
+## The command-line program
 
-## The agent binary
+A release attaches `vukem-tools-cli-X-Y-Z-<system>-<arch>` for Windows (amd64), Linux (amd64 and arm64) and macOS (arm64). Download the one for your machine, rename it to `vukem-tools` (`vukem-tools.exe` on Windows) and put it on your `PATH`. On Linux and macOS, make it executable with `chmod +x`.
 
-`vukem-tools` is the command-line program: `tools`, `pdf crop`, `mcp`, and `serve`. The desktop window and this command are different programs.
+```bash
+vukem-tools version
+vukem-tools tools
+```
+
+`vukem-tools tools` lists every tool and needs no server. To run a tool, point the program at a server and give it a key:
+
+```bash
+export VUKEM_TOOLS_URL="http://localhost:3000"
+export VUKEM_TOOLS_API_KEY="vk_..."
+```
+
+The desktop app picks a free port each time it starts, so to use the CLI or an agent, run the server on a fixed port instead: Docker Compose, or from source. See [CLI reference](/docs/reference/cli) and [MCP overview](/docs/mcp/overview).
+
+## Next step
+
+[Crop a PDF](/docs/quick-start) from the browser, the terminal and the API.

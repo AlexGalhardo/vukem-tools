@@ -1,16 +1,30 @@
 ---
 title: "One catalogue, four doors"
-description: "The browser, the desktop window, the CLI, HTTP, and MCP call the same tools."
+description: "The web app, the desktop app, the HTTP API, the CLI and MCP all call the same tools."
 ---
 
-| Door | How you open a tool |
-| --- | --- |
-| Browser | `/tools/<name>` after you sign in |
-| Desktop | The window loads `VUKEM_TOOLS_URL` plus `/tools/<name>` |
-| CLI | `vukem-tools tools`, then `vukem-tools pdf crop` |
-| HTTP | `POST /api/v1/tools/pdf-crop` with an API key |
-| MCP | `vukem-tools mcp`, then `tools/call` of `pdf-crop` |
+There is one set of tools and several ways in. Pick the one that fits what you are doing.
 
-`vukem-tools serve` listens on `127.0.0.1:8787` by default and answers `GET /tools` and `POST /pdf/crop` for a local agent. That port is the agent server. The web app listens on port 3000.
+| Door | How you open a tool | Good for |
+| --- | --- | --- |
+| Web app | `/tools/<name>` after you sign in | Doing it by hand |
+| Desktop app | The window opens the same web app | Using it on one computer with no setup |
+| HTTP API | `POST /api/v1/tools/<name>` with an API key | Scripts and programs |
+| CLI | `vukem-tools <area> <tool>` | The terminal and shell scripts |
+| MCP | `vukem-tools mcp`, then `tools/call` | AI agents |
 
-The release you are running is printed in the sidebar of the web app. The desktop window shows that same page.
+The CLI and MCP are not a second implementation. Both are clients of the HTTP API: they upload your file, submit the conversion, wait, and download the result. So a server, a key and the key's abilities are the same behind every door except the browser tools, which run in the page.
+
+## Servers and ports
+
+| Program | Listens on | Role |
+| --- | --- | --- |
+| The web app (`cmd/app`, the Docker image) | Port 3000 by default | The server: web interface and `/api/v1`. |
+| The desktop app | A free loopback port it picks each time | The same server, started for you in local mode. |
+| `vukem-tools serve` | `127.0.0.1:8787` by default | A local HTTP form of the MCP server. It is a client of the web app, not a server of tools. |
+
+`vukem-tools` and `vukem-tools mcp` open no port.
+
+## Next step
+
+[Use the API](/docs/api/overview), or [connect an agent](/docs/mcp/overview).

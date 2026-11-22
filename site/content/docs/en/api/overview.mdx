@@ -1,18 +1,69 @@
 ---
 title: "API overview"
-description: "Authentication, abilities, and where the OpenAPI document lives."
+description: "What the JSON API does, how to reach it, and where each part is documented."
 ---
 
-The JSON API is under `/api/v1`. The running app publishes the OpenAPI document at `/openapi.json` and a rendered reference at `/docs` on the app host. Those two are generated from the routes, so they describe the server you are calling. This site is the orientation.
+Everything the web app does with a file, a script can do over HTTP. The JSON API lives under `/api/v1` and has 63 routes: keys, uploads, one route per conversion tool, and the routes that follow a conversion until you download the result.
 
-Every route except `POST /api/v1/tokens` and `GET /api/v1/abilities` needs an API key:
+This section is the reference for all of them. It is checked against the running app, so a route in the app is a route here.
+
+## Before you start
+
+You need a server and an API key.
+
+1. Run a server. The quickest are the [desktop app](/docs/guide/desktop) or [Docker](/docs/self-hosting/docker). The default address is `http://localhost:3000`.
+2. Create a key. Open **Account** in the web app, or call `POST /api/v1/tokens`. See [Authentication](/docs/api/authentication).
+3. Put both in your shell. Every example in this section reads them:
 
 ```bash
-curl -H "Authorization: Bearer $VUKEM_KEY" http://127.0.0.1:3000/api/v1/me
+export VUKEM_TOOLS_URL="http://localhost:3000"
+export VUKEM_TOOLS_API_KEY="vk_..."
 ```
 
-`X-API-Key` is also accepted. `Authorization` wins when both are present.
+These are also the two variables the [CLI](/docs/reference/cli) and the [MCP server](/docs/mcp/overview) read.
 
-Create a key with `POST /api/v1/tokens`. The account email has to be verified. The response shows the secret once. Keys expire 30 days after they are issued. Ask only for the abilities the script needs. There is no wildcard.
+## Check that it works
 
-`pdf-crop` is the conversion documented here end to end. The field list of every other route is the OpenAPI document on the app.
+```bash
+curl -sS "$VUKEM_TOOLS_URL/api/v1/me" \
+  -H "Authorization: Bearer $VUKEM_TOOLS_API_KEY"
+```
+
+A `200` with your account means the server and the key are good. A `401` means the key is missing, wrong, revoked or expired.
+
+## How a conversion works
+
+A conversion is three steps, and none of them blocks:
+
+1. **Upload** the file. You get an upload id.
+2. **Submit** it to a tool, such as `POST /api/v1/tools/pdf-crop`. The call answers at once with a conversion in the `pending` state.
+3. **Collect** the result when the conversion is `finished`: ask for signed links, then download.
+
+[Convert a file](/docs/api/workflow) walks through all three with `curl`.
+
+## Conventions
+
+- Request and response bodies are JSON, except the upload (tus) and the download (the file itself). A body that is not JSON is a `415`.
+- Errors are [problem documents](/docs/api/errors) (RFC 9457) with a `request_id` you can quote.
+- A list route returns `{"data": [...]}`, newest first. Only the conversion list takes a `limit` (1 to 100, default 20). There is no paging cursor.
+- Times are RFC 3339 in UTC.
+- Ids are opaque strings. Do not parse them.
+- A file's type is read from its bytes. The extension and the `Content-Type` you send do not count.
+
+## Where to find things
+
+| You want to | Read |
+| --- | --- |
+| Get a key, or limit what a key can do | [Authentication](/docs/api/authentication) |
+| Send a file and get a result back | [Convert a file](/docs/api/workflow) |
+| Understand a `4xx`, a `429` or a failed conversion | [Errors and limits](/docs/api/errors) |
+| Find a route | [Endpoints](/docs/api/endpoints) |
+| Drive it from an AI agent | [MCP server](/docs/mcp/overview) |
+
+## The machine-readable document
+
+The running app publishes the same contract as OpenAPI 3.1 at `/openapi.json`, and a rendered reference at `/docs` on the app host. Both are generated from the routes, so they describe the server you call. The Go and TypeScript clients in the repository are generated from that document too.
+
+## Next step
+
+Create a key and make your first call: [Authentication](/docs/api/authentication).

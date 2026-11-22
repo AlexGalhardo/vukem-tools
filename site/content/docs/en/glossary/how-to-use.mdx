@@ -3,18 +3,34 @@ title: "Glossary"
 description: "The words this toolbox uses."
 ---
 
+**Ability.** A permission on an API key, such as `pdf:structure` or `video:convert`. A key carries exactly the abilities you gave it. There is no wildcard. See [Authentication](/docs/api/authentication#abilities).
+
+**API key.** A secret that stands for an account when a program calls the API. It expires after 30 days and can be revoked.
+
+**Browser tool.** A catalogue entry that runs in the page and does not enter the server pipeline. It has no API route, no command and no MCP call.
+
+**Catalogue.** The list of the 54 tools. `vukem-tools tools` prints it. See [Catalogue](/docs/concepts/catalogue).
+
+**Conversion.** One run of a tool on your files. It has an id and a status: `pending`, `running`, `finished`, `error` or `cancelled`.
+
+**Device link.** A way for a program that cannot show a login form, such as the Telegram bot, to get a key without handling a password.
+
+**Engine.** An external program such as qpdf, ffmpeg, libvips or LibreOffice. The server runs it as a subprocess with a time limit. It is never linked through cgo.
+
+**Idempotency key.** A string you send with a submission so that a retry returns the same conversion instead of starting another.
+
+**Local mode.** `APP_MODE=local`: the whole server in one process on SQLite, with no Postgres. The desktop app runs it.
+
+**MCP.** The Model Context Protocol, which lets an AI client call tools. See [MCP overview](/docs/mcp/overview).
+
+**Page range.** The pages a PDF tool touches, written as `1-3,5`. Empty means every page, for the tools where it is optional.
+
+**Point.** A distance in a PDF. 72 points is one inch.
+
+**Release.** The version on the GitHub tag, in the download file names (`0-9-0`) and in the corner of every screen of the app.
+
+**Result.** The file a finished conversion made. It is deleted after five minutes by default.
+
 **Tool.** A named conversion, such as `pdf-crop`.
 
-**Catalogue.** The list of tools this build can run. `vukem-tools tools` prints it.
-
-**Ability.** A permission on an API key. `pdf-crop` needs `pdf:structure`. A key never receives a wildcard.
-
-**Margin.** A distance in PDF points. 72 points is one inch.
-
-**Page range.** The pages a PDF tool touches. Empty means every page.
-
-**Engine.** An external program (qpdf, ffmpeg, LibreOffice, and others) run as a subprocess with a timeout. The toolbox does not link them through cgo.
-
-**Client tool.** A catalogue entry that runs in the browser and does not enter the server pipeline.
-
-**Release.** The version on the GitHub tag, in the download file name, and in the sidebar of the app.
+**Upload.** A file sent to the server with the tus protocol. An upload nobody uses is deleted after 30 minutes by default.

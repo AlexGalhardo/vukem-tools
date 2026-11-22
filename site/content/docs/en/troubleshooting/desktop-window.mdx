@@ -1,14 +1,39 @@
 ---
-title: "Desktop window cannot connect"
-description: "The window opens, and the page says the server refused the connection."
+title: "Desktop app cannot start"
+description: "The window opens and says it could not start the server, or that the server at an address is not running."
 ---
 
-The download is a window, not the server. It loads `http://127.0.0.1:3000` unless `VUKEM_TOOLS_URL` is set. If nothing is listening there, the window shows its own page, with the release at the bottom left, instead of the browser's connection error.
+The desktop app has two ways to fail, and the window says which. In both it stays open and shows the release, so you can read the message.
 
-1. Start the stack from the repository: set `APP_KEY`, then `docker compose up -d --build --wait`.
-2. Check `curl -i http://127.0.0.1:3000/health`.
-3. Open the window again, or press the button on the status page.
+## "Could not start"
 
-A release older than 0.7.1 opened port 8080 and showed the browser error `ERR_CONNECTION_REFUSED` when the server was down. The app's port is 3000. Update to a release whose file name matches the version at the bottom left of that page.
+The app starts its own server when you open it, and that server failed. The window shows the reason and the data folder.
 
-The docs site at `https://tools.vukem.dev` is not the app. Opening it in the window shows the documentation, not `/tools/pdf-crop`.
+1. Read the reason. It is the server's own message.
+2. Check that the data folder exists and that your user can write to it. See [Desktop app](/docs/guide/desktop#your-data) for where it is.
+3. Make sure no other program uses the same data folder. A second copy of the app on the same data attaches to the first instead of starting another.
+4. Close the app and open it again.
+
+If the reason is not clear, open an issue and include it.
+
+## "The web app is not running"
+
+This only happens when `VUKEM_TOOLS_URL` is set. The app then starts nothing, and the window says "The web app is not running" because nothing listens at that address.
+
+1. Check the address with `curl -i "$VUKEM_TOOLS_URL/health"`.
+2. Start that server. For the [Docker](/docs/self-hosting/docker) stack: `docker compose up -d --wait`.
+3. Follow the link **Open the tool** on the status page, or open the app again.
+
+To go back to the built-in server, unset `VUKEM_TOOLS_URL`.
+
+## Windows warns about the file
+
+The files are not signed, so SmartScreen says "Windows protected your PC". Check the SHA-256 of the file, then choose "More info" and "Run anyway". See [Desktop downloads](/docs/self-hosting/desktop-downloads#verify-a-download).
+
+## The docs site is not the app
+
+`https://tools.vukem.dev` is this documentation. It cannot convert files, and opening it in the window shows the documentation, not a tool.
+
+## Next step
+
+Back to [Desktop app](/docs/guide/desktop).

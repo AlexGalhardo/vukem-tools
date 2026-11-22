@@ -1,14 +1,44 @@
 ---
 title: "Common problems"
-description: "The first failures of a crop and of a login."
+description: "The first failures of a conversion, an API call, the CLI and an agent, and what to do."
 ---
+
+## The server and the API
 
 | What you see | What to do |
 | --- | --- |
-| qpdf is not installed | Set `QPDF_PATH` or put qpdf on `PATH`. |
-| The crop refuses an empty margin | Set at least one margin. The agent default is 36 points on each side. |
-| `401` from the API | Send `Authorization: Bearer` or `X-API-Key`. The key's email has to be verified. |
+| A tool is not in the list | The server has no engine for it. Look at the engine lines in the server's start-up log, install the engine or set its `*_PATH`, and restart. See [Configuration](/docs/reference/configuration#engines). |
+| `401` from the API | Send `Authorization: Bearer <key>` or `X-API-Key`. The key may be wrong, revoked or expired: keys last 30 days. |
+| `403` when you submit | The key lacks the tool's ability. See [Authentication](/docs/api/authentication#abilities). |
+| `403` when you ask for a key | The account's email is not verified. |
 | `422` on `abilities` | Ask only for abilities `GET /api/v1/abilities` lists. |
-| The window says the server is not running | Start Compose, then open the tool again. See [Desktop window](/docs/troubleshooting/desktop-window). |
+| `429` | You hit a rate limit. Wait for `Retry-After`. See [Errors and limits](/docs/api/errors#rate-limits). |
+| `409` on the result | The conversion has not finished. Poll it until `status` is `finished`. |
+| `410` on the result | The result expired after five minutes. Run the conversion again. |
+| `quota_exceeded` | The account used its daily budget or its storage. `GET /api/v1/usage` says when it resets. |
 
-Do not trust a file extension when a conversion rejects an upload. The server identifies the file from its bytes.
+A conversion that ends in `error` has an `error_type`. See [the codes](/docs/api/errors#conversion-error-codes).
+
+## The command line and MCP
+
+| What you see | What to do |
+| --- | --- |
+| `missing_key` | Set `VUKEM_TOOLS_API_KEY`. In an MCP client, put it in the `env` of the server entry. |
+| `network_error` | Nothing answers at `VUKEM_TOOLS_URL`. Start the server, or fix the address. |
+| `missing_ability` | Create a key with the tool's ability. |
+| `browser_only` | That tool runs in the browser. Open it on the site. |
+| `invalid_input` | An argument is missing or out of range. The message names it. |
+
+More in [Connect](/docs/mcp/connect#when-it-does-not-connect).
+
+## Files
+
+Do not trust a file extension when a conversion rejects an upload. The server identifies the file from its bytes, so a renamed file is judged by what it is.
+
+## The desktop app
+
+See [Desktop app cannot start](/docs/troubleshooting/desktop-window).
+
+## Next step
+
+Still stuck? Open an issue on [GitHub](https://github.com/AlexGalhardo/vukem-tools/issues) and quote the `request_id` of the error.

@@ -1,12 +1,40 @@
 ---
 title: "PDF crop"
-description: "Margins, the qpdf subprocess, and the three agent callers."
+description: "The options of pdf-crop and how to run it from the web, the CLI, the API and MCP."
 ---
 
-`pdf-crop` needs the ability `pdf:structure`. The web route is `POST /api/v1/tools/pdf-crop`.
+`pdf-crop` sets the crop box of a PDF, which is what a reader displays and prints. The trimmed content is hidden rather than deleted, so a crop can be undone, and nothing else about the document changes. It runs in the `qpdf` engine.
 
-Margins are PDF points. The CLI flags are `--left`, `--bottom`, `--right`, and `--top`. When an agent omits them, the adapters use 36 points on each side and every page.
+## The options
 
-qpdf reads a JSON description of the pages. On Windows that file has to be closed before qpdf replaces it. The crop does that.
+| Option | Type | Notes |
+| --- | --- | --- |
+| `left`, `bottom`, `right`, `top` | number | Points to trim from that edge, from 0 to 1000. |
+| `pages` | string | Pages to crop, as `1-3,5`. Empty crops every page. Up to 512 characters. |
 
-A crop of a fixture PDF returns a non-empty PDF from the CLI, from `POST /pdf/crop` on the agent server, and from MCP `tools/call`.
+A point is 1/72 of an inch. The tool needs the ability `pdf:structure`.
+
+## One tool, four ways
+
+| Door | How |
+| --- | --- |
+| Web app | Open `/tools/pdf-crop`. |
+| CLI | `vukem-tools pdf crop --input in.pdf --output out.pdf --left 36 --right 36` |
+| API | `POST /api/v1/tools/pdf-crop` with `{"file_id": "...", "options": {"left": 36}}`. See [Convert a file](/docs/api/workflow). |
+| MCP | `tools/call` with the name `pdf-crop`. See [PDF tools](/docs/mcp/tools-pdf#pdf-crop). |
+
+The fields of the API route are in [PDF tools](/docs/api/pdf-tools#post-apiv1toolspdf-crop).
+
+## If it fails
+
+| What you see | What to do |
+| --- | --- |
+| The tool is not in the list | The server has no `qpdf`. Install it, or set `QPDF_PATH`, and restart the server. |
+| `403` | The key lacks `pdf:structure`. |
+| `unsupported_input` | The file is not a PDF. The server reads the bytes, not the extension. |
+
+More in [Common problems](/docs/troubleshooting/common-problems).
+
+## Next step
+
+Cut pages instead of margins: [PDF tools](/docs/mcp/tools-pdf#pdf-extract-pages).

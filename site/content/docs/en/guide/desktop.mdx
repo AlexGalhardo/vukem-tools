@@ -1,19 +1,59 @@
 ---
-title: "Desktop window"
-description: "What the downloaded exe, AppImage, and dmg actually open."
+title: "Desktop app"
+description: "What the downloaded installer, AppImage and dmg start, where your data lives, and how to point the window at another server."
 ---
 
-The desktop program is a Wails v3 window around the web app. It does not embed a second copy of the tools, and it does not start Postgres.
+The desktop app is a window around the web app, and it starts the server for you. You do not need Docker or a database.
 
-By default it opens `http://127.0.0.1:3000/tools/pdf-crop`. Point it somewhere else with:
+## What it does
+
+When you open it:
+
+1. It starts the whole server inside its own process, in local mode: the web app, the job worker and the scheduler together, on a SQLite database. It listens on `127.0.0.1` only, on a free port it picks.
+2. It opens a window on that server.
+3. When you close the window, it stops the server.
+
+If another copy of the app already runs on the same data, the new window attaches to that one instead of starting a second server. If the server cannot start, the window says why instead of closing with nothing on screen.
+
+The release is shown in the bottom-right corner of every screen.
+
+## Your data
+
+Everything is under your user configuration directory, in a folder named `vukem-tools`: the database, the uploads, the results and the working files.
+
+| System | Folder |
+| --- | --- |
+| Windows | `%APPDATA%\vukem-tools` |
+| macOS | `~/Library/Application Support/vukem-tools` |
+| Linux | `~/.config/vukem-tools` |
+
+Uploads and results live only for a short time: 30 minutes for an upload nobody used, five minutes for a result.
+
+## Your account
+
+The first account you create on a machine is verified at once, because there is no mail to send. A password reset writes its code to `password-reset.txt` in the data folder, and never over the network. The server refuses any request whose host is not a loopback address.
+
+## What tools you get
+
+A tool only works when its engine is installed on your machine. The app does not bundle them. A tool whose engine is missing is hidden from the list. On Windows the app runs the engines without the resource limits the server uses on Linux. See [Licences](/docs/self-hosting/licences) for the engines.
+
+## Point it at another server
+
+Set `VUKEM_TOOLS_URL` before you start the app and it shows that server instead. It starts nothing in that case. If the address does not answer, the window says so and keeps the release visible.
 
 | Variable | Default | Meaning |
 | --- | --- | --- |
-| `VUKEM_TOOLS_URL` | `http://127.0.0.1:3000` | Origin of the web app |
-| `VUKEM_TOOLS_TOOL` | `pdf-crop` | Catalogue name to open |
+| `VUKEM_TOOLS_URL` | none | Origin of a server that is already running. Leave it unset to start one. |
+| `VUKEM_TOOLS_TOOL` | none | A catalogue name, such as `pdf-crop`, to open instead of the home page. |
 
-If that origin refuses the connection, the window stays open and explains that the server is not running. The release is at the bottom left of that page. Once the server answers, the release is in the sidebar.
+## Use it from the CLI or an agent
 
-Start the server with the [Docker Compose](/docs/installation) stack, then press the button in the window.
+The port changes on every start. The address of the running app is in `desktop.lock`, in the data folder, as JSON with an `origin`. Use it as `VUKEM_TOOLS_URL`, with an API key from **Account**. If you want a fixed port, run the server with [Docker](/docs/self-hosting/docker) instead.
 
-The file name carries the release: `vukem-tools-0-7-0.exe`, and the same pattern for the AppImage and the dmg. The macOS image is not signed. No signing certificate was supplied.
+## Downloads and checks
+
+The files are not signed. See [Desktop downloads](/docs/self-hosting/desktop-downloads) for the names, the checksums and the SmartScreen warning.
+
+## Next step
+
+[Crop a PDF](/docs/quick-start), or [create an API key](/docs/api/authentication).

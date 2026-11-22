@@ -1,14 +1,22 @@
 ---
 title: "Agents"
-description: "How an agent lists the tools and crops a PDF."
+description: "How an AI agent or a script uses the same 37 tools as the web app: the CLI, MCP and the HTTP API."
 ---
 
-An agent is a first-class caller. It does not scrape the website. It uses one of three programs that share the catalogue:
+An agent is a first-class user. It does not scrape the website: it calls the same tools through one of three doors that share one table of tools.
 
-- [CLI](/docs/agents/cli) — `vukem-tools`
-- [MCP](/docs/agents/mcp) — newline-delimited JSON-RPC on stdin
-- [HTTP](/docs/api/overview) — the app's `/api/v1` routes, with an API key
+| Door | Use it when | Start here |
+| --- | --- | --- |
+| [MCP](/docs/mcp/overview) | An AI client such as Claude Code, Claude Desktop or Cursor should run tools itself | [Connect](/docs/mcp/connect) |
+| [CLI](/docs/agents/cli) | A script or an agent with a shell runs `vukem-tools` | [CLI reference](/docs/reference/cli) |
+| [HTTP API](/docs/api/overview) | A program of yours talks to the server directly | [Convert a file](/docs/api/workflow) |
 
-`pdf-crop` is the tool those three can run end to end today. The other catalogue names are on the web app. Asking an agent to invent a flag the CLI does not have will fail closed: the command prints an error and exits non-zero.
+All three need a running server and an API key, and the key's abilities decide which tools work. See [Authentication](/docs/api/authentication).
 
-A useful prompt names the file, the tool, and the output path. See [Prompts](/docs/prompts/overview).
+Of the 54 tools in the catalogue, 37 run on the server and can be called. The other 17 run in the browser and have no call. Asking for something that does not exist, such as an option a tool does not have, fails closed: the call returns an error with a stable code and the arguments are never guessed.
+
+A good prompt names the tool, the files and where to write the result. See [Prompts](/docs/prompts/overview).
+
+## Next step
+
+[Connect an MCP client](/docs/mcp/connect).

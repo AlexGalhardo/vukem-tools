@@ -16,7 +16,7 @@ export function MobileNav({ groups }: { groups: NavGroup[] }) {
 		<Dialog.Root open={open} onOpenChange={setOpen}>
 			<Dialog.Trigger
 				aria-label={t.openNavigation}
-				className="inline-flex size-8 items-center justify-center rounded-lg text-muted hover:bg-hover hover:text-fg lg:hidden"
+				className="inline-flex size-8 items-center justify-center rounded-lg text-muted hover:bg-hover hover:text-fg xl:hidden"
 			>
 				<Menu aria-hidden className="size-4.5" />
 			</Dialog.Trigger>

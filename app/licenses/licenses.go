@@ -160,6 +160,13 @@ var components = []Component{
 		Role: "The OCR engine behind it",
 	},
 	{
+		Name: "util-linux",
+		// Debian's copyright file for 2.41.5 gives the package default as GPL-2+.
+		SPDX: "GPL-2.0-or-later",
+		URL:  "https://github.com/util-linux/util-linux",
+		Role: "prlimit, which applies the resource limits to every conversion engine",
+	},
+	{
 		Name: "LibreOffice",
 		SPDX: "MPL-2.0",
 		URL:  "https://www.libreoffice.org",

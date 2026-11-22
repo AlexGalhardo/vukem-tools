@@ -183,7 +183,7 @@ function ToolRow({ tool }: { tool: Tool }): React.ReactElement {
   );
 
   if (tool.status !== "live") {
-    return <div className="opacity-80">{body}</div>;
+    return <div>{body}</div>;
   }
 
   return (

@@ -208,15 +208,21 @@ async function reason(response: Response): Promise<string> {
   return reasonFromText(await response.text().catch(() => ""));
 }
 
-function reasonFromText(body: string): string {
+/** reasonFromText is the sentence to show for a refused upload. */
+export function reasonFromText(body: string): string {
   try {
     const problem = JSON.parse(body) as { detail?: string; title?: string };
 
     return problem.detail ?? problem.title ?? "The server refused the file.";
   } catch {
-    // Not a problem document. The raw body could be anything, including HTML,
-    // so it is not shown.
-    return "The server refused the file.";
+    // Not a problem document. The tus endpoint answers a refused type with one
+    // plain sentence, which is worth showing; anything that is not one short
+    // printable line (HTML, a dump) could be anything, so it is not.
+    const line = body.trim();
+    const isSentence =
+      line !== "" && line.length <= 300 && [...line].every((c) => !"<>{}".includes(c) && c >= " " && c !== String.fromCharCode(127));
+
+    return isSentence ? line : "The server refused the file.";
   }
 }
 

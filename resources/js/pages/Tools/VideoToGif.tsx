@@ -218,6 +218,7 @@ function Options({
           <fieldset className="sm:col-span-2">
             <legend className="label">Dithering</legend>
             <select
+              aria-label="Dithering"
               id="gif-dither"
               className="input mt-2"
               value={options.dither ?? ""}

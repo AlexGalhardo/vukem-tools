@@ -3,9 +3,9 @@ module github.com/AlexGalhardo/vukem-tools
 go 1.27.4
 
 require (
-	github.com/AlexGalhardo/vukem v0.46.0
-	github.com/AlexGalhardo/vukem/drivers/otel v0.4.5
-	github.com/AlexGalhardo/vukem/drivers/postgres v0.7.1
+	github.com/AlexGalhardo/vukem v0.48.0
+	github.com/AlexGalhardo/vukem/drivers/otel v0.4.6
+	github.com/AlexGalhardo/vukem/drivers/postgres v0.7.2
 	github.com/AlexGalhardo/vukem/drivers/s3 v0.4.4
 	github.com/gabriel-vasile/mimetype v1.4.16
 	github.com/google/go-cmp v0.7.0

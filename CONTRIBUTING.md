@@ -6,15 +6,12 @@ shape.
 
 ## Before you write code
 
-Read [ROADMAP.md](ROADMAP.md) and take an unchecked task, or open an issue first. Two things are
-worth knowing before you start:
+Open an issue first, so the work is agreed before you start. Two things are worth knowing:
 
-- [docs/brainstorming.md](docs/brainstorming.md) records the decisions and **why**. They are
-  final unless that file is updated first. If you disagree with one, argue there — not in a pull
-  request that quietly does something else.
-- [docs/web-research.md](docs/web-research.md) records every conversion engine, its exact
-  licence and its traps. A new engine needs an entry there, and its licence on the `/licenses`
-  page, before the feature that uses it ships.
+- The design decisions are final unless an issue changes them. If you disagree with one, argue in
+  the issue, not in a pull request that quietly does something else.
+- Every conversion engine is listed with its exact licence on the `/licenses` page. A new engine
+  needs its licence there before the feature that uses it ships.
 
 A pull request that adds a feature the ROADMAP does not list will be read, but expect a
 conversation about scope before it is read closely.
@@ -39,7 +36,7 @@ works — `go run ./cmd/app about` prints which engines were resolved.
 
 ## The bar
 
-Every commit holds the gates in [ROADMAP.md](ROADMAP.md#global-quality-gates):
+Every commit holds these gates:
 
 ```bash
 go build ./... && go vet ./... && golangci-lint run ./...
@@ -57,7 +54,7 @@ Non-negotiable, because the whole point of this project is the quality bar:
 - **Test the malicious case**, not only the happy path: wrong magic bytes, oversized input, path
   traversal in a filename, a cancelled job, a timeout.
 - **Measure before claiming.** Any performance claim needs `go test -bench . -benchmem` and a row
-  in [docs/benchmarks.md](docs/benchmarks.md). A number without its command is not a benchmark.
+  in the pull request. A number without its command is not a benchmark.
 - **Stream, never buffer a whole file.** This runs on a small container.
 - **Engines run as subprocesses**, with a timeout, a process-group kill and `setrlimit`. No cgo.
   See [`.claude/rules/engines.md`](.claude/rules/engines.md).

@@ -7,14 +7,16 @@ and Tailwind CSS v4.
 
 ## Start here
 
-1. Read [ROADMAP.md](ROADMAP.md): take the first unchecked task of the current phase. A task is
-   done only when every child is checked **and** its quality asserts hold.
-2. Read [docs/brainstorming.md](docs/brainstorming.md): the decisions and why. Decisions are final
-   unless that file is updated first.
-3. Read [docs/web-research.md](docs/web-research.md) before touching any conversion engine: its
-   licence, its version and its traps are there.
-4. For planned work, read [docs/plans/00-roadmap.md](docs/plans/00-roadmap.md) (the epics and their
-   status) and the workflow in [.agents/README.md](.agents/README.md): plans, orchestration, QA.
+The working documents (decisions, engine research, audits, status and the epics) live in `docs/`.
+That folder is git-ignored: it is the owner's local copy and is not part of the repository.
+
+1. Read `docs/plans/00-roadmap.md`: the epics and their status. Take the first unblocked one. An
+   epic is done only when every task's `Verify:` command and every acceptance criterion pass.
+2. Read `docs/brainstorming.md`: the decisions and why. Decisions are final unless that file is
+   updated first.
+3. Read `docs/web-research.md` before touching any conversion engine: its licence, its version and
+   its traps are there.
+4. Read the workflow in [.agents/README.md](.agents/README.md): plans, orchestration, QA.
 
 ## Commands
 
@@ -28,11 +30,11 @@ go run ./cmd/app serve                # the app; /docs is the API reference
 go run ./cmd/app migrate              # migrations
 ```
 
-Regenerate the API clients after any change to `/api/v1` ([docs/api.md](docs/api.md)).
+Regenerate the API clients after any change to `/api/v1` (`docs/api.md`).
 
 ## Rules
 
-- Test first. A task is done only when its quality asserts in `ROADMAP.md` pass, and you show the
+- Test first. A task is done only when its `Verify:` commands and acceptance criteria pass, and you show the
   command and its result. Iterate with one package; **run `go test -race -count=1 ./...` before
   handing back** — `./tests/` holds the cross-cutting gates and the narrow command never reaches
   them.
@@ -59,7 +61,6 @@ Regenerate the API clients after any change to `/api/v1` ([docs/api.md](docs/api
 
 | Path | What |
 | --- | --- |
-| `ROADMAP.md` | Every task and its quality asserts, by phase |
 | `docs/plans/` | Epics (`NN-<slug>.md`) and their roadmap |
 | `development/feedbacks/` | Git-ignored queues: `vukem.md` (framework friction, `VF-NNN`) and `vukem-tools.md` (QA bugs, `QA-<letter><n>`) |
 | `.agents/` | Workflow rules and skills: plans, orchestration, epic loop, QA campaign |
@@ -79,4 +80,4 @@ Regenerate the API clients after any change to `/api/v1` ([docs/api.md](docs/api
 ## When stuck
 
 Ask instead of guessing on API design, on a licence, or on anything that touches production. Record
-the answer in [docs/brainstorming.md](docs/brainstorming.md).
+the answer in `docs/brainstorming.md`.

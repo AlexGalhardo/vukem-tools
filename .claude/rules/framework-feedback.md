@@ -25,8 +25,8 @@ gave a reason and explained a trade-off, which is exactly why nobody checked it.
 closes, delete the whole comment block, not just the marker line.
 
 At the end of every completed task group, also update the audit when the finding changes the
-framework backlog, and [`docs/status.md`](../../docs/status.md) with what shipped and what is
-next. See `ROADMAP.md`, section "Framework feedback".
+framework backlog, and `docs/status.md` with what shipped and what is next. Where the entries go
+is set by `.agents/rules/orchestration.md` (item 13).
 
 **Closing a finding is as much of the job as opening one.** On 2026-10-19 all five
 `workaround(vukem)` markers in the tree were checked against the pinned version and all five were

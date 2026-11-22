@@ -1,11 +1,11 @@
 ## What
 
-<!-- One paragraph. Link the ROADMAP task or the issue. -->
+<!-- One paragraph. Link the issue. -->
 
 ## How to review
 
-Findings use [REVIEW.md](../REVIEW.md): **Important**, **Nit** (at most five), or **Pre-existing**.
-An Important finding cites `file:line` and is fixed or answered before merge.
+Findings are **Important**, **Nit** (at most five) or **Pre-existing**. An Important finding cites
+`file:line` and is fixed or answered before merge.
 
 ## Checklist
 
@@ -15,7 +15,7 @@ An Important finding cites `file:line` and is fixed or answered before merge.
 - [ ] UI changes passed `bun run typecheck`
 - [ ] New routes, uploads, jobs and engines keep login, abilities and magic-byte detection
 - [ ] No new dependency, and no version that is not exact, without the author's approval
-- [ ] Framework friction is recorded in `vukem-feedback.md` at the workspace root, not copied into this repo
+- [ ] Framework friction is recorded in `development/feedbacks/vukem.md` (git-ignored), not in this repo
 - [ ] A release change publishes the notes, the container image, and the `.exe`, `.AppImage` and `.dmg` artifacts from the tag workflow
 
 ## Evidence

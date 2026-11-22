@@ -31,8 +31,9 @@ work="$(mktemp -d)"
 trap 'rm -rf "$work"' EXIT
 stage="$work/stage"
 app="$stage/Vukem Tools.app"
-mkdir -p "$app/Contents/MacOS" "$out"
+mkdir -p "$app/Contents/MacOS" "$app/Contents/Resources" "$out"
 install -m 0755 "$desktop" "$app/Contents/MacOS/vukem-tools"
+install -m 0644 "$here/icon.icns" "$app/Contents/Resources/icon.icns"
 sed "s/@VERSION@/${version}/g" "$here/Info.plist" >"$app/Contents/Info.plist"
 ln -s /Applications "$stage/Applications"
 

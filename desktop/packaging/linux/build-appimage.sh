@@ -37,9 +37,7 @@ mkdir -p "$appdir/usr/bin" "$out"
 install -m 0755 "$desktop" "$appdir/usr/bin/vukem-tools"
 install -m 0755 "$here/AppRun" "$appdir/AppRun"
 install -m 0644 "$here/vukem-tools.desktop" "$appdir/vukem-tools.desktop"
-# A 1x1 PNG is enough for the desktop entry. The window loads the web UI.
-printf '%s' 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==' |
-	base64 -d >"$appdir/vukem-tools.png"
+install -m 0644 "$here/vukem-tools.png" "$appdir/vukem-tools.png"
 
 file="$out/vukem-tools-${slug}-linux-amd64.AppImage"
 ARCH=x86_64 APPIMAGE_EXTRACT_AND_RUN=1 "$tool" --no-appstream "$appdir" "$file" >&2

@@ -429,7 +429,7 @@
 	{
 		"name": "password",
 		"title": "Strong password generator",
-		"summary": "Generates random passwords and passphrases with the browser's secure random source, and shows their entropy.",
+		"summary": "Generates random passwords with the browser's secure random source, and shows their entropy.",
 		"group": "Developer tools",
 		"kind": "browser"
 	},

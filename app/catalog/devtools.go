@@ -67,7 +67,7 @@ var devCatalog = []Tool{
 	{
 		Name:     "password",
 		Title:    "Strong password generator",
-		Summary:  "Generates random passwords and passphrases with the browser's secure random source, and shows their entropy.",
+		Summary:  "Generates random passwords with the browser's secure random source, and shows their entropy.",
 		In:       []string{"Settings"},
 		Out:      []string{"Text"},
 		Group:    GroupDeveloper,

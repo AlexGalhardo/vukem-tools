@@ -146,6 +146,7 @@ func probe(ctx context.Context, path string, args []string) string {
 	// whole app, waits for it forever.
 	cmd := exec.CommandContext(ctx, path, args...)
 	cmd.WaitDelay = time.Second
+	detach(cmd)
 
 	out, err := cmd.CombinedOutput()
 	if err != nil && len(out) == 0 {

@@ -224,7 +224,7 @@ func resolveMediaEngines(app *vukem.App, c *services.Conversions) (*tools.Media,
 	ctx, cancel := context.WithTimeout(context.Background(), mediaProbeTimeout)
 	defer cancel()
 
-	media, err := tools.ResolveMedia(ctx, c.Engines(), c.Runner(), dir)
+	media, err := tools.ResolveMedia(ctx, c.Engines(), c.Runner(), dir, services.BrokenEngineHandler(app))
 	if err != nil {
 		return nil, fmt.Errorf("routes: probe the media engines: %w", err)
 	}

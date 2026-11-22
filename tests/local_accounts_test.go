@@ -5,6 +5,9 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"runtime"
+	"strconv"
+	"strings"
 	"testing"
 
 	vukem "github.com/AlexGalhardo/vukem"
@@ -150,11 +153,49 @@ func TestLocalSignUpWithATakenEmailIsRefusedWithoutMail(t *testing.T) {
 	}
 }
 
-var resetPath = regexp.MustCompile(`^/reset-password/([A-Za-z0-9]+)\?email=`)
+var codeLine = regexp.MustCompile(`(?m)^code: ([A-Za-z0-9]+)$`)
 
-// Local reset: the one-time code is in the response, no mail is queued, the
-// code works once, and the old password stops working.
-func TestLocalPasswordResetShowsTheCodeInsteadOfMailingIt(t *testing.T) {
+func resetFile(app *vukemtest.App) string {
+	return filepath.Join(app.Source.Get("DATA_DIR"), "password-reset.txt")
+}
+
+// readResetCode returns the code the local reset wrote to the data directory.
+func readResetCode(t *testing.T, app *vukemtest.App) string {
+	t.Helper()
+
+	raw, err := os.ReadFile(resetFile(app))
+	if err != nil {
+		t.Fatalf("the reset code file was not written: %v", err)
+	}
+
+	m := codeLine.FindSubmatch(raw)
+	if m == nil {
+		t.Fatalf("no code in the reset file:\n%s", raw)
+	}
+
+	return string(m[1])
+}
+
+func forgot(t *testing.T, app *vukemtest.App, email string) *vukemtest.Response {
+	t.Helper()
+
+	return app.Client(t).Inertia("").WithHeader("Referer", "/forgot-password").
+		PostJSON("/forgot-password", map[string]any{"email": email})
+}
+
+func submitReset(t *testing.T, app *vukemtest.App, code string) *vukemtest.Response {
+	t.Helper()
+
+	return app.Client(t).Inertia("").WithHeader("Referer", "/reset-password").
+		PostJSON("/reset-password", map[string]any{
+			"email": "ana@example.com", "token": code, "password": newPassword, "password_confirmation": newPassword,
+		})
+}
+
+// Local reset: no secret ever goes to an unauthenticated HTTP caller. The code
+// is written to a file in the data directory, so reading it proves access to
+// that directory; the answer is the same for a known and an unknown email.
+func TestLocalPasswordResetWritesTheCodeToAFileAndNeverAnswersWithIt(t *testing.T) {
 	t.Parallel()
 
 	app, fake := localAccountsApp(t)
@@ -162,52 +203,147 @@ func TestLocalPasswordResetShowsTheCodeInsteadOfMailingIt(t *testing.T) {
 	app.Client(t).Inertia("").PostJSON("/register", signUpForm("Ana", "ana@example.com", testPassword)).
 		AssertRedirect("/dashboard")
 
-	anon := app.Client(t).Inertia("").WithHeader("Referer", "/login")
-	res := anon.PostJSON("/forgot-password", map[string]any{"email": "ana@example.com"})
-	res.AssertStatus(http.StatusSeeOther)
+	unknown := forgot(t, app, "nobody@example.com")
+	unknown.AssertRedirect("/reset-password")
 
-	loc := res.Recorder().Header().Get("Location")
+	if _, err := os.Stat(resetFile(app)); err == nil {
+		t.Fatal("a code file was written for an unknown email")
+	}
 
-	m := resetPath.FindStringSubmatch(loc)
-	if m == nil {
-		t.Fatalf("the reset answer does not carry a code: Location %q", loc)
+	vukemtest.AssertDatabaseCount(t, app, "password_resets", 0)
+
+	known := forgot(t, app, "ana@example.com")
+	known.AssertRedirect("/reset-password")
+
+	code := readResetCode(t, app)
+	if len(code) < 20 {
+		t.Fatalf("the code %q is too short", code)
+	}
+
+	for name, res := range map[string]*vukemtest.Response{"known": known, "unknown": unknown} {
+		rec := res.Recorder()
+
+		if strings.Contains(rec.Body.String(), code) {
+			t.Errorf("%s: the body carries the code", name)
+		}
+
+		for k, vs := range rec.Header() {
+			for _, v := range vs {
+				if strings.Contains(v, code) {
+					t.Errorf("%s: header %s carries the code", name, k)
+				}
+			}
+		}
+	}
+
+	if a, b := known.Recorder(), unknown.Recorder(); a.Code != b.Code ||
+		a.Header().Get("Location") != b.Header().Get("Location") || a.Body.String() != b.Body.String() {
+		t.Errorf("the answers differ: known %d %q %q, unknown %d %q %q",
+			a.Code, a.Header().Get("Location"), a.Body.String(), b.Code, b.Header().Get("Location"), b.Body.String())
 	}
 
 	if n := mailJobCount(fake); n != 0 {
 		t.Fatalf("local reset queued %d mails, want none", n)
 	}
 
-	reset := map[string]any{
-		"email": "ana@example.com", "token": m[1],
-		"password": newPassword, "password_confirmation": newPassword,
-	}
-	anon.PostJSON("/reset-password", reset).AssertRedirect("/login")
-	app.Client(t).
-		Inertia("").
-		WithHeader("Referer", "/reset-password").
-		PostJSON("/reset-password", reset).
-		AssertRedirect("/reset-password")
-		// single use
+	t.Run("file mode", func(t *testing.T) {
+		t.Parallel()
 
-	anon.PostJSON("/login", map[string]any{"email": "ana@example.com", "password": testPassword}).
-		AssertRedirect("/login")
-	anon.PostJSON("/login", map[string]any{"email": "ana@example.com", "password": newPassword}).
-		AssertRedirect("/dashboard")
+		if runtime.GOOS == "windows" {
+			t.Skip("Windows has no POSIX permission bits; the 0600 mode is asserted on Linux and macOS")
+		}
+
+		info, err := os.Stat(resetFile(app))
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		if perm := info.Mode().Perm(); perm != 0o600 {
+			t.Fatalf("the code file has mode %o, want 600", perm)
+		}
+	})
+
+	raw, _ := os.ReadFile(resetFile(app))
+	if !strings.Contains(string(raw), "email: ana@example.com") || !strings.Contains(string(raw), "expires: ") {
+		t.Errorf("the file lacks the email or the expiry:\n%s", raw)
+	}
 }
 
-// An unknown address gets no code, so the code cannot be minted for an
-// account that does not exist.
-func TestLocalPasswordResetForAnUnknownEmailGivesNoCode(t *testing.T) {
+// The reset page is reached without the code in the URL and says where the
+// file is; the right code resets the password once.
+func TestLocalPasswordResetWithTheCodeFromTheFileWorksOnce(t *testing.T) {
 	t.Parallel()
 
 	app, _ := localAccountsApp(t)
 
-	res := app.Client(t).Inertia("").PostJSON("/forgot-password", map[string]any{"email": "nobody@example.com"})
-	if loc := res.Recorder().Header().Get("Location"); resetPath.MatchString(loc) {
-		t.Fatalf("a code was issued for an unknown email: %q", loc)
+	app.Client(t).Inertia("").PostJSON("/register", signUpForm("Ana", "ana@example.com", testPassword)).
+		AssertRedirect("/dashboard")
+
+	forgot(t, app, "ana@example.com").AssertRedirect("/reset-password")
+
+	app.Client(t).Inertia("").Get("/reset-password").AssertInertia("Auth/ResetPassword").
+		PropEquals("token", "").PropEquals("codeFile", resetFile(app))
+
+	code := readResetCode(t, app)
+
+	submitReset(t, app, code).AssertRedirect("/login")
+	submitReset(t, app, code).AssertRedirect("/reset-password") // single use
+
+	if _, err := os.Stat(resetFile(app)); err == nil {
+		t.Error("the spent code is still in the file")
+	}
+
+	login := app.Client(t).Inertia("").WithHeader("Referer", "/login")
+	login.PostJSON("/login", map[string]any{"email": "ana@example.com", "password": testPassword}).
+		AssertRedirect("/login")
+	login.PostJSON("/login", map[string]any{"email": "ana@example.com", "password": newPassword}).
+		AssertRedirect("/dashboard")
+}
+
+// A wrong code is refused, and five wrong tries for an email invalidate the
+// code: the right one is refused afterwards and the stored reset is gone.
+func TestLocalPasswordResetIsInvalidatedAfterFiveWrongCodes(t *testing.T) {
+	t.Parallel()
+
+	app, _ := localAccountsApp(t)
+
+	app.Client(t).Inertia("").PostJSON("/register", signUpForm("Ana", "ana@example.com", testPassword)).
+		AssertRedirect("/dashboard")
+
+	forgot(t, app, "ana@example.com").AssertRedirect("/reset-password")
+
+	code := readResetCode(t, app)
+
+	for i := range 5 {
+		submitReset(t, app, "WRONGCODE"+strconv.Itoa(i)).AssertRedirect("/reset-password")
 	}
 
 	vukemtest.AssertDatabaseCount(t, app, "password_resets", 0)
+	submitReset(t, app, code).AssertRedirect("/reset-password")
+
+	login := app.Client(t).Inertia("").WithHeader("Referer", "/login")
+	login.PostJSON("/login", map[string]any{"email": "ana@example.com", "password": testPassword}).
+		AssertRedirect("/dashboard")
+}
+
+// Four wrong tries do not spoil the code.
+func TestLocalPasswordResetSurvivesFourWrongCodes(t *testing.T) {
+	t.Parallel()
+
+	app, _ := localAccountsApp(t)
+
+	app.Client(t).Inertia("").PostJSON("/register", signUpForm("Ana", "ana@example.com", testPassword)).
+		AssertRedirect("/dashboard")
+
+	forgot(t, app, "ana@example.com").AssertRedirect("/reset-password")
+
+	code := readResetCode(t, app)
+
+	for i := range 4 {
+		submitReset(t, app, "WRONGCODE"+strconv.Itoa(i)).AssertRedirect("/reset-password")
+	}
+
+	submitReset(t, app, code).AssertRedirect("/login")
 }
 
 // Acceptance 2, the regression that matters most: nothing above leaks into

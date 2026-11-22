@@ -85,6 +85,12 @@ func Auth(r *router.Router, app *vukem.App) error {
 
 		r.Get("/forgot-password", h.ShowForgot).Name("password.request").Use(guest)
 		r.Post("/forgot-password", h.SendResetLink).Name("password.email").Use(guest, mails)
+		// Local mode has no mailed link: the page takes the code from a file
+		// in the data directory, typed in, never carried in the URL.
+		if services.IsLocal(app) {
+			r.Get("/reset-password", h.ShowLocalReset).Name("password.reset.local").Use(guest)
+		}
+
 		r.Get("/reset-password/{token}", h.ShowReset).Name("password.reset").SecretParams("token").Use(guest)
 		r.Post("/reset-password", h.Reset).Name("password.update").Use(guest)
 

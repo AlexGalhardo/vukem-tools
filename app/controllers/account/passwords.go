@@ -1,10 +1,6 @@
 package account
 
 import (
-	"net/url"
-	"strings"
-
-	"github.com/AlexGalhardo/vukem/errs"
 	"github.com/AlexGalhardo/vukem/inertia"
 	"github.com/AlexGalhardo/vukem/web"
 
@@ -23,7 +19,7 @@ func (h *Handlers) SendResetLink(c *web.Ctx) error {
 	}
 
 	if h.a.Local {
-		return h.showLocalResetCode(c, in.Email)
+		return h.requestLocalReset(c, in.Email)
 	}
 
 	if err := h.a.SendResetLink(c.Context(), in.Email); err != nil {
@@ -35,22 +31,25 @@ func (h *Handlers) SendResetLink(c *web.Ctx) error {
 	return c.Redirect("/forgot-password")
 }
 
-// showLocalResetCode is the local answer to "forgot password": no mail, so the
-// one-time code goes straight to the reset page in the redirect. The route's
-// token parameter is marked secret, so the request log never records it.
-func (h *Handlers) showLocalResetCode(c *web.Ctx, email string) error {
-	code, found, err := h.a.LocalResetCode(c.Context(), email)
-	if err != nil {
+// requestLocalReset is the local answer to "forgot password": there is no
+// mailbox, so the code goes to a file in the data directory and never into the
+// response. The answer is the same for an account and for an unknown email.
+func (h *Handlers) requestLocalReset(c *web.Ctx, email string) error {
+	if err := h.a.LocalRequestReset(c.Context(), email); err != nil {
 		return err
 	}
 
-	if !found {
-		return errs.NewValidation().Add("email", h.a.T(c.Context(), "auth.local_no_account"))
-	}
+	inertia.Flash(c, "status", h.a.T(c.Context(), "auth.local_reset_requested"))
 
-	return c.Redirect(
-		"/reset-password/" + code + "?email=" + url.QueryEscape(strings.ToLower(strings.TrimSpace(email))),
-	)
+	return c.Redirect("/reset-password")
+}
+
+// ShowLocalReset renders the local reset page: email, the code from the file
+// and the new password. The code is typed, never part of the URL.
+func (h *Handlers) ShowLocalReset(c *web.Ctx) error {
+	return inertia.Render(c, "Auth/ResetPassword", inertia.Props{
+		"token": "", "email": "", "codeFile": h.a.LocalResetFile(),
+	})
 }
 
 // ShowReset renders the new password page.

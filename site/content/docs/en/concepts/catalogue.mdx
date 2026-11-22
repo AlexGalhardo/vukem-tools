@@ -11,10 +11,10 @@ They go through the conversion pipeline: upload, convert in an engine, download.
 
 | Group | Tools | Reference |
 | --- | --- | --- |
-| PDF (24) | `pdf-merge`, `pdf-split`, `pdf-extract-pages`, `pdf-remove-pages`, `pdf-organise`, `pdf-rotate`, `pdf-crop`, `pdf-compress`, `pdf-repair`, `pdf-protect`, `pdf-unlock`, `pdf-sign`, `pdf-compare`, `pdf-forms`, `pdf-watermark`, `pdf-page-numbers`, `pdf-ocr`, `pdf-to-image`, `pdf-to-pdfa`, `pdf-to-text`, `images-to-pdf`, `word-to-pdf`, `powerpoint-to-pdf`, `excel-to-pdf` | [PDF tools](/docs/mcp/tools-pdf) |
-| Images (5) | `image-convert`, `image-compress`, `pixels-to-svg`, `sprite-split`, `sprite-build` | [Image tools](/docs/mcp/tools-image) |
-| Video and audio (6) | `video-convert`, `video-compress`, `video-clip`, `video-to-gif`, `video-download`, `audio-convert` | [Video and audio tools](/docs/mcp/tools-media) |
-| Archives (2) | `archive-create`, `archive-extract` | [Archive tools](/docs/mcp/tools-archives) |
+| PDF (24) | `pdf-merge`, `pdf-split`, `pdf-extract-pages`, `pdf-remove-pages`, `pdf-organise`, `pdf-rotate`, `pdf-crop`, `pdf-compress`, `pdf-repair`, `pdf-protect`, `pdf-unlock`, `pdf-sign`, `pdf-compare`, `pdf-forms`, `pdf-watermark`, `pdf-page-numbers`, `pdf-ocr`, `pdf-to-image`, `pdf-to-pdfa`, `pdf-to-text`, `images-to-pdf`, `word-to-pdf`, `powerpoint-to-pdf`, `excel-to-pdf` | [PDF tools](/docs/mcp/tools#pdf-tools-24) |
+| Images (5) | `image-convert`, `image-compress`, `pixels-to-svg`, `sprite-split`, `sprite-build` | [Image tools](/docs/mcp/tools#image-tools-5) |
+| Video and audio (6) | `video-convert`, `video-compress`, `video-clip`, `video-to-gif`, `video-download`, `audio-convert` | [Video and audio tools](/docs/mcp/tools#video-and-audio-tools-6) |
+| Archives (2) | `archive-create`, `archive-extract` | [Archive tools](/docs/mcp/tools#archive-tools-2) |
 
 ## Tools that run in the browser (17)
 
@@ -30,7 +30,7 @@ They run in the page. Nothing is uploaded to a conversion engine, and they have 
 
 ## What a server offers
 
-A server only offers a tool whose engine it has. Engines such as qpdf, ffmpeg, libvips and LibreOffice run as separate processes, each with a time limit. When one is missing, the server logs it and hides the tools that need it. `GET /api/v1/tools` lists what a server offers and `GET /api/v1/capabilities` says which engines it found and what its limits are. See [Catalog and capabilities](/docs/api/catalog).
+A server only offers a tool whose engine it has. Engines such as qpdf, ffmpeg, libvips and LibreOffice run as separate processes, each with a time limit. When one is missing, the server logs it and hides the tools that need it. `GET /api/v1/tools` lists what a server offers and `GET /api/v1/capabilities` says which engines it found and what its limits are. See [Endpoints](/docs/api/endpoints).
 
 ## Next step
 

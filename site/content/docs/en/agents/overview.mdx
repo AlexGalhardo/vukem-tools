@@ -9,9 +9,9 @@ An agent is a first-class user. It does not scrape the website: it calls the sam
 | --- | --- | --- |
 | [MCP](/docs/mcp/overview) | An AI client such as Claude Code, Claude Desktop or Cursor should run tools itself | [Connect](/docs/mcp/connect) |
 | [CLI](/docs/agents/cli) | A script or an agent with a shell runs `vukem-tools` | [CLI reference](/docs/reference/cli) |
-| [HTTP API](/docs/api/overview) | A program of yours talks to the server directly | [Convert a file](/docs/api/workflow) |
+| [HTTP API](/docs/api/overview) | A program of yours talks to the server directly | [Convert a file](/docs/api/overview#make-a-request) |
 
-All three need a running server and an API key, and the key's abilities decide which tools work. See [Authentication](/docs/api/authentication).
+All three need a running server and an API key, and the key's abilities decide which tools work. See [Authentication](/docs/api/overview#authentication).
 
 Of the 54 tools in the catalogue, 37 run on the server and can be called. The other 17 run in the browser and have no call. Asking for something that does not exist, such as an option a tool does not have, fails closed: the call returns an error with a stable code and the arguments are never guessed.
 

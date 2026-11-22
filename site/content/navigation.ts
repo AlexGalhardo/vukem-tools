@@ -1,6 +1,15 @@
+import fs from "node:fs";
+import path from "node:path";
 import type { NavCategory } from "./nav-types.ts";
 
 export type { NavCategory, NavSection } from "./nav-types.ts";
+
+type GeneratedNav = Record<"api" | "mcp", { title: string; pages: string[] }[]>;
+
+/** The groups of the API and MCP sidebars, from the OpenAPI snapshot and the tool table. */
+const generated = JSON.parse(
+	fs.readFileSync(path.join(process.cwd(), "generated", "api-nav.json"), "utf8"),
+) as GeneratedNav;
 
 /**
  * Sidebar of the documentation. Each category lists pages in display order.
@@ -64,25 +73,21 @@ export const navigation: NavCategory[] = [
 		prefix: "api",
 		title: "API reference",
 		section: "api",
-		pages: [
-			"overview",
-			"authentication",
-			"workflow",
-			"errors",
-			"endpoints",
-			"account",
-			"catalog",
-			"conversions",
-			"pdf-tools",
-			"media-tools",
-			"file-tools",
-		],
+		pages: ["overview", "endpoints", "schemas"],
 	},
+	// One group per resource, one page per operation: written by scripts/generate-api-docs.ts.
+	...generated.api.map(
+		(g): NavCategory => ({ dir: "api", prefix: "api", title: g.title, label: `API: ${g.title}`, section: "api", pages: g.pages }),
+	),
 	{
 		dir: "mcp",
 		prefix: "mcp",
 		title: "MCP server",
 		section: "mcp",
-		pages: ["overview", "connect", "protocol", "tools", "tools-pdf", "tools-image", "tools-media", "tools-archives"],
+		pages: ["overview", "connect", "tools"],
 	},
+	// One group per kind of tool, one page per tool: written by scripts/generate-api-docs.ts.
+	...generated.mcp.map(
+		(g): NavCategory => ({ dir: "mcp", prefix: "mcp", title: g.title, label: "MCP tools", section: "mcp", pages: g.pages }),
+	),
 ];

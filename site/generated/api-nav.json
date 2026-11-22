@@ -1,0 +1,181 @@
+{
+  "api": [
+    {
+      "title": "Account",
+      "pages": [
+        "me.show",
+        "usage.show"
+      ]
+    },
+    {
+      "title": "API keys",
+      "pages": [
+        "abilities.index",
+        "devicelinks.token",
+        "devicelinks.start",
+        "tokens.revoke",
+        "tokens.destroy",
+        "tokens.index",
+        "tokens.store"
+      ]
+    },
+    {
+      "title": "Catalog",
+      "pages": [
+        "capabilities.show",
+        "downloads.clip-modes",
+        "conversions.errors",
+        "downloads.platforms",
+        "tools.index",
+        "uploads.types"
+      ]
+    },
+    {
+      "title": "Uploads",
+      "pages": [
+        "uploads.index"
+      ]
+    },
+    {
+      "title": "Conversions",
+      "pages": [
+        "conversions.events",
+        "conversions.result",
+        "conversions.show",
+        "conversions.cancel",
+        "conversions.index"
+      ]
+    },
+    {
+      "title": "PDF tools",
+      "pages": [
+        "tools.excel-to-pdf",
+        "tools.images-to-pdf",
+        "tools.pdf-compare",
+        "tools.pdf-compress",
+        "tools.pdf-crop",
+        "tools.pdf-extract-pages",
+        "tools.pdf-forms",
+        "tools.pdf-merge",
+        "tools.pdf-ocr",
+        "tools.pdf-organise",
+        "tools.pdf-page-numbers",
+        "tools.pdf-protect",
+        "tools.pdf-remove-pages",
+        "tools.pdf-repair",
+        "tools.pdf-rotate",
+        "tools.pdf-sign",
+        "tools.pdf-split",
+        "tools.pdf-to-image",
+        "tools.pdf-to-pdfa",
+        "tools.pdf-to-text",
+        "tools.pdf-unlock",
+        "tools.pdf-watermark",
+        "tools.powerpoint-to-pdf",
+        "tools.word-to-pdf"
+      ]
+    },
+    {
+      "title": "Image tools",
+      "pages": [
+        "tools.image-compress",
+        "tools.image-convert.formats",
+        "tools.image-convert"
+      ]
+    },
+    {
+      "title": "Audio and video tools",
+      "pages": [
+        "tools.audio-convert.formats",
+        "tools.audio-convert",
+        "tools.video-clip",
+        "tools.video-compress",
+        "tools.video-convert.capabilities",
+        "tools.video-convert",
+        "tools.video-download.metadata",
+        "tools.video-download",
+        "tools.video-to-gif"
+      ]
+    },
+    {
+      "title": "Archive tools",
+      "pages": [
+        "tools.archive-create",
+        "tools.archive-extract"
+      ]
+    },
+    {
+      "title": "Sprite tools",
+      "pages": [
+        "tools.sprite-build",
+        "tools.sprite-split.formats",
+        "tools.sprite-split"
+      ]
+    },
+    {
+      "title": "Pixel art tools",
+      "pages": [
+        "tools.pixels-to-svg"
+      ]
+    }
+  ],
+  "mcp": [
+    {
+      "title": "PDF tools",
+      "pages": [
+        "tools/excel-to-pdf",
+        "tools/images-to-pdf",
+        "tools/pdf-compare",
+        "tools/pdf-compress",
+        "tools/pdf-crop",
+        "tools/pdf-extract-pages",
+        "tools/pdf-forms",
+        "tools/pdf-merge",
+        "tools/pdf-ocr",
+        "tools/pdf-organise",
+        "tools/pdf-page-numbers",
+        "tools/pdf-protect",
+        "tools/pdf-remove-pages",
+        "tools/pdf-repair",
+        "tools/pdf-rotate",
+        "tools/pdf-sign",
+        "tools/pdf-split",
+        "tools/pdf-to-image",
+        "tools/pdf-to-pdfa",
+        "tools/pdf-to-text",
+        "tools/pdf-unlock",
+        "tools/pdf-watermark",
+        "tools/powerpoint-to-pdf",
+        "tools/word-to-pdf"
+      ]
+    },
+    {
+      "title": "Image tools",
+      "pages": [
+        "tools/image-compress",
+        "tools/image-convert",
+        "tools/pixels-to-svg",
+        "tools/sprite-build",
+        "tools/sprite-split"
+      ]
+    },
+    {
+      "title": "Video and audio tools",
+      "pages": [
+        "tools/audio-convert",
+        "tools/video-clip",
+        "tools/video-compress",
+        "tools/video-convert",
+        "tools/video-download",
+        "tools/video-to-gif"
+      ]
+    },
+    {
+      "title": "Archive tools",
+      "pages": [
+        "tools/archive-create",
+        "tools/archive-extract"
+      ]
+    }
+  ]
+}

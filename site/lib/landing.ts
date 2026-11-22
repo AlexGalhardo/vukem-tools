@@ -31,7 +31,7 @@ export const landing = {
 		title: "Convert, compress and edit files on your own machine.",
 		lead: "Vukem Tools is one toolbox for PDF, image, video and audio files, in the browser and in a desktop window. Your AI agents get the same tools from a CLI, a REST API and MCP.",
 		download: { label: "Download", href: "https://github.com/AlexGalhardo/vukem-tools/releases", external: true },
-		docs: { label: "Read the docs", href: "/docs/getting-started/quick-start/" },
+		docs: { label: "Read the docs", href: "/docs/quick-start/" },
 		licence:
 			"The code is MIT. Not for commercial use: several conversion engines are GPL or AGPL.",
 		licenceLink: { label: "Every engine and its licence", href: "/docs/self-hosting/licences/" },
@@ -145,7 +145,7 @@ export const landing = {
 				"Not for commercial use: FFmpeg, Ghostscript and Poppler are GPL or AGPL, and the Licences page lists every engine.",
 			],
 			links: [
-				{ label: "Installation", href: "/docs/getting-started/installation/" },
+				{ label: "Installation", href: "/docs/installation/" },
 				{ label: "Licences", href: "/docs/self-hosting/licences/" },
 			],
 			image: screen(
@@ -160,7 +160,7 @@ export const landing = {
 		title: "Start with one file.",
 		text: "Download the desktop app, or run it with Docker, then crop a PDF to see it work. The code is on GitHub.",
 		primary: { label: "Download from GitHub", href: "https://github.com/AlexGalhardo/vukem-tools/releases", external: true },
-		secondary: { label: "Quick start", href: "/docs/getting-started/quick-start/" },
+		secondary: { label: "Quick start", href: "/docs/quick-start/" },
 		tertiary: { label: "Source code", href: "https://github.com/AlexGalhardo/vukem-tools", external: true },
 		note: "Open source under MIT. Not for commercial use: several conversion engines are GPL or AGPL.",
 	},

@@ -47,7 +47,9 @@ const groups = getNavGroups(section);
 		<title>{fullTitle}</title>
 		<meta name="description" content={description} />
 		<meta name="application-name" content={site.name} />
-		<link rel="icon" href={withBase("/icon.svg")} type="image/svg+xml" />
+		<link rel="icon" href={withBase("/favicon.ico")} sizes="48x48" />
+		<link rel="icon" href={withBase("/icon-192.png")} type="image/png" sizes="192x192" />
+		<link rel="apple-touch-icon" href={withBase("/apple-touch-icon.png")} />
 		{noindex ? <meta name="robots" content="noindex" /> : <link rel="canonical" href={new URL(canonical ? withBase(withTrailingSlash(canonical)) : Astro.url.pathname, site.origin).href} />}
 		{twin ? <link rel="alternate" type="text/markdown" href={new URL(withBase(twin), site.origin).href} /> : null}
 		<meta property="og:site_name" content={site.name} />

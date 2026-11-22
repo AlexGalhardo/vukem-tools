@@ -300,3 +300,16 @@ func TestFailuresPrintAStableCodeAndNeverTheKey(t *testing.T) {
 		})
 	}
 }
+
+func TestServeRefusesANonLoopbackAddressWithAUsageError(t *testing.T) {
+	t.Parallel()
+
+	var stdout, stderr bytes.Buffer
+
+	code := cli.Execute(t.Context(), []string{"serve", "--addr", "0.0.0.0:0"}, &stdout, &stderr, cli.Options{
+		Getenv: func(string) string { return "" },
+	})
+	if code != 2 || !strings.Contains(stderr.String(), "loopback") {
+		t.Fatalf("exit %d, stderr %q; want 2 and a loopback refusal", code, stderr.String())
+	}
+}

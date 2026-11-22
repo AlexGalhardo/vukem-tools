@@ -7,8 +7,11 @@ import (
 	"github.com/AlexGalhardo/vukem-tools/app/requests"
 )
 
-// ShowForgot renders the reset link request page.
-func (*Handlers) ShowForgot(c *web.Ctx) error { return inertia.Render(c, "Auth/ForgotPassword", nil) }
+// ShowForgot renders the reset request page. local tells it that no link is
+// emailed: the code is saved to a file on this computer instead.
+func (h *Handlers) ShowForgot(c *web.Ctx) error {
+	return inertia.Render(c, "Auth/ForgotPassword", inertia.Props{"local": h.a.Local})
+}
 
 // SendResetLink emails a reset link; the answer is the same whether or not
 // the email has an account.

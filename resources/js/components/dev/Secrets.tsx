@@ -17,6 +17,7 @@ import {
   type Algorithm,
   type PasswordOptions,
 } from "../../lib/dev/crypto";
+import { stringifyJSON } from "../../lib/dev/json";
 import { Area, Button, Check, Copy, Grid, msg, Notice, Num, Output, Pick, Stack, Text } from "./ui";
 
 export function HashTool(): React.ReactElement {
@@ -149,7 +150,7 @@ export function PasswordTool(): React.ReactElement {
       </div>
       {result.error ? <Notice kind="error">{result.error}</Notice> : null}
       <Grid>
-        <Num label="Length" value={o.length} min={4} max={128} onChange={(v) => set("length", Math.min(128, Math.max(4, v || 4)))} />
+        <Num label="Length" value={o.length} min={4} max={128} onChange={(v) => set("length", v)} />
         <div>
           <Check label="Lowercase (a-z)" checked={o.lower} onChange={(v) => set("lower", v)} />
           <Check label="Uppercase (A-Z)" checked={o.upper} onChange={(v) => set("upper", v)} />
@@ -242,8 +243,8 @@ export function JwtTool(): React.ReactElement {
           {jwt.issuedAt ? <p className="text-sm text-ink-soft">Issued at {jwt.issuedAt.toISOString()}</p> : null}
           {jwt.notBefore ? <p className="text-sm text-ink-soft">Not valid before {jwt.notBefore.toISOString()}</p> : null}
           {!jwt.signaturePresent ? <Notice kind="error">The token has an empty signature.</Notice> : null}
-          <Output label="Header" value={JSON.stringify(jwt.header, null, 2)} rows={5} />
-          <Output label="Payload" value={JSON.stringify(jwt.payload, null, 2)} rows={10} />
+          <Output label="Header" value={stringifyJSON(jwt.header, 2)} rows={5} />
+          <Output label="Payload" value={stringifyJSON(jwt.payload, 2)} rows={10} />
         </>
       ) : null}
     </Stack>

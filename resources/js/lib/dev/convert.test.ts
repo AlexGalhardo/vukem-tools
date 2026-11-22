@@ -65,3 +65,9 @@ test("JSON minifies and indents", () => {
   expect(formatJSON('{ "a": [1, 2] }', 0)).toMatchObject({ ok: true, text: '{"a":[1,2]}' });
   expect(formatJSON('{"a":1}', 2)).toMatchObject({ text: '{\n  "a": 1\n}' });
 });
+
+test("XML from a top-level array has one root element holding the items", () => {
+  const xml = toXML([1, 2]);
+  expect(xml).toBe('<?xml version="1.0" encoding="UTF-8"?>\n<root>\n  <item>1</item>\n  <item>2</item>\n</root>\n');
+  expect(fromXML(xml)).toEqual({ item: ["1", "2"] });
+});

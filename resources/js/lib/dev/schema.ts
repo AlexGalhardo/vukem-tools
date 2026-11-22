@@ -32,6 +32,41 @@ function resolveRef(root: Obj, ref: string): unknown {
   return cur;
 }
 
+/** isMultiple divides instead of taking a remainder, because 0.3 % 0.1 is
+ *  0.09999999999999998 in a double and a decimal step is the common case. */
+function isMultiple(v: number, step: number): boolean {
+  if (step === 0) return false;
+  const q = v / step;
+
+  return Math.abs(q - Math.round(q)) <= 1e-9 * Math.max(1, Math.abs(q));
+}
+
+const unchecked = new Set([
+  "format", "if", "then", "else", "dependentRequired", "dependentSchemas", "dependencies", "patternProperties",
+  "propertyNames", "minProperties", "maxProperties", "contains", "minContains", "maxContains", "prefixItems",
+  "additionalItems", "unevaluatedProperties", "unevaluatedItems",
+]);
+const schemaMaps = new Set(["properties", "patternProperties", "dependentSchemas", "$defs", "definitions"]);
+
+/** unsupportedKeywords lists, sorted, the keywords in a schema that validate
+ *  does not enforce, so a page can say what it did not check instead of
+ *  calling a document valid. */
+export function unsupportedKeywords(schema: unknown): string[] {
+  const found = new Set<string>();
+  const visit = (s: unknown): void => {
+    if (Array.isArray(s)) return s.forEach(visit);
+    if (!isObj(s)) return;
+    for (const [k, v] of Object.entries(s)) {
+      if (unchecked.has(k)) found.add(k);
+      if (schemaMaps.has(k) && isObj(v)) Object.values(v).forEach(visit);
+      else if (k !== "enum" && k !== "const") visit(v);
+    }
+  };
+  visit(schema);
+
+  return [...found].sort();
+}
+
 /** validate checks an instance against the JSON Schema keywords that matter
  *  for data and tool definitions: type, enum, const, properties, required,
  *  additionalProperties, items, length and range limits, pattern, format-free
@@ -74,7 +109,7 @@ export function validate(schema: unknown, instance: unknown): Issue[] {
       if (typeof s.maximum === "number" && v > s.maximum) fail(`above the maximum ${s.maximum}`);
       if (typeof s.exclusiveMinimum === "number" && v <= s.exclusiveMinimum) fail(`must be above ${s.exclusiveMinimum}`);
       if (typeof s.exclusiveMaximum === "number" && v >= s.exclusiveMaximum) fail(`must be below ${s.exclusiveMaximum}`);
-      if (typeof s.multipleOf === "number" && v % s.multipleOf !== 0) fail(`not a multiple of ${s.multipleOf}`);
+      if (typeof s.multipleOf === "number" && !isMultiple(v, s.multipleOf)) fail(`not a multiple of ${s.multipleOf}`);
     }
     if (Array.isArray(v)) {
       if (typeof s.minItems === "number" && v.length < s.minItems) fail(`fewer than ${s.minItems} items`);

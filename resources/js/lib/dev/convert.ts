@@ -1,6 +1,11 @@
+import { ExactNumber, exactOrNumber, parseJSONDigits, stringifyJSON } from "./json";
+
 export type Format = "json" | "yaml" | "csv" | "xml";
 
 type Obj = Record<string, unknown>;
+
+/** container is an object or array a writer descends into; an ExactNumber is a scalar. */
+const container = (v: unknown): v is object => typeof v === "object" && v !== null && !(v instanceof ExactNumber);
 
 /* ---------- YAML ---------- */
 
@@ -9,6 +14,7 @@ const reserved = /^(true|false|null|yes|no|on|off|~)$/i;
 
 function yamlScalar(v: unknown): string {
   if (v === null || v === undefined) return "null";
+  if (v instanceof ExactNumber) return v.raw;
   if (typeof v === "number" || typeof v === "boolean") return String(v);
   const s = String(v);
   if (s === "" || reserved.test(s) || !plain.test(s) || /^\s|\s$/.test(s) || !Number.isNaN(Number(s))) {
@@ -26,7 +32,7 @@ export function toYaml(value: unknown, depth = 0): string {
 
     return value
       .map((item) => {
-        if (item && typeof item === "object" && !(Array.isArray(item) && item.length === 0)) {
+        if (container(item) && !(Array.isArray(item) && item.length === 0)) {
           const inner = toYaml(item, depth + 1);
           const trimmed = inner.slice(2 * (depth + 1));
 
@@ -37,18 +43,18 @@ export function toYaml(value: unknown, depth = 0): string {
       })
       .join("");
   }
-  if (value && typeof value === "object") {
+  if (container(value)) {
     const entries = Object.entries(value as Obj);
     if (entries.length === 0) return `${pad}{}\n`;
 
     return entries
       .map(([k, v]) => {
         const key = yamlScalar(k);
-        if (v && typeof v === "object" && !(Array.isArray(v) ? v.length === 0 : Object.keys(v).length === 0)) {
+        if (container(v) && !(Array.isArray(v) ? v.length === 0 : Object.keys(v).length === 0)) {
           return `${pad}${key}:\n${toYaml(v, depth + 1)}`;
         }
         if (Array.isArray(v)) return `${pad}${key}: []\n`;
-        if (v && typeof v === "object") return `${pad}${key}: {}\n`;
+        if (container(v)) return `${pad}${key}: {}\n`;
 
         return `${pad}${key}: ${yamlScalar(v)}\n`;
       })
@@ -62,7 +68,7 @@ function parseYamlScalar(raw: string): unknown {
   const s = raw.trim();
   if (s === "" || s === "~" || /^null$/i.test(s)) return null;
   if (/^(true|false)$/i.test(s)) return s.toLowerCase() === "true";
-  if (/^[-+]?(\d+\.?\d*|\.\d+)([eE][-+]?\d+)?$/.test(s)) return Number(s);
+  if (/^[-+]?(\d+\.?\d*|\.\d+)([eE][-+]?\d+)?$/.test(s)) return exactOrNumber(s);
   if (s.startsWith('"') || s.startsWith("[") || s.startsWith("{")) {
     try {
       return JSON.parse(s) as unknown;
@@ -198,7 +204,7 @@ export function parseCSV(text: string, delimiter = ","): string[][] {
 }
 
 function csvCell(v: unknown, delimiter: string): string {
-  const s = v === null || v === undefined ? "" : typeof v === "object" ? JSON.stringify(v) : String(v);
+  const s = v === null || v === undefined ? "" : v instanceof ExactNumber ? v.raw : typeof v === "object" ? stringifyJSON(v) : String(v);
 
   return s.includes('"') || s.includes("\n") || s.includes("\r") || s.includes(delimiter)
     ? `"${s.replace(/"/g, '""')}"`
@@ -210,7 +216,7 @@ export function toCSV(value: unknown, delimiter = ","): string {
   const rows = Array.isArray(value) ? value : [value];
   const header: string[] = [];
   for (const r of rows) {
-    if (!r || typeof r !== "object" || Array.isArray(r)) throw new Error("CSV needs an array of objects");
+    if (!container(r) || Array.isArray(r)) throw new Error("CSV needs an array of objects");
     for (const k of Object.keys(r)) if (!header.includes(k)) header.push(k);
   }
 
@@ -238,10 +244,10 @@ function xmlNode(name: string, v: unknown, depth: number): string {
   const pad = "  ".repeat(depth);
   const n = tag(name);
   if (Array.isArray(v)) return v.map((x) => xmlNode(name, x, depth)).join("");
-  if (v && typeof v === "object") {
+  if (container(v)) {
     const o = v as Obj;
     const attrs = Object.entries(o)
-      .filter(([k, x]) => k.startsWith("@") && typeof x !== "object")
+      .filter(([k, x]) => k.startsWith("@") && !container(x))
       .map(([k, x]) => ` ${tag(k.slice(1))}="${esc(String(x))}"`)
       .join("");
     const kids = Object.entries(o).filter(([k]) => !k.startsWith("@") && k !== "#text");
@@ -257,7 +263,10 @@ function xmlNode(name: string, v: unknown, depth: number): string {
 /** toXML writes a value as XML. Keys starting with "@" become attributes and
  *  "#text" is the element's text, the convention fromXML reads back. */
 export function toXML(value: unknown, root = "root"): string {
-  return `<?xml version="1.0" encoding="UTF-8"?>\n${xmlNode(root, value, 0)}`;
+  // A document has one root element, so a top-level array goes inside it.
+  const body = Array.isArray(value) ? { item: value } : value;
+
+  return `<?xml version="1.0" encoding="UTF-8"?>\n${xmlNode(root, body, 0)}`;
 }
 
 const unesc = (s: string): string =>
@@ -317,8 +326,12 @@ function attach(parent: Obj, name: string, value: unknown): void {
 /** parseAs reads text in a format into a JSON-compatible value. */
 export function parseAs(format: Format, text: string): unknown {
   switch (format) {
-    case "json":
-      return JSON.parse(text) as unknown;
+    case "json": {
+      const r = parseJSONDigits(text);
+      if (!r.ok) throw new Error(`Line ${r.line}, column ${r.column}: ${r.message}`);
+
+      return r.value;
+    }
     case "yaml":
       return fromYaml(text);
     case "csv":
@@ -332,7 +345,7 @@ export function parseAs(format: Format, text: string): unknown {
 export function writeAs(format: Format, value: unknown): string {
   switch (format) {
     case "json":
-      return JSON.stringify(value, null, 2);
+      return stringifyJSON(value, 2);
     case "yaml":
       return toYaml(value);
     case "csv":

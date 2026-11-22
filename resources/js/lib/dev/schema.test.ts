@@ -1,7 +1,7 @@
 import { expect, test } from "bun:test";
 
 import { diffJSON, diffLines } from "./diff";
-import { checkToolDefinition, validate } from "./schema";
+import { checkToolDefinition, unsupportedKeywords, validate } from "./schema";
 
 const schema = {
   type: "object",
@@ -63,4 +63,23 @@ test("JSON diff ignores key order", () => {
     { path: "$.b", kind: "removed", before: 2 },
     { path: "$.c", kind: "added", after: 3 },
   ]);
+});
+
+test("multipleOf tolerates the floating-point error of a decimal step", () => {
+  expect(validate({ multipleOf: 0.1 }, 0.3)).toEqual([]);
+  expect(validate({ multipleOf: 0.01 }, 19.99)).toEqual([]);
+  expect(validate({ multipleOf: 0.1 }, 0.35)).toHaveLength(1);
+  expect(validate({ multipleOf: 3 }, 10)).toHaveLength(1);
+});
+
+test("keywords the validator does not check are reported, not silently ignored", () => {
+  const s = {
+    type: "object",
+    properties: { format: { type: "string" }, when: { type: "string", format: "email" } },
+    if: { required: ["when"] },
+    then: { required: ["format"] },
+    $defs: { n: { minProperties: 1 } },
+  };
+  expect(unsupportedKeywords(s)).toEqual(["format", "if", "minProperties", "then"]);
+  expect(unsupportedKeywords({ type: "string", minLength: 1 })).toEqual([]);
 });

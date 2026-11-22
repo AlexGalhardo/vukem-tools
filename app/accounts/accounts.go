@@ -22,6 +22,7 @@ import (
 	"github.com/AlexGalhardo/vukem/signed"
 
 	"github.com/AlexGalhardo/vukem-tools/app/models"
+	"github.com/AlexGalhardo/vukem-tools/app/services"
 )
 
 // Accounts holds the authentication services.
@@ -38,6 +39,10 @@ type Accounts struct {
 	Messages *i18n.Bundle
 	// URL is the public base URL used in emails (APP_URL).
 	URL string
+	// Local is true in local mode (APP_MODE=local). It is read once at boot: no
+	// request can change it, so the local shortcuts cannot be reached in a
+	// hosted process.
+	Local bool
 	// ResetTTL is how long password reset links work.
 	ResetTTL time.Duration
 	// VerifyTTL is how long email verification links work.
@@ -142,6 +147,7 @@ func New(app *vukem.App) (*Accounts, error) {
 			WithClock(app.Now),
 		Messages:  messages,
 		URL:       strings.TrimSuffix(app.Config.URL, "/"),
+		Local:     services.IsLocal(app),
 		ResetTTL:  time.Hour,
 		VerifyTTL: time.Hour,
 		now:       time.Now,

@@ -32,7 +32,12 @@ func localApp(t *testing.T) (*vukemtest.App, string) {
 
 	t.Cleanup(func() { removeWithRetry(t, dir) })
 
-	return vukemtest.New(t, bootstrap.New, vukemtest.Options{Env: bootstrap.LocalEnv(dir)}), dir
+	// APP_URL is the Host the test client sends; the loopback Host guard
+	// accepts the configured address next to loopback.
+	env := bootstrap.LocalEnv(dir)
+	env["APP_URL"] = "http://example.com"
+
+	return vukemtest.New(t, bootstrap.New, vukemtest.Options{Env: env}), dir
 }
 
 // submitPixels queues one pixels-to-svg conversion and returns its id.

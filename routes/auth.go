@@ -3,6 +3,7 @@ package routes
 import (
 	"context"
 	"net/http"
+	"net/url"
 	"strings"
 	"time"
 
@@ -15,6 +16,8 @@ import (
 
 	"github.com/AlexGalhardo/vukem-tools/app/accounts"
 	"github.com/AlexGalhardo/vukem-tools/app/controllers/account"
+	"github.com/AlexGalhardo/vukem-tools/app/middleware"
+	"github.com/AlexGalhardo/vukem-tools/app/services"
 )
 
 // Auth registers the sign-in routes (vukem install:auth). Password sign-up,
@@ -43,6 +46,19 @@ func Auth(r *router.Router, app *vukem.App) error {
 	signupIP := ratelimit.Middleware(limiters("register", 10, 10*time.Minute), ratelimit.ByIP)
 	signupEmail := ratelimit.Middleware(limiters("register.email", 5, time.Hour), account.RegisterThrottleKey)
 
+	// Local mode only: the server listens on loopback, and the Host check
+	// stops a rebinding page from reaching it through the visitor's browser.
+	// Server level, so it covers the API, the probes and the static files too.
+	if services.IsLocal(app) {
+		hosts := []string{}
+
+		if u, err := url.Parse(app.Config.URL); err == nil && u.Hostname() != "" {
+			hosts = append(hosts, u.Hostname())
+		}
+
+		r.UseServer(middleware.LoopbackHost(hosts...))
+	}
+
 	r.Use(shareAuth(acc))
 
 	// Both pages stay registered whatever PASSWORD_AUTH says: they are where
@@ -69,7 +85,7 @@ func Auth(r *router.Router, app *vukem.App) error {
 
 		r.Get("/forgot-password", h.ShowForgot).Name("password.request").Use(guest)
 		r.Post("/forgot-password", h.SendResetLink).Name("password.email").Use(guest, mails)
-		r.Get("/reset-password/{token}", h.ShowReset).Name("password.reset").Use(guest)
+		r.Get("/reset-password/{token}", h.ShowReset).Name("password.reset").SecretParams("token").Use(guest)
 		r.Post("/reset-password", h.Reset).Name("password.update").Use(guest)
 
 		r.Get("/email/verify", h.Notice).Name("verification.notice").Use(required)

@@ -52,7 +52,9 @@ func DataDir() (string, error) {
 //   - the SQLite database, with the queue, sessions and cache in it;
 //   - the queue worker and the scheduler inside the serve process;
 //   - uploads, scratch space and results on local disk under dataDir, with no
-//     bucket (an empty S3_BUCKET overrides one left in a .env file).
+//     bucket (an empty S3_BUCKET overrides one left in a .env file);
+//   - email and password sign-in on, because Google needs the network and a
+//     .env written for the hosted service may have switched passwords off.
 //
 // The database URL escapes the characters a file: URI treats specially, so a
 // profile directory containing them still opens.
@@ -64,6 +66,7 @@ func LocalEnv(dataDir string) map[string]string {
 		"QUEUE_IN_SERVE":    "true",
 		"SCHEDULE_IN_SERVE": "true",
 		"S3_BUCKET":         "",
+		"PASSWORD_AUTH":     "on",
 		"STORAGE_DIR":       filepath.Join(dataDir, "files"),
 		"UPLOAD_DIR":        filepath.Join(dataDir, "uploads"),
 		"WORK_DIR":          filepath.Join(dataDir, "work"),

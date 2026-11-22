@@ -37,21 +37,8 @@ func (a *Accounts) SendResetLink(ctx context.Context, email string) error {
 		return err
 	}
 
-	token := rand.Text()
-	d := a.DB.Dialect()
-
-	if _, err := a.DB.ExecContext(
-		ctx,
-		"DELETE FROM password_resets WHERE email = "+d.Placeholder(1),
-		email,
-	); err != nil {
-		return err
-	}
-
-	if _, err := a.DB.ExecContext(ctx, "INSERT INTO password_resets (email, hash, created_at) VALUES ("+
-		d.Placeholder(
-			1,
-		)+", "+d.Placeholder(2)+", "+d.Placeholder(3)+")", email, digest(token), a.now().UTC()); err != nil {
+	token, err := a.storeResetToken(ctx, email)
+	if err != nil {
 		return err
 	}
 
@@ -61,6 +48,57 @@ func (a *Accounts) SendResetLink(ctx context.Context, email string) error {
 		ctx,
 		mail.ResetPassword{User: u, Link: link, Subject: a.T(ctx, "auth.mail.reset_subject")},
 	)
+}
+
+// LocalResetCode issues the single-use reset code of the account with email and
+// returns it, for the local answer to show instead of mailing it: a local
+// machine has no mailbox. found is false for an unknown email, and no code
+// exists then. Anyone who can reach the loopback server can ask, which is no
+// more than they could do with the database file; the code ends the account's
+// sessions and keys when used, like the mailed one (ResetPassword). It exists
+// only in local mode.
+func (a *Accounts) LocalResetCode(ctx context.Context, email string) (code string, found bool, err error) {
+	if !a.Local {
+		return "", false, errors.New("accounts: reset codes are issued in local mode only")
+	}
+
+	email = strings.ToLower(strings.TrimSpace(email))
+
+	_, err = a.Users.ByCredentials(ctx, map[string]string{"email": email})
+	if errors.Is(err, auth.ErrUserNotFound) {
+		return "", false, nil
+	}
+
+	if err != nil {
+		return "", false, err
+	}
+
+	code, err = a.storeResetToken(ctx, email)
+
+	return code, err == nil, err
+}
+
+// storeResetToken replaces the pending reset of email with a new random token
+// and returns it; only its digest is stored.
+func (a *Accounts) storeResetToken(ctx context.Context, email string) (string, error) {
+	token := rand.Text()
+	d := a.DB.Dialect()
+
+	if _, err := a.DB.ExecContext(
+		ctx,
+		"DELETE FROM password_resets WHERE email = "+d.Placeholder(1),
+		email,
+	); err != nil {
+		return "", err
+	}
+
+	if _, err := a.DB.ExecContext(ctx, "INSERT INTO password_resets (email, hash, created_at) VALUES ("+
+		d.Placeholder(1)+", "+d.Placeholder(2)+", "+d.Placeholder(3)+")",
+		email, digest(token), a.now().UTC()); err != nil {
+		return "", err
+	}
+
+	return token, nil
 }
 
 func (a *Accounts) errInvalidReset(ctx context.Context) error {

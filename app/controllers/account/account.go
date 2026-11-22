@@ -139,8 +139,20 @@ func (h *Handlers) Register(c *web.Ctx) error {
 		return err
 	}
 
-	if _, err := h.a.Register(c.Context(), in); err != nil {
+	created, err := h.a.Register(c.Context(), in)
+	if err != nil {
 		return err
+	}
+
+	// Local: no mailbox to wait for, and the person is at the keyboard, so
+	// sign-up signs in. An existing address was refused with an error above.
+	if h.a.Local && created {
+		creds := map[string]string{"email": strings.ToLower(strings.TrimSpace(in.Email)), "password": in.Password}
+		if _, err := h.a.Web.Attempt(c, creds); err != nil {
+			return err
+		}
+
+		return c.Redirect("/dashboard")
 	}
 
 	return c.Redirect("/register/check-email")

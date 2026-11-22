@@ -1,11 +1,11 @@
 ---
-title: "Connect"
-description: "Add vukem-tools mcp to Claude Code, Claude Desktop or Cursor."
+title: "Connect a client"
+description: "Add vukem-tools mcp to Claude Code, Claude Desktop or Cursor, or reach it over local HTTP."
 ---
 
 Every client starts the same program: the command `vukem-tools` with the argument `mcp`, and two environment variables. There is no URL to paste and no port to open.
 
-Before you connect, [install the command-line program](/docs/installation#the-command-line-program), start a server, and [create an API key](/docs/api/authentication). If `vukem-tools` is not on your `PATH`, use its full path as the command in the snippets below.
+Before you connect, [install the command-line program](/docs/installation#the-command-line-program), start a server, and [create an API key](/docs/api/overview#read-or-create-the-credential). If `vukem-tools` is not on your `PATH`, use its full path as the command in the snippets below.
 
 ## Claude Code
 
@@ -88,6 +88,22 @@ See the [Cursor documentation](https://cursor.com/docs/context/mcp).
 
 A client that asks for a command and arguments takes the command `vukem-tools`, the argument `mcp`, and the two variables.
 
+### Local HTTP
+
+A program that cannot spawn a process can use `vukem-tools serve`, which offers the same server over HTTP. It listens on `127.0.0.1:8787` unless you pass `--addr host:port`.
+
+| Route | What it does |
+| --- | --- |
+| `GET /tools` | The same list as `tools/list`, as `{"tools": [...]}`. |
+| `POST /mcp` | One JSON-RPC message in, one out. A notification gets `202`. |
+
+```bash
+vukem-tools serve --addr 127.0.0.1:8787
+curl -sS http://127.0.0.1:8787/tools
+```
+
+It exists to be used from the same machine, and it enforces that. It refuses to listen on any address that is not loopback (`127.0.0.1`, `::1` or `localhost`), answers only requests whose `Host` is loopback, refuses any request with an `Origin` header so a web page cannot use it, and wants `Content-Type: application/json` on `POST /mcp`. It is a different surface from the web app, which listens on port 3000.
+
 ## Check the connection
 
 Run the server by hand and ask for the tools. This needs no server and no key, because listing is local:
@@ -109,11 +125,12 @@ curl -sS "$VUKEM_TOOLS_URL/api/v1/me" -H "Authorization: Bearer $VUKEM_TOOLS_API
 | The client says the command was not found | Use the full path of `vukem-tools` as the command. |
 | A call fails with `missing_key` | `VUKEM_TOOLS_API_KEY` is not in the `env` of the entry. |
 | A call fails with `unauthorized` | The key is wrong, revoked or expired. Create another. |
-| A call fails with `missing_ability` | The key lacks the tool's ability. See [Authentication](/docs/api/authentication#abilities). |
+| A call fails with `missing_ability` | The key lacks the tool's ability. See [Abilities](/docs/api/overview#abilities). |
 | A call fails with `network_error` | No server answers at `VUKEM_TOOLS_URL`. Start it. |
 
-Every error carries a stable code. The full list is in [Protocol](/docs/mcp/protocol#tool-errors).
+Every error carries a stable code. The full list is in [What a result looks like](/docs/mcp/overview#what-a-result-looks-like).
 
-## Next step
+## Next steps
 
-Learn what the server answers: [Protocol](/docs/mcp/protocol).
+- [The MCP tools](/docs/mcp/tools): every tool and its arguments.
+- [MCP overview](/docs/mcp/overview): the methods, the results and what keeps an agent safe.

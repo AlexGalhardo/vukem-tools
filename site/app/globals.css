@@ -337,6 +337,12 @@ body {
   vertical-align: top;
 }
 
+/* A name or a type in the first two columns stays whole: the table scrolls inside its frame instead. */
+.prose td:nth-child(-n + 2) > code {
+  white-space: nowrap;
+  overflow-wrap: normal;
+}
+
 .prose tbody tr:last-child td {
   border-bottom: 0;
 }

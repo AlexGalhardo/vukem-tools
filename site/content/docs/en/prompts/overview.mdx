@@ -29,7 +29,7 @@ The agent should call the matching MCP tool, or run the matching `vukem-tools` c
 - Name the tool if you know it. `tools/list` has all 37 with their options, and an agent that sees them will pick well.
 - Do not paste a password into the chat. `pdf-protect` and `pdf-unlock` take one as an option, so for those tools prefer to run the CLI yourself.
 - A tool that makes several files, such as `pdf-split`, needs a directory as `output`.
-- If a call fails, the error has a stable `code` and a `message`. Pass the message back to the agent. See [Protocol](/docs/mcp/protocol#tool-errors).
+- If a call fails, the error has a stable `code` and a `message`. Pass the message back to the agent. See [Protocol](/docs/mcp/overview#what-a-result-looks-like).
 
 ## Next step
 

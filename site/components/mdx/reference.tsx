@@ -3,7 +3,7 @@
  * right, which stay in view while the text scrolls; on a phone the two stack.
  */
 export function RefSplit({ children }: { children: React.ReactNode }): React.ReactElement {
-	return <div className="grid grid-cols-[minmax(0,1fr)] gap-8 2xl:grid-cols-[minmax(0,1fr)_minmax(0,32rem)] xl:grid-cols-[minmax(0,1fr)_minmax(0,26rem)]">{children}</div>;
+	return <div className="grid grid-cols-[minmax(0,1fr)] gap-6 2xl:grid-cols-[minmax(0,1fr)_minmax(0,28rem)] xl:grid-cols-[minmax(0,1fr)_minmax(0,24rem)]">{children}</div>;
 }
 
 export function RefMain({ children }: { children: React.ReactNode }): React.ReactElement {

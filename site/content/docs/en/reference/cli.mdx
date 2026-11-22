@@ -10,7 +10,7 @@ description: "Every command of vukem-tools, its flags, its output and its exit c
 | Variable | Default | Meaning |
 | --- | --- | --- |
 | `VUKEM_TOOLS_URL` | `http://localhost:3000` | The Vukem Tools server. |
-| `VUKEM_TOOLS_API_KEY` | none | An API key that may run the tool. See [Authentication](/docs/api/authentication). |
+| `VUKEM_TOOLS_API_KEY` | none | An API key that may run the tool. See [Authentication](/docs/api/overview#authentication). |
 
 ## Commands
 
@@ -21,7 +21,7 @@ description: "Every command of vukem-tools, its flags, its output and its exit c
 | `vukem-tools <area>` | Lists the tools of an area, with a summary of each. |
 | `vukem-tools tools` | Prints every tool as JSON: `{"tools": [...]}`. |
 | `vukem-tools mcp` | Serves every tool over MCP on standard input and output. See [Connect](/docs/mcp/connect). |
-| `vukem-tools serve [--addr host:port]` | Serves MCP over local HTTP. Default `127.0.0.1:8787`. See [Protocol](/docs/mcp/protocol#local-http). |
+| `vukem-tools serve [--addr host:port]` | Serves MCP over local HTTP. Default `127.0.0.1:8787`. See [Protocol](/docs/mcp/connect#local-http). |
 | `vukem-tools version` | Prints the version. Also `--version`. |
 | `vukem-tools help` | Prints the usage. Also `--help` and `-h`. |
 
@@ -57,11 +57,11 @@ Without `--json`, the command prints one line for each file written, then the no
 out.pdf (1234 bytes)
 ```
 
-With `--json` it prints one JSON object. See the shape in [Protocol](/docs/mcp/protocol#toolscall).
+With `--json` it prints one JSON object. See the shape in [Protocol](/docs/mcp/overview#what-a-result-looks-like).
 
 ## Errors and exit codes
 
-An error goes to standard error. With `--json` it is a JSON object with a stable `code`; without it, `error: <code>: <message>`. The codes are the ones in [Protocol](/docs/mcp/protocol#tool-errors).
+An error goes to standard error. With `--json` it is a JSON object with a stable `code`; without it, `error: <code>: <message>`. The codes are the ones in [Protocol](/docs/mcp/overview#what-a-result-looks-like).
 
 | Exit code | When |
 | --- | --- |

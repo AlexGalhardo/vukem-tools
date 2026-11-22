@@ -1,37 +1,18 @@
 ---
 title: "API overview"
-description: "What the JSON API does, how to reach it, and where each part is documented."
+description: "Where the JSON API is, how to authenticate, the shared conventions and how to read an operation page."
 ---
 
-Everything the web app does with a file, a script can do over HTTP. The JSON API lives under `/api/v1` and has 63 routes: keys, uploads, one route per conversion tool, and the routes that follow a conversion until you download the result.
+## You will learn
 
-This section is the reference for all of them. It is checked against the running app, so a route in the app is a route here.
+- Where the API is and how to reach it from a script.
+- How to get an API key and what its abilities limit.
+- The conventions every operation shares: uploads, conversions, downloads, lists, times and errors.
+- How to read an operation page.
 
-## Before you start
+## The idea
 
-You need a server and an API key.
-
-1. Run a server. The quickest are the [desktop app](/docs/guide/desktop) or [Docker](/docs/self-hosting/docker). The default address is `http://localhost:3000`.
-2. Create a key. Open **Account** in the web app, or call `POST /api/v1/tokens`. See [Authentication](/docs/api/authentication).
-3. Put both in your shell. Every example in this section reads them:
-
-```bash
-export VUKEM_TOOLS_URL="http://localhost:3000"
-export VUKEM_TOOLS_API_KEY="vk_..."
-```
-
-These are also the two variables the [CLI](/docs/reference/cli) and the [MCP server](/docs/mcp/overview) read.
-
-## Check that it works
-
-```bash
-curl -sS "$VUKEM_TOOLS_URL/api/v1/me" \
-  -H "Authorization: Bearer $VUKEM_TOOLS_API_KEY"
-```
-
-A `200` with your account means the server and the key are good. A `401` means the key is missing, wrong, revoked or expired.
-
-## How a conversion works
+Everything the web app does with a file, a script can do over HTTP. The browser interface, the [CLI](/docs/reference/cli) and the [MCP server](/docs/mcp/overview) are all clients of this same JSON API, which lives under `/api/v1`. There are 63 operations: keys, uploads, one route per conversion tool, and the routes that follow a conversion until you download the result.
 
 A conversion is three steps, and none of them blocks:
 
@@ -39,31 +20,257 @@ A conversion is three steps, and none of them blocks:
 2. **Submit** it to a tool, such as `POST /api/v1/tools/pdf-crop`. The call answers at once with a conversion in the `pending` state.
 3. **Collect** the result when the conversion is `finished`: ask for signed links, then download.
 
-[Convert a file](/docs/api/workflow) walks through all three with `curl`.
+The reference is checked against the running app: a route in the app has a page here, and the running app publishes the same contract as OpenAPI 3.1 at `/openapi.json`, with a rendered reference at `/docs` on the app host. The Go and TypeScript clients in the repository are generated from that document.
+
+## Quick start
+
+### Start the server
+
+Run the [desktop app](/docs/guide/desktop) or [Docker](/docs/self-hosting/docker). The default address is `http://localhost:3000`. Put it in your shell, with the key you create next. Every example in this section reads both, and so do the CLI and the MCP server:
+
+```bash
+export VUKEM_TOOLS_URL="http://localhost:3000"
+export VUKEM_TOOLS_API_KEY="vk_..."
+```
+
+### Read or create the credential
+
+In the web app, sign in, open **Account** and create a key. Choose the abilities it needs. The secret is shown once.
+
+Or over the API, exchange the account's email and password for a key with [`POST /api/v1/tokens`](/docs/api/tokens.store):
+
+```bash
+curl -sS -X POST "$VUKEM_TOOLS_URL/api/v1/tokens" \
+  -H "Content-Type: application/json" \
+  -d '{"email":"you@example.com","password":"...","device_name":"my-script","abilities":["pdf:structure"]}'
+```
+
+The account's email has to be verified: a key is a login, and an unverified address may belong to someone else. The response carries the secret once. Only a hash of it is stored, so a lost key is replaced, not recovered.
+
+### Make a request
+
+Check that the server and the key are good with [`GET /api/v1/me`](/docs/api/me.show):
+
+```bash
+curl -sS "$VUKEM_TOOLS_URL/api/v1/me" \
+  -H "Authorization: Bearer $VUKEM_TOOLS_API_KEY"
+```
+
+A `200` with your account means all is well. A `401` means the key is missing, wrong, revoked or expired.
+
+Then a whole conversion, with a PDF crop as the example. The key needs the `pdf:structure` ability, and the examples use [`jq`](https://jqlang.org/) to pick fields out of the JSON.
+
+**1. Upload the file.** Uploads use the [tus](https://tus.io/protocols/resumable-upload) protocol, version 1.0.0, at `/uploads/tus/`, so a large file survives a dropped connection. The route is outside `/api/v1` because it speaks tus, not JSON. It takes the same key and is limited to 30 new uploads a minute per key. Create the upload with the size and the file name, then send the bytes in one `PATCH`:
+
+```bash
+FILE=in.pdf
+SIZE=$(wc -c < "$FILE" | tr -d ' ')
+
+LOCATION=$(curl -sS -i -X POST "$VUKEM_TOOLS_URL/uploads/tus/" \
+  -H "Authorization: Bearer $VUKEM_TOOLS_API_KEY" \
+  -H "Tus-Resumable: 1.0.0" \
+  -H "Upload-Length: $SIZE" \
+  -H "Upload-Metadata: filename $(printf '%s' "$FILE" | base64)" \
+  | tr -d '\r' | awk 'tolower($1)=="location:" {print $2}')
+
+curl -sS -X PATCH "$VUKEM_TOOLS_URL$LOCATION" \
+  -H "Authorization: Bearer $VUKEM_TOOLS_API_KEY" \
+  -H "Tus-Resumable: 1.0.0" \
+  -H "Upload-Offset: 0" \
+  -H "Content-Type: application/offset+octet-stream" \
+  --data-binary "@$FILE"
+```
+
+The `PATCH` answers `204 No Content` with no body. The id you submit with is not the tus location: ask for your [unclaimed uploads](/docs/api/uploads.index), newest first.
+
+```bash
+FILE_ID=$(curl -sS "$VUKEM_TOOLS_URL/api/v1/uploads" \
+  -H "Authorization: Bearer $VUKEM_TOOLS_API_KEY" | jq -r '.data[0].id')
+```
+
+The server reads the type from the bytes: the extension and the `Content-Type` you send do not count. [`GET /api/v1/upload-types`](/docs/api/uploads.types) lists every type an upload may have. The largest file is 500 MB unless the operator changed `MAX_UPLOAD_SIZE_MB`.
+
+**2. Submit it to a tool.** The body names the upload and the tool's options. A tool that takes several files has `file_ids` instead of `file_id`; `video-download` takes a URL and no upload.
+
+```bash
+CONVERSION_ID=$(curl -sS -X POST "$VUKEM_TOOLS_URL/api/v1/tools/pdf-crop" \
+  -H "Authorization: Bearer $VUKEM_TOOLS_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d "{\"file_id\":\"$FILE_ID\",\"options\":{\"left\":36,\"bottom\":36,\"right\":36,\"top\":36}}" \
+  | jq -r '.id')
+```
+
+The answer is a conversion with `status` `pending`. Add an `idempotency_key` of your own (up to 128 characters) and a retry of the same call returns the same conversion instead of starting a second one.
+
+**3. Follow the conversion.** Poll [`GET /api/v1/conversions/{id}`](/docs/api/conversions.show) until `status` is `finished`, `error` or `cancelled`, or hold a connection open on [the event stream](/docs/api/conversions.events), which resumes with `Last-Event-ID`:
+
+```bash
+curl -sS "$VUKEM_TOOLS_URL/api/v1/conversions/$CONVERSION_ID" \
+  -H "Authorization: Bearer $VUKEM_TOOLS_API_KEY" | jq '{status, progress, phase, error_type}'
+```
+
+[`DELETE /api/v1/conversions/{id}`](/docs/api/conversions.cancel) cancels a conversion that has not ended.
+
+**4. Download the result.** When the conversion is `finished`, ask for the [signed links](/docs/api/conversions.result). A link is signed when you ask, so it is never older than your request. Each entry has `name`, `mime`, `size_bytes`, `expires_at` and a `url`; a tool that makes several files, such as `pdf-split`, has one entry for each. The link carries its own signature and needs no key:
+
+```bash
+URL=$(curl -sS "$VUKEM_TOOLS_URL/api/v1/conversions/$CONVERSION_ID/result" \
+  -H "Authorization: Bearer $VUKEM_TOOLS_API_KEY" | jq -r '.data[0].url')
+curl -sS -o out.pdf "$URL"
+```
+
+Download as soon as the conversion finishes. An upload no conversion has claimed lives 30 minutes by default, and a result 5 minutes (`UPLOAD_TTL_MINUTES` and `RESULT_TTL_MINUTES` change them). Asking for the links of a result that has expired is a `410`, and of one that has not finished is a `409`.
+
+For another tool the route is `POST /api/v1/tools/<name>` and the key needs that tool's ability. `options` is the tool's own object: some tools need it, such as `pdf-crop`, and for others it can be left out. Ask the server first: [`GET /api/v1/tools`](/docs/api/tools.index) lists the tools it offers, and [`GET /api/v1/capabilities`](/docs/api/capabilities.show) says which engines it has and what its limits are. A tool whose engine is missing is hidden.
+
+## Authentication
+
+Every route needs an API key, except the ones that issue a key or describe the server. A key is a login for one account, limited to the abilities you gave it. Either header works, and `Authorization` wins when both are present, so a stale `X-API-Key` in a shell profile cannot override a key you chose:
+
+```bash
+curl -sS "$VUKEM_TOOLS_URL/api/v1/me" -H "Authorization: Bearer $VUKEM_TOOLS_API_KEY"
+curl -sS "$VUKEM_TOOLS_URL/api/v1/me" -H "X-API-Key: $VUKEM_TOOLS_API_KEY"
+```
+
+A key expires 30 days after it is issued. [`POST /api/v1/tokens`](/docs/api/tokens.store) is limited to 5 calls a minute per address.
+
+### Abilities
+
+A key carries exactly the abilities you asked for. There is no default and no wildcard: ask for the narrowest set the script needs. [`GET /api/v1/abilities`](/docs/api/abilities.index) lists the accepted values, so a client does not hardcode them. An unknown ability is a `422` on the `abilities` field.
+
+| Ability | Lets the key run |
+| --- | --- |
+| `pdf:structure` | `pdf-merge`, `pdf-split`, `pdf-extract-pages`, `pdf-remove-pages`, `pdf-organise`, `pdf-rotate`, `pdf-crop` |
+| `pdf:convert` | `images-to-pdf`, `pdf-to-image`, `pdf-to-pdfa`, `pdf-to-text`, `pdf-ocr`, `word-to-pdf`, `powerpoint-to-pdf`, `excel-to-pdf` |
+| `pdf:compress` | `pdf-compress`, `pdf-repair` |
+| `pdf:security` | `pdf-protect`, `pdf-unlock`, `pdf-compare`, `pdf-sign` |
+| `pdf:edit` | `pdf-forms`, `pdf-watermark`, `pdf-page-numbers` |
+| `image:convert` | `image-convert` |
+| `image:compress` | `image-compress` |
+| `pixels:svg` | `pixels-to-svg` |
+| `video:convert` | `video-convert`, `video-to-gif` |
+| `video:edit` | `video-clip`, `video-compress` |
+| `video:download` | `video-download` and its metadata route |
+| `audio:convert` | `audio-convert` |
+| `sprite:sheet` | `sprite-split`, `sprite-build` |
+| `archive:files` | `archive-create`, `archive-extract` |
+| `image:edit`, `video:transcribe` | Nothing yet: the server accepts them, but no route in this release requires them |
+
+Reading and cancelling your own conversions, uploading, and reading your account need a valid key but no ability. A key without the ability for a tool gets a `403` when it submits to that tool. Each operation page names the ability it needs.
+
+### Manage keys
+
+- [`GET /api/v1/tokens`](/docs/api/tokens.index) lists your keys, newest first, revoked ones included. It never returns a secret.
+- [`DELETE /api/v1/tokens/current`](/docs/api/tokens.destroy) revokes the key that made the request.
+- [`DELETE /api/v1/tokens/{token}`](/docs/api/tokens.revoke) revokes one of your keys by id. Another account's id is answered exactly like an id that does not exist.
+
+### Link a program without a password
+
+A program that cannot show a login form, such as the Telegram bot, gets a key through a device link. Both calls are public and limited per address; the codes are the credential.
+
+1. [`POST /api/v1/device-links`](/docs/api/devicelinks.start) with `{"client": "telegram"}` returns a secret `device_code`, a short `user_code`, the `verification_url`, `expires_in` (ten minutes) and `interval`.
+2. The person opens the URL, signs in, checks that the code matches, and approves. Only an account with a verified email can approve.
+3. The program polls [`POST /api/v1/device-links/token`](/docs/api/devicelinks.token) with the `device_code` every `interval` seconds. `status` is `pending`, then `approved` with the key (shown once), or `denied` or `expired`.
+
+The server decides what the key may do for that kind of client. The program cannot ask for abilities.
 
 ## Conventions
 
 - Request and response bodies are JSON, except the upload (tus) and the download (the file itself). A body that is not JSON is a `415`.
-- Errors are [problem documents](/docs/api/errors) (RFC 9457) with a `request_id` you can quote.
 - A list route returns `{"data": [...]}`, newest first. Only the conversion list takes a `limit` (1 to 100, default 20). There is no paging cursor.
 - Times are RFC 3339 in UTC.
 - Ids are opaque strings. Do not parse them.
 - A file's type is read from its bytes. The extension and the `Content-Type` you send do not count.
+- Repeat a submission safely with `idempotency_key`: the same key returns the same conversion.
+- A conversion is never finished when it is submitted: a `201` means `pending`. See [Make a request](#make-a-request).
+- A server can cap how much an account uses. [`GET /api/v1/usage`](/docs/api/usage.show) reports the processing time per day (`budget_seconds`, `spent_seconds`, `remaining_seconds`, `resets_at` at midnight UTC, and `unlimited` when no budget applies) and the storage (`stored_bytes` against `stored_limit_bytes`, where 0 means no cap). Past the cap, a new upload is refused until files expire.
 
-## Where to find things
+## Errors
 
-| You want to | Read |
+An error from `/api/v1` is a [problem document](https://www.rfc-editor.org/rfc/rfc9457) with the type `application/problem+json`:
+
+```json
+{
+  "type": "about:blank",
+  "title": "Unauthorized",
+  "status": 401,
+  "detail": "Unauthenticated.",
+  "instance": "/api/v1/me",
+  "request_id": "01JQZ8R4T6WQ2N9K3V5Y7B0C1D"
+}
+```
+
+`detail` says what went wrong and, for a `4xx`, what to change. A `5xx` never carries internals. Quote `request_id` when you report a problem: it is in the response and in the server's logs. A `422` adds an `errors` object that maps each rejected field to its messages, and an `issues` list with one entry for each problem. See the [Problem schema](/docs/api/schemas#problem).
+
+### Status codes
+
+| Status | When |
 | --- | --- |
-| Get a key, or limit what a key can do | [Authentication](/docs/api/authentication) |
-| Send a file and get a result back | [Convert a file](/docs/api/workflow) |
-| Understand a `4xx`, a `429` or a failed conversion | [Errors and limits](/docs/api/errors) |
-| Find a route | [Endpoints](/docs/api/endpoints) |
-| Drive it from an AI agent | [MCP server](/docs/mcp/overview) |
+| `400` | The request is malformed. |
+| `401` | No key, an unknown key, a revoked key or an expired one. |
+| `403` | The key is valid but lacks the ability for that tool, or the account's email is not verified. |
+| `404` | No such resource. Another account's resource is answered the same way, so the response never says whether the id was real. |
+| `409` | The conversion has not finished (asking for its result), or it has already ended (cancelling it). |
+| `410` | The result has expired and was deleted. |
+| `415` | The body is not JSON. |
+| `422` | Validation failed. Read `errors`. |
+| `429` | A rate limit or a quota. Read `Retry-After`. |
 
-## The machine-readable document
+### Rate limits
 
-The running app publishes the same contract as OpenAPI 3.1 at `/openapi.json`, and a rendered reference at `/docs` on the app host. Both are generated from the routes, so they describe the server you call. The Go and TypeScript clients in the repository are generated from that document too.
+| Scope | Limit |
+| --- | --- |
+| Any `/api/v1` request, per address | 120 a minute |
+| Any request with a key, per key | 60 a minute |
+| `POST /api/v1/tokens`, per address | 5 a minute |
+| Submitting a conversion, per key | 30 a minute |
+| `POST /api/v1/tools/video-download/metadata`, per key | 30 a minute |
+| Starting an upload, per key | 30 a minute |
+| Opening an event stream, per key | 20 a minute |
 
-## Next step
+Over a limit is a `429` with a `Retry-After` header. The address limit is checked first: a key is only trusted as a limit key once it has been verified. The CLI and the MCP server wait and retry a `429` by themselves. Behind a proxy, the operator sets `TRUSTED_PROXIES` so the address is the visitor's, not the proxy's. See [Configuration](/docs/reference/configuration).
 
-Create a key and make your first call: [Authentication](/docs/api/authentication).
+### Conversion error codes
+
+A conversion that fails has `status` `error`, an `error_type` from this list and an `error_message` fit to show a person. `retry` says whether sending the same input again could succeed. [`GET /api/v1/conversion-errors`](/docs/api/conversions.errors) returns the same table.
+
+| `error_type` | Message | Retry |
+| --- | --- | --- |
+| `unsupported_input` | That file is not a format this tool can read. | no |
+| `infected` | That file was rejected by the malware scanner. | no |
+| `input_too_large` | That file is past the limit for this tool. | no |
+| `quota_exceeded` | You have used today's conversion budget. | no |
+| `cancelled` | The conversion was cancelled. | no |
+| `engine_failure` | The converter could not process that file. | no |
+| `timeout` | The conversion took too long and was stopped. | yes |
+| `out_of_memory` | The conversion needed more memory than it is allowed. | yes |
+| `disk_full` | The server is out of working space. Try again shortly. | yes |
+| `internal` | Something went wrong on our side. | yes |
+
+The server retries a failed job a few times before it settles on `error`, so a conversion can stay `running` for a while after an attempt failed.
+
+## Read an operation page
+
+Every operation has its own page at `/docs/api/<resource>.<action>`, such as [`conversions.show`](/docs/api/conversions.show). The sidebar groups them by resource and shows the method and a one-line summary of each. A page has, in order:
+
+1. The method and the path.
+2. **Authentication**: the key and the exact ability it needs.
+3. **Path parameters**, **Query parameters** and **Request body**, each a table of name, type, whether it is required, and a description. A type that is an object links to [Schemas](/docs/api/schemas).
+4. **Responses**: one section for each status, with the content type, the schema and its fields.
+5. On the right, a request in eight languages (curl, Python, JavaScript, Go, PHP, Java, C# and Ruby) that reads the key from `VUKEM_TOOLS_API_KEY`, and an example of each response.
+
+The examples are built from the schemas, so every value is a placeholder. The tables hold the fields that carry the real values. [Endpoints](/docs/api/endpoints) lists every operation.
+
+## Common mistakes
+
+- Sending the key in a query string or a cookie. Only the `Authorization` and `X-API-Key` headers count.
+- Treating a `201` from a tool as a finished conversion. It is `pending`: follow it, then ask for the result.
+- Waiting to download. A result lives 5 minutes by default, and an expired one is a `410`.
+- Asking for the abilities of a whole family. A key carries only the abilities you listed, and a tool you did not list is a `403`.
+- Trusting the file extension. The server reads the type from the bytes.
+
+## Next steps
+
+- [Endpoints](/docs/api/endpoints) and [Schemas](/docs/api/schemas).
+- Drive it from an AI agent with the [MCP server](/docs/mcp/overview).
+- The command line: [CLI reference](/docs/reference/cli).

@@ -45,7 +45,8 @@ function useBrowserPath(): string {
 	return path;
 }
 
-const keyOf = (group: NavGroup): string => `${group.section}:${group.label}`;
+// The title, not the label: the groups of the MCP tools share one label.
+const keyOf = (group: NavGroup): string => `${group.section}:${group.title}`;
 
 /** The groups the reader opened on earlier pages. A full page load starts the page closed, so they are kept for the tab. */
 function readStored(): string[] {

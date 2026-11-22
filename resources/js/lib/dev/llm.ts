@@ -1,3 +1,5 @@
+import { parseJSONDigits, stringifyJSON } from "./json";
+
 type Obj = Record<string, unknown>;
 
 /* ---------- tokens ---------- */
@@ -77,17 +79,39 @@ function balancedAt(s: string, i: number): number {
   return -1;
 }
 
-function tryParse(s: string): unknown {
-  try {
-    return { value: JSON.parse(s) as unknown };
-  } catch {
-    // Models leave a trailing comma more than any other mistake.
-    try {
-      return { value: JSON.parse(s.replace(/,\s*([}\]])/g, "$1")) as unknown, repaired: true };
-    } catch {
-      return null;
+/** withoutTrailingCommas drops a comma that only precedes a closing bracket,
+ *  skipping string contents so "a, }" inside a value is left alone. */
+function withoutTrailingCommas(s: string): string {
+  let out = "";
+  let inStr = false;
+  for (let i = 0; i < s.length; i++) {
+    const c = s[i]!;
+    if (inStr) {
+      out += c;
+      if (c === "\\") out += s[++i] ?? "";
+      else if (c === '"') inStr = false;
+    } else if (c === '"') {
+      inStr = true;
+      out += c;
+    } else if (c === ",") {
+      let j = i + 1;
+      while (j < s.length && /\s/.test(s[j]!)) j++;
+      if (s[j] !== "}" && s[j] !== "]") out += c;
+    } else {
+      out += c;
     }
   }
+
+  return out;
+}
+
+function tryParse(s: string): unknown {
+  const plain = parseJSONDigits(s);
+  if (plain.ok) return { value: plain.value };
+  // Models leave a trailing comma more than any other mistake.
+  const repaired = parseJSONDigits(withoutTrailingCommas(s));
+
+  return repaired.ok ? { value: repaired.value, repaired: true } : null;
 }
 
 export interface Extracted {
@@ -183,7 +207,9 @@ export function openaiToAnthropic(input: unknown): Obj {
         const fn = isObj(c) && isObj(c.function) ? c.function : {};
         let args: unknown = {};
         try {
-          args = JSON.parse(typeof fn.arguments === "string" ? fn.arguments : "{}") as unknown;
+          const parsed = parseJSONDigits(typeof fn.arguments === "string" ? fn.arguments : "{}");
+          if (!parsed.ok) throw new Error(parsed.message);
+          args = parsed.value;
         } catch {
           throw new Error(`the arguments of tool call ${String((c as Obj).id)} are not valid JSON`);
         }
@@ -225,7 +251,7 @@ export function anthropicToOpenai(input: unknown): Obj[] {
         msg.tool_calls = uses.map((b) => ({
           id: b.id,
           type: "function",
-          function: { name: b.name, arguments: JSON.stringify(b.input ?? {}) },
+          function: { name: b.name, arguments: stringifyJSON(b.input ?? {}) },
         }));
       }
       out.push(msg);

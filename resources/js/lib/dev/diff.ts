@@ -52,6 +52,17 @@ export function diffLines(a: string, b: string, maxCells = 4_000_000): Line[] {
   return out;
 }
 
+/** showValue is JSON.stringify that also prints a bigint as the digits it was written with. */
+export function showValue(value: unknown): string {
+  if (typeof value === "bigint") return value.toString();
+  if (Array.isArray(value)) return `[${value.map(showValue).join(",")}]`;
+  if (value && typeof value === "object") {
+    return `{${Object.entries(value).map(([k, v]) => `${JSON.stringify(k)}:${showValue(v)}`).join(",")}}`;
+  }
+
+  return JSON.stringify(value) ?? "null";
+}
+
 export interface Change {
   path: string;
   kind: "added" | "removed" | "changed";
@@ -86,5 +97,5 @@ export function diffJSON(a: unknown, b: unknown, path = "$"): Change[] {
     }).flat();
   }
 
-  return JSON.stringify(a) === JSON.stringify(b) ? [] : [{ path, kind: "changed", before: a, after: b }];
+  return showValue(a) === showValue(b) ? [] : [{ path, kind: "changed", before: a, after: b }];
 }

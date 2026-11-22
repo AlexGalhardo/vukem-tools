@@ -1,6 +1,7 @@
 import { useId, useState } from "react";
 import type { ReactNode } from "react";
 
+import { settledNumber, typedNumber } from "../../lib/dev/number";
 import Icon from "../Icon";
 
 const field =
@@ -127,6 +128,7 @@ export function Num({
   step?: number;
 }): React.ReactElement {
   const id = useId();
+  const [draft, setDraft] = useState<string | null>(null);
 
   return (
     <div>
@@ -134,11 +136,20 @@ export function Num({
       <input
         id={id}
         type="number"
-        value={Number.isFinite(value) ? value : ""}
+        value={draft ?? (Number.isFinite(value) ? value : "")}
         min={min}
         max={max}
         step={step}
-        onChange={(e) => onChange(e.target.valueAsNumber)}
+        onChange={(e) => {
+          setDraft(e.target.value);
+          const typed = typedNumber(e.target.value, min, max);
+          if (typed !== null) onChange(typed);
+        }}
+        onBlur={(e) => {
+          if (draft === null) return;
+          onChange(settledNumber(e.target.value, min, max));
+          setDraft(null);
+        }}
         className={`${field} tabular mt-2 min-h-11`}
       />
     </div>

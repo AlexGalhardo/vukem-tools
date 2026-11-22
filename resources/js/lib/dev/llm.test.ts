@@ -57,3 +57,9 @@ test("bad arguments are reported, not swallowed", () => {
     openaiToAnthropic([{ role: "assistant", tool_calls: [{ id: "x", function: { name: "f", arguments: "{" } }] }]),
   ).toThrow("not valid JSON");
 });
+
+test("repairing a trailing comma never edits the text inside a string", () => {
+  const [found] = extractJSON('{"a":"x, }","b":[1,2,],}');
+  expect(found?.json).toEqual({ a: "x, }", b: [1, 2] });
+  expect(found?.repaired).toBe(true);
+});

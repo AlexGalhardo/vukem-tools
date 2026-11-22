@@ -1,9 +1,9 @@
 import { useMemo, useState } from "react";
 
 import { parseAs, writeAs, type Format } from "../../lib/dev/convert";
-import { diffJSON, diffLines } from "../../lib/dev/diff";
-import { parseJSON, sortKeys } from "../../lib/dev/json";
-import { checkToolDefinition, validate } from "../../lib/dev/schema";
+import { diffJSON, diffLines, showValue } from "../../lib/dev/diff";
+import { formatJSON, parseJSON, parseJSONExact } from "../../lib/dev/json";
+import { checkToolDefinition, unsupportedKeywords, validate } from "../../lib/dev/schema";
 import { fromBase64, toBase64, utf8 } from "../../lib/dev/crypto";
 import { Area, Button, Check, Grid, msg, Notice, Output, Pick, Stack } from "./ui";
 
@@ -13,11 +13,10 @@ export function JsonFormat(): React.ReactElement {
   const [sort, setSort] = useState(false);
 
   const result = useMemo(() => {
-    const parsed = parseJSON(text);
-    if (!parsed.ok) return { error: `Line ${parsed.line}, column ${parsed.column}: ${parsed.message}`, out: "" };
-    const value = sort ? sortKeys(parsed.value) : parsed.value;
+    const formatted = formatJSON(text, Number(indent), sort);
+    if (!formatted.ok) return { error: `Line ${formatted.line}, column ${formatted.column}: ${formatted.message}`, out: "" };
 
-    return { error: "", out: JSON.stringify(value, null, Number(indent) || undefined) };
+    return { error: "", out: formatted.text ?? "" };
   }, [text, indent, sort]);
 
   return (
@@ -112,7 +111,7 @@ export function JsonSchema(): React.ReactElement {
     const d = parseJSON(data);
     if (!d.ok) return { error: `Data, line ${d.line}: ${d.message}` };
     try {
-      return { issues: validate(s.value, d.value) };
+      return { issues: validate(s.value, d.value), unchecked: unsupportedKeywords(s.value) };
     } catch (e) {
       return { error: msg(e) };
     }
@@ -154,6 +153,9 @@ export function JsonSchema(): React.ReactElement {
           </ul>
         )
       ) : null}
+      {"unchecked" in report && report.unchecked && report.unchecked.length > 0 ? (
+        <Notice kind="warn">Not checked, so a valid result may be wrong: {report.unchecked.join(", ")}.</Notice>
+      ) : null}
       {"tool" in report && report.tool ? (
         <div className="space-y-2">
           <p className="text-sm text-ink-soft">Detected format: {report.tool.format}</p>
@@ -186,8 +188,8 @@ export function DiffTool(): React.ReactElement {
 
   const result = useMemo(() => {
     if (mode === "text") return { lines: diffLines(a, b) };
-    const x = parseJSON(a);
-    const y = parseJSON(b);
+    const x = parseJSONExact(a);
+    const y = parseJSONExact(b);
     if (!x.ok) return { error: `Left, line ${x.line}: ${x.message}` };
     if (!y.ok) return { error: `Right, line ${y.line}: ${y.message}` };
 
@@ -235,8 +237,8 @@ export function DiffTool(): React.ReactElement {
               <li key={c.path} className="px-3 py-2">
                 <code className="font-mono text-ink">{c.path}</code>{" "}
                 <span className="text-ink-faint">{c.kind}</span>
-                {c.kind !== "added" ? <div className="font-mono text-bad">- {JSON.stringify(c.before)}</div> : null}
-                {c.kind !== "removed" ? <div className="font-mono text-ok">+ {JSON.stringify(c.after)}</div> : null}
+                {c.kind !== "added" ? <div className="font-mono text-bad">- {showValue(c.before)}</div> : null}
+                {c.kind !== "removed" ? <div className="font-mono text-ok">+ {showValue(c.after)}</div> : null}
               </li>
             ))}
           </ul>

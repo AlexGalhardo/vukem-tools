@@ -1,3 +1,5 @@
+import { ExactNumber, parseJSONDigits } from "./json";
+
 const enc = new TextEncoder();
 
 export type Algorithm = "MD5" | "SHA-1" | "SHA-256" | "SHA-384" | "SHA-512";
@@ -236,7 +238,12 @@ export interface Jwt {
   notBefore?: Date;
 }
 
-const part = (p: string): unknown => JSON.parse(new TextDecoder().decode(fromBase64(p))) as unknown;
+const part = (p: string): unknown => {
+  const parsed = parseJSONDigits(new TextDecoder().decode(fromBase64(p)));
+  if (!parsed.ok) throw new Error(parsed.message);
+
+  return parsed.value;
+};
 
 /** decodeJwt reads a token's two JSON parts. It never checks the signature. */
 export function decodeJwt(token: string): Jwt {
@@ -251,7 +258,12 @@ export function decodeJwt(token: string): Jwt {
     throw new Error("the header or payload is not Base64URL-encoded JSON");
   }
   const claims = (payload && typeof payload === "object" ? payload : {}) as Record<string, unknown>;
-  const date = (k: string): Date | undefined => (typeof claims[k] === "number" ? new Date((claims[k] as number) * 1000) : undefined);
+  const date = (k: string): Date | undefined => {
+    const v = claims[k];
+    const seconds = v instanceof ExactNumber ? Number(v.raw) : v;
+
+    return typeof seconds === "number" ? new Date(seconds * 1000) : undefined;
+  };
 
   return {
     header,

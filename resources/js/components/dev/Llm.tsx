@@ -11,7 +11,7 @@ import {
   priceSources,
   type Price,
 } from "../../lib/dev/llm";
-import { parseJSON } from "../../lib/dev/json";
+import { parseJSONDigits, stringifyJSON } from "../../lib/dev/json";
 import { Area, Button, Grid, msg, Notice, Num, Output, Pick, Stack } from "./ui";
 
 const nf = new Intl.NumberFormat("en-US");
@@ -75,7 +75,7 @@ export function LlmClean(): React.ReactElement {
         {found.map((f, i) => (
           <div key={i} className="space-y-2">
             {f.repaired ? <Notice kind="warn">Repaired: trailing commas were removed.</Notice> : null}
-            <Output label={`JSON ${i + 1}`} value={JSON.stringify(f.json, null, 2)} rows={8} />
+            <Output label={`JSON ${i + 1}`} value={stringifyJSON(f.json, 2)} rows={8} />
           </div>
         ))}
       </section>
@@ -170,12 +170,12 @@ export function ChatTemplate(): React.ReactElement {
   const [text, setText] = useState(chatSample);
 
   const result = useMemo(() => {
-    const p = parseJSON(text);
+    const p = parseJSONDigits(text);
     if (!p.ok) return { out: "", error: `Line ${p.line}, column ${p.column}: ${p.message}` };
     try {
       const v = dir === "openai-anthropic" ? openaiToAnthropic(p.value) : anthropicToOpenai(p.value);
 
-      return { out: JSON.stringify(v, null, 2), error: "" };
+      return { out: stringifyJSON(v, 2), error: "" };
     } catch (e) {
       return { out: "", error: msg(e) };
     }

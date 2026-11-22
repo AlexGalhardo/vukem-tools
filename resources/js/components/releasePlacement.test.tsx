@@ -19,6 +19,8 @@ const page: {
 mock.module("@inertiajs/react", () => ({
 	usePage: () => page,
 	router: { on: () => () => undefined },
+	Head: () => null,
+	useForm: () => ({}),
 	Link: ({
 		children,
 		href,

@@ -53,13 +53,12 @@ export default function AccountIndex({
 	usage,
 }: Props): React.ReactElement {
 	const page = usePage<SharedProps>();
-	// Both are flashed, so they live on the page object next to it, not in
-	// props -- which is what AppLayout already reads. Reading page.props
-	// meant the new key was never rendered and the only copy of it was lost.
+	// The key is flashed, so it lives on the page object next to the props, not
+	// in them. Reading page.props meant the new key was never rendered and the
+	// only copy of it was lost. The status message is AppLayout's job.
 	//
 	// Flashed rather than a prop on purpose: a prop survives in the history
 	// entry, so the back button would put the secret back on screen.
-	const status = page.flash?.status as string | undefined;
 	const freshKey = page.flash?.key as string | undefined;
 
 	return (
@@ -70,15 +69,6 @@ export default function AccountIndex({
 				<h1 className="text-3xl font-semibold tracking-tight">
 					Account
 				</h1>
-
-				{status && (
-					<p
-						role="status"
-						className="mt-4 rounded-panel border border-edge bg-raised px-4 py-3 text-sm"
-					>
-						{status}
-					</p>
-				)}
 
 				{freshKey && <NewKey value={freshKey} />}
 

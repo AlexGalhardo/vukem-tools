@@ -100,7 +100,7 @@ export default function Licenses({ project, components, copyleft }: Props): Reac
                     {c.name}
                   </a>
                 </th>
-                <td className="tabular whitespace-nowrap py-3 pr-4 text-ink-soft">
+                <td className="tabular py-3 pr-4 text-ink-soft sm:whitespace-nowrap">
                   {c.spdx}
                   {c.copyleft && (
                     <span className="ml-2 rounded-full border border-warn/30 bg-warn-soft px-1.5 py-0.5 text-[0.625rem] font-semibold uppercase tracking-[0.06em] text-warn">

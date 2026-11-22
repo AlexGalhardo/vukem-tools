@@ -18,17 +18,17 @@
 	--color-sunken: oklch(96.2% 0.004 85);
 	--color-edge: oklch(89% 0.005 85);
 	--color-ink: oklch(24% 0.012 265);
-	--color-ink-soft: oklch(48% 0.015 265);
-	--color-ink-faint: oklch(64% 0.012 265);
+	--color-ink-soft: oklch(42% 0.015 265);
+	--color-ink-faint: oklch(51% 0.012 265);
 
 	/* The accent: a trace on an instrument. Deliberately not green or red, so
 	   those stay semantic. */
-	--color-signal: oklch(55% 0.14 232);
+	--color-signal: oklch(50% 0.14 232);
 	--color-signal-soft: oklch(94% 0.03 232);
 
-	--color-ok: oklch(52% 0.13 150);
+	--color-ok: oklch(50% 0.13 150);
 	--color-ok-soft: oklch(94% 0.04 150);
-	--color-warn: oklch(62% 0.14 70);
+	--color-warn: oklch(52% 0.14 70);
 	--color-warn-soft: oklch(95% 0.05 70);
 	--color-bad: oklch(53% 0.18 25);
 	--color-bad-soft: oklch(95% 0.03 25);
@@ -63,7 +63,7 @@
 	--color-edge: oklch(29% 0.014 265);
 	--color-ink: oklch(95% 0.005 265);
 	--color-ink-soft: oklch(72% 0.016 265);
-	--color-ink-faint: oklch(56% 0.016 265);
+	--color-ink-faint: oklch(66% 0.016 265);
 
 	--color-signal: oklch(74% 0.13 225);
 	--color-signal-soft: oklch(28% 0.055 228);

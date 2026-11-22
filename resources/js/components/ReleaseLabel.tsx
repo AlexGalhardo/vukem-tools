@@ -11,7 +11,7 @@ import { release } from "../release";
  */
 export default function ReleaseLabel(): React.ReactElement {
   return (
-    <p
+    <aside
       data-release-label
       className="pointer-events-none fixed right-0 bottom-0 z-20 select-none rounded-tl-field bg-surface/90 px-2.5 py-1 text-xs tabular-nums text-ink-soft print:hidden"
       style={{
@@ -21,6 +21,6 @@ export default function ReleaseLabel(): React.ReactElement {
     >
       <span className="sr-only">Release </span>
       {`v${release}`}
-    </p>
+    </aside>
   );
 }

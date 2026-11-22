@@ -52,6 +52,8 @@ services:
       APP_URL: http://localhost:3000
       DATABASE_URL: postgres://vukem:vukem@postgres:5432/vukem_tools?sslmode=disable
       MAIL_MAILER: log
+      # The log transport writes the body, and so the verification link, at debug.
+      LOG_LEVEL: debug
       CLAMAV_ADDR: clamd:3310
     depends_on:
       postgres:

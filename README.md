@@ -1,196 +1,53 @@
 <div align="center">
 
-<h1><strong><a href="https://tools.vukem.dev" style="text-decoration: none" target="_blank">Vukem Tools</a></strong></h1>
+<h1><a href="https://tools.vukem.dev" target="_blank" rel="noopener noreferrer">Vukem Tools</a></h1>
 
-[![CI](https://github.com/AlexGalhardo/vukem-tools/actions/workflows/ci.yml/badge.svg)](https://github.com/AlexGalhardo/vukem-tools/actions/workflows/ci.yml)
-[![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE.md)
-[![Go 1.27.4](https://img.shields.io/badge/go-1.27.4-00ADD8?logo=go&logoColor=white)](go.mod)
+<a href="https://github.com/AlexGalhardo/vukem-tools/actions/workflows/ci.yml"><img src="https://img.shields.io/github/actions/workflow/status/AlexGalhardo/vukem-tools/ci.yml?branch=main&label=tests" alt="Tests"></a>
+<a href="https://github.com/AlexGalhardo/vukem-tools/actions/workflows/release.yml"><img src="https://img.shields.io/github/actions/workflow/status/AlexGalhardo/vukem-tools/release.yml?label=ci%2Fcd" alt="CI/CD"></a>
 <a href="https://github.com/AlexGalhardo/vukem-tools/releases"><img src="https://img.shields.io/github/v/release/AlexGalhardo/vukem-tools?include_prereleases&label=version" alt="Version"></a>
-<a href="https://scorecard.dev/viewer/?uri=github.com/AlexGalhardo/vukem-tools"><img src="https://api.scorecard.dev/projects/github.com/AlexGalhardo/vukem-tools/badge" alt="OpenSSF Scorecard"></a>
+<a href="go.mod"><img src="https://img.shields.io/badge/go-1.27.4-00ADD8?logo=go&logoColor=white" alt="Go 1.27.4"></a>
+<a href="LICENSE.md"><img src="https://img.shields.io/github/license/AlexGalhardo/vukem-tools" alt="License"></a>
+<a href="https://scorecard.dev/viewer/?uri=github.com/AlexGalhardo/vukem-tools"><img src="https://img.shields.io/ossf-scorecard/github.com/AlexGalhardo/vukem-tools?label=openssf%20scorecard" alt="OpenSSF Scorecard"></a>
 
-<h3><strong>Open Source Self-Hosted File Conversion Toolbox</strong></h3>
+### Convert, compress and edit your files on your own machine, for you and for your AI agents
+
+<br/>
 
 </div>
 
+<br/>
+
 ## Introduction
 
-Vukem Tools is a self-hosted alternative to the hosted file converters, built as a single Go binary. Convert, compress and optimise images, video, audio and documents, download videos, and turn pixel art into SVG, on your own machine or server.
+**Why upload your files to a different website for every conversion, when one tool you run yourself can do it all? This is why Vukem Tools exists.**
 
-This application is built using the [Vukem Go framework](https://vukem.dev), with Inertia v3, React, Base UI and Tailwind CSS v4.
+Vukem Tools is an open source (MIT), self-hosted file toolbox, on the web and on the desktop, built with Go and the [Vukem](https://vukem.dev) framework. It is a self-hosted alternative to the hosted file converters, and it is built around the problems that get in the way of working with files:
 
-It exists for three reasons: to be a tool its author uses nearly every day, to produce assets for game development and digital content, and to push the vukem framework by building something demanding on top of it.
+- **Your files are scattered across converter websites, and each one wants your upload.** One account on a server you run covers the whole [catalogue](https://tools.vukem.dev/docs/concepts/catalogue/):
+  - Images: convert, compress, pixel art to SVG, and images to one PDF.
+  - Video and audio: convert, compress, cut and crop, video to GIF, and download from YouTube, Instagram, X and TikTok.
+  - PDF: merge, split, rotate, crop, compress, protect, unlock, OCR, fill forms and sign, with Word, PowerPoint and Excel to PDF. See the [PDF crop guide](https://tools.vukem.dev/docs/guide/pdf-crop/).
+  - Archives and sprite sheets, and more than a dozen developer tools that run in your browser and never upload anything: JSON, YAML, CSV and XML, diff, hashes, JWT, UUID, Base64 and token estimates.
+- **Your AI agent cannot use the tools you use.** Agents are first-class users: everything you do in the UI they can do through three surfaces:
+  - [Agents overview](https://tools.vukem.dev/docs/agents/overview/).
+  - The [CLI](https://tools.vukem.dev/docs/agents/cli/), the [HTTP API](https://tools.vukem.dev/docs/api/overview/) and the [MCP server](https://tools.vukem.dev/docs/mcp/overview/).
+- **Your files and keys live in someone else's cloud.** Vukem Tools runs on your machine or on your own server:
+  - [Installation](https://tools.vukem.dev/docs/getting-started/installation/) as a [desktop app](https://tools.vukem.dev/docs/guide/desktop/) or with [Docker](https://tools.vukem.dev/docs/self-hosting/docker/).
+  - A result lives five minutes and is then deleted, and uploads are scanned for malware.
+  - [Configuration](https://tools.vukem.dev/docs/reference/configuration/) is plain environment variables.
+- **You want it in the chat you already use.** A Telegram bot serves the tools from a chat, and you sign in on the site, never in the chat.
 
-> **Not for commercial use.** Several conversion engines are licensed under the GPL or the AGPL. Every engine, with its exact licence, is listed on the `/licenses` page and in [docs/web-research.md](docs/web-research.md).
+> **Not for commercial use.** Several conversion engines are licensed under the GPL or the AGPL. Every engine, with its exact licence, is on the `/licenses` page and in the [licences guide](https://tools.vukem.dev/docs/self-hosting/licences/).
 
-Version 0.6.0, phase S9 of the [ROADMAP](ROADMAP.md): images, video, audio, PDF, archives, sprite sheets, the developer tools and the Telegram bot are in. A tool whose engine is missing from the image is not registered at all, so the tool index shows it as planned rather than offering a form that cannot work; `GET /api/v1/capabilities` reports which engines a given deployment has.
-
-## Summary
-
-- [Introduction](#introduction)
-- [Features](#features)
-- [See it working](#see-it-working)
-- [Quick start](#quick-start)
-- [Documentation](#documentation)
-- [Stability](#stability)
-- [Licences](#licences)
-- [Contributing](#contributing)
-- [Code of conduct](#code-of-conduct)
-- [Security vulnerabilities](#security-vulnerabilities)
-- [License](#license)
-
-## Features
-
-Every tool needs an account. The index at `/` lists them, `Ctrl+K` searches them, and the sidebar groups them by family.
-
-| Family | What it does | Engine |
-| --- | --- | --- |
-| Images | Convert, compress, pixel art to SVG, images to one PDF | libvips, own Go implementation |
-| Video and audio | Convert, compress, cut and crop, video to GIF, download from YouTube, Instagram, X and TikTok | ffmpeg, yt-dlp |
-| PDF | Merge, split, rotate, crop, compress, repair, protect, unlock, compare, watermark, page numbers, to text, to images, to PDF/A, OCR, fill forms, sign | qpdf, Ghostscript, poppler, OCRmyPDF with Tesseract |
-| Documents to PDF | Word, PowerPoint and Excel to PDF | LibreOffice |
-| Archives | Create and extract ZIP, TAR, TAR.GZ and GZ; sprite sheets and atlases | Own Go implementation |
-| Developer tools | JSON, YAML, CSV and XML, JSON Schema and tool-definition checks, diff, hashes, passwords, UUID and ULID, Base64, JWT | Your browser |
-| Brazil | CPF and CNPJ, CEP and CNPJ lookup, fake people for test data | Your browser, ViaCEP, BrasilAPI |
-| LLM and agents | Token estimate, cost estimate, clean a model's reply, convert chat formats | Your browser |
-
-The same tools are on the JSON API (`/docs`), and `/llms.txt` and `/llms-full.txt` describe them for language models.
-
-**Telegram bot.** `cmd/bot` is a separate binary that serves the tools from a chat. Nobody types a password into the chat: the bot shows a short code and a button, you sign in on the site, check the code and press Connect, and the bot receives a key limited to what its menus use. The settings are in `.env.example`, and the design is in [docs/brainstorming.md § 9.8](docs/brainstorming.md).
-
-```bash
-TELEGRAM_BOT_TOKEN=... BOT_API_URL=https://tools.example.com go run ./cmd/bot
-```
-
-| Layer | Technology |
-| --- | --- |
-| Backend | [vukem](https://vukem.dev) on Go, `net/http`-native |
-| Frontend | [Inertia](https://inertiajs.com) v3 + React 19, [Base UI](https://base-ui.com), [Tailwind CSS](https://tailwindcss.com) v4, Vite |
-| Database | PostgreSQL |
-| Jobs | `vukem/queue` on PostgreSQL, progress over Server-Sent Events |
-| Uploads | `vukem/upload` with resumable [tus](https://tus.io) uploads and ClamAV scanning |
-| Storage | S3-compatible object storage with signed URLs; results expire after five minutes |
-| API docs | OpenAPI 3.1 with a [Scalar](https://scalar.com) reference at `/docs` |
-| Engines | ffmpeg, yt-dlp, libvips, Ghostscript, qpdf, poppler, LibreOffice, OCRmyPDF with Tesseract, all as subprocesses, pinned by version |
-| Quality | golangci-lint, `go test -race`, markdownlint, Conventional Commits, git-cliff |
-| Deploy | [Railway](https://railway.com): a `web` service and a `worker` service from one image |
-
-## See it working
-
-<details>
-<summary><strong>Show the GIFs (6)</strong></summary>
-
-Pixel art to SVG, with the options and the finished conversion:
-
-![Pixel art to SVG: choose the geometry, drop a PNG and get the SVG](assets/pixel-art-to-svg.gif)
-
-Format and validate JSON, with the line and column of the first error:
-
-![Format and validate JSON: an unclosed object is flagged, then fixed and formatted](assets/json-format.gif)
-
-Clean an LLM reply down to the JSON it contained:
-
-![Clean LLM output: strips the code fence and repairs a trailing comma](assets/clean-llm-output.gif)
-
-Diff two texts or two JSON documents:
-
-![Diff JSON and text: a line diff, then a key-by-key JSON diff](assets/diff.gif)
-
-Generate and validate CPF and CNPJ numbers:
-
-![CPF and CNPJ: generate a pair, switch to the alphanumeric CNPJ and validate a number](assets/cpf-cnpj.gif)
-
-Search every tool with `Ctrl+K`, switch to the dark theme and browse the index:
-
-![Command palette search, dark theme and the tool index](assets/search-and-theme.gif)
-
-</details>
-
-## Quick start
-
-Requirements: Go (the version in `go.mod`), [Bun](https://bun.com), and the engines for the tools you want to run.
-
-```bash
-git clone https://github.com/AlexGalhardo/vukem-tools.git
-cd vukem-tools
-bun install
-cp .env.example .env
-go run ./cmd/app key:generate
-go run ./cmd/app migrate
-bun run dev          # Vite, in one terminal
-go run ./cmd/app serve   # the app, in another
-```
-
-The app listens on `http://localhost:3000` and the API reference on `http://localhost:3000/docs`.
-
-### With Docker Compose
-
-`compose.yaml` runs the app with every engine, PostgreSQL and a `clamd` for upload scanning, with
-pinned image tags and no other setup:
-
-```bash
-export APP_KEY="base64:$(openssl rand -base64 32)"
-docker compose up -d --build --wait
-curl -i http://localhost:3000/health      # 200
-docker compose down -v                    # also deletes the volumes
-```
-
-The first build downloads the engines and takes a while. The stack runs with `APP_ENV=development`
-because production requires an S3 bucket and a real mailer; `docs/deployment.md` covers the
-production settings. To run the engine tests inside the image with `REQUIRE_ENGINES=1` (a missing
-engine fails instead of skipping), use `scripts/engine-tests.sh`.
-
-## Documentation
-
-- [ROADMAP.md](ROADMAP.md): every task, subtask and quality assert, by phase.
-- [docs/brainstorming.md](docs/brainstorming.md): the decisions behind the design, and why.
-- [docs/web-research.md](docs/web-research.md): every conversion engine, its licence and its traps.
-- [AGENTS.md](AGENTS.md) and [CLAUDE.md](CLAUDE.md): rules for coding agents.
+New here? Start with the [introduction](https://tools.vukem.dev/docs/getting-started/introduction/) and the [quick start](https://tools.vukem.dev/docs/getting-started/quick-start/).
 
 ## Stability
 
-Vukem Tools follows [Semantic Versioning](https://semver.org) and tags releases as `vX.Y.Z` on `main`. Releases are published on [GitHub Releases](https://github.com/AlexGalhardo/vukem-tools/releases) with the GHCR image.
-
-Changes are listed in [CHANGELOG.md](CHANGELOG.md), which follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and is generated by git-cliff with every entry linked to its commit.
-
-## Licences
-
-The project itself is MIT. The engines it drives are not all permissive: ffmpeg is built with `--enable-gpl` (GPL-2.0-or-later), Ghostscript is AGPL-3.0, and several optimisers are GPL. They run as separate processes, and this repository is public, which satisfies the GPL and AGPL obligations, but the site declares no commercial use for that reason.
-
-The Pixels to SVG tool was written from the published algorithms, not ported: both [pixels2svg](https://github.com/ValentinFrancois/pixels2svg) and [pixel2svg-rs](https://github.com/FluffyBucketSnake/pixel2svg-rs) are GPL-3.0, and their authors deserve the credit for the approach.
-
-The full list, engine by engine, is on the `/licenses` page and in [docs/web-research.md](docs/web-research.md).
-
-### Downloading from a platform
-
-The video download tool fetches from YouTube, Instagram, X and TikTok with [yt-dlp](https://github.com/yt-dlp/yt-dlp). **Downloading a video may breach the platform's terms of service, and you are responsible for what you download and for what you do with it.** This project provides a tool; it grants no right to the material the tool fetches. Copyright in a video belongs to whoever made it, and neither the project nor whoever runs an instance of it can give you permission you do not already have.
-
-Downloading is restricted to those four platforms by design. yt-dlp's `generic` extractor will fetch any URL at all, which would turn the endpoint into an open proxy inside whatever network it runs in, so the URL is matched against a closed list of platforms and yt-dlp is restricted to that platform's own extractors.
+Versions follow SemVer. Vukem Tools is in `0.x`: a minor release may break. See the [changelog](CHANGELOG.md) and the [releases](https://github.com/AlexGalhardo/vukem-tools/releases).
 
 ## Contributing
 
-Thank you for considering a contribution to Vukem Tools.
-
-- Test first: a task is done only when its quality asserts in [ROADMAP.md](ROADMAP.md#global-quality-gates) hold.
-- Every commit keeps `go build`, `go vet`, `golangci-lint run`, `go test -race`, `bun run typecheck`, `bun run build` and `markdownlint-cli2` clean.
-- Respect the decisions in [docs/brainstorming.md](docs/brainstorming.md) and the engine notes in [docs/web-research.md](docs/web-research.md).
-
-The full guide is in [CONTRIBUTING.md](CONTRIBUTING.md).
-
-### Pull requests
-
-1. Create a branch from `main`.
-2. Make one logical change per commit.
-3. Open a pull request against `main`.
-
-`main` accepts changes through a pull request with green checks and linear history.
-
-### Commits
-
-Use [Conventional Commits](https://www.conventionalcommits.org/en/v1.0.0/) in English: `type(scope): description`.
-
-- Types: `feat`, `fix`, `perf`, `refactor`, `docs`, `test`, `build`, `ci`, `chore`, `style`, `revert`.
-
-The `commit-msg` hook runs commitlint locally, and CI checks the commits and the pull request title.
+To build from source you need Go (see `go.mod`) and [Bun](https://bun.com). Read the [contribution guide](CONTRIBUTING.md) to get started and [`AGENTS.md`](AGENTS.md) for how the team of agents works on this repository.
 
 ## Code of conduct
 
@@ -198,8 +55,8 @@ To keep the community welcoming to everyone, please review and follow the [Code 
 
 ## Security vulnerabilities
 
-This app accepts arbitrary files from the internet and feeds them to decoders written in C, so it takes that seriously. If you discover a security vulnerability, please follow the [security policy](SECURITY.md) instead of opening a public issue.
+If you discover a security vulnerability, please follow the [security policy](SECURITY.md) instead of opening a public issue.
 
 ## License
 
-Vukem Tools is open source software released under the [MIT license](LICENSE.md).
+Vukem Tools is open-source software licensed under the [MIT license](LICENSE.md).

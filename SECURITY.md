@@ -2,7 +2,7 @@
 
 Vukem Tools accepts arbitrary files from the internet and hands them to decoders and media tools
 written in C. That is the whole attack surface, and it is treated as such: the threat model, the
-engine CVE history and the mitigations are in [docs/web-research.md](docs/web-research.md), and
+engine CVE history and the mitigations are kept by the maintainer, and
 the checklist every new route and engine call follows is in
 [`.claude/skills/vukem-tools-secure-endpoint`](.claude/skills/vukem-tools-secure-endpoint/SKILL.md).
 

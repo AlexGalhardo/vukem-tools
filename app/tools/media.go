@@ -77,6 +77,11 @@ const (
 // because that means the engine is broken rather than missing, and a deploy
 // should say so.
 //
+// onBroken changes that for a machine nobody deploys to. When it is set, a
+// failed probe is reported to it and the engine is treated as absent: on the
+// desktop app, an ffmpeg from the owner's PATH that fails must cost the video
+// tools, not the PDF tools and the whole window.
+//
 // dir must be a writable scratch directory: probing an image format means
 // trying to encode four pixels, because an operation being compiled in and a
 // format being writable are different facts.
@@ -85,28 +90,70 @@ func ResolveMedia(
 	engines MediaEngines,
 	runner MediaRunner,
 	dir string,
+	onBroken BrokenEngine,
 ) (*Media, error) {
 	m := &Media{Engines: engines, Runner: runner}
+	hidden := map[string]bool{}
 
 	if vips, ok := vipsEngine(engines); ok {
 		caps, err := vipsimage.Capabilities(ctx, vips, runner, dir)
-		if err != nil {
-			return nil, fmt.Errorf("tools: probe libvips: %w", err)
-		}
 
-		m.Image = caps
+		switch {
+		case err == nil:
+			m.Image = caps
+		case onBroken == nil:
+			return nil, fmt.Errorf("tools: probe libvips: %w", err)
+		default:
+			onBroken(engineVips, err)
+
+			hidden[engineVips], hidden[engineVipsHeader] = true, true
+		}
 	}
 
 	if ff, ok := ffmpegEngine(engines); ok {
 		caps, err := ffmpeg.ReadCapabilities(ctx, ff, runner, dir)
-		if err != nil {
-			return nil, fmt.Errorf("tools: probe ffmpeg: %w", err)
-		}
 
-		m.FFmpeg = caps
+		switch {
+		case err == nil:
+			m.FFmpeg = caps
+		case onBroken == nil:
+			return nil, fmt.Errorf("tools: probe ffmpeg: %w", err)
+		default:
+			onBroken(engineFFmpeg, err)
+
+			hidden[engineFFmpeg], hidden[engineFFprobe] = true, true
+		}
+	}
+
+	if len(hidden) > 0 {
+		m.Engines = withoutEngines{MediaEngines: engines, hidden: hidden}
 	}
 
 	return m, nil
+}
+
+// BrokenEngine is told about an engine that is installed and failed its probe.
+type BrokenEngine func(name string, err error)
+
+// withoutEngines reads as if the hidden engines were never installed.
+type withoutEngines struct {
+	MediaEngines
+
+	hidden map[string]bool
+}
+
+// Path returns the engine's path unless it is hidden.
+func (w withoutEngines) Path(name string) (string, bool) {
+	if w.hidden[name] {
+		return "", false
+	}
+
+	return w.MediaEngines.Path(name)
+}
+
+// Has reports whether the engine is available and not hidden.
+func (w withoutEngines) Has(name string) bool {
+	return !w.hidden[name] && w.MediaEngines.Has(name)
 }
 
 // vipsEngine returns the libvips programs, and whether both are present.

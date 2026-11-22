@@ -300,7 +300,7 @@ func (c *Conversions) build(app *vukem.App) error {
 
 	defer func() { _ = os.RemoveAll(probeDir) }()
 
-	c.media, err = tools.ResolveMedia(probeCtx, c.engines, c.runner, probeDir)
+	c.media, err = tools.ResolveMedia(probeCtx, c.engines, c.runner, probeDir, BrokenEngineHandler(app))
 	if err != nil {
 		return err
 	}
@@ -424,6 +424,18 @@ func openDisk(app *vukem.App) (storage.Disk, error) {
 // IsLocal reports whether the app runs in local mode (APP_MODE=local): one
 // process on SQLite, everything on disk under the data directory.
 func IsLocal(app *vukem.App) bool { return app.Source.Get("APP_MODE") == "local" }
+
+// BrokenEngineHandler keeps a local app running without an engine that failed
+// its probe. It is nil on a deploy, where a broken engine must fail the boot.
+func BrokenEngineHandler(app *vukem.App) tools.BrokenEngine {
+	if !IsLocal(app) {
+		return nil
+	}
+
+	return func(name string, err error) {
+		app.Log.Warn("engine failed its probe, its tools are unavailable", "engine", name, "err", err)
+	}
+}
 
 // probeRoot is where the capability probe puts its scratch directory. Local
 // mode keeps every write inside the data directory, so the probe goes under

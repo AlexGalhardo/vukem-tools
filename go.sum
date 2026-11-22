@@ -1,9 +1,9 @@
-github.com/AlexGalhardo/vukem v0.46.0 h1:kxINozJMH/d7IBvQafXyV3GSvl6Letw6/+vmNXmlaIc=
-github.com/AlexGalhardo/vukem v0.46.0/go.mod h1:l6kl1qNA/ROwsDymXx9NQfjs37bfBXnj4EZmScRW/sQ=
-github.com/AlexGalhardo/vukem/drivers/otel v0.4.5 h1:UK3JjJOZNsYENiUY4tr+OJEd0hsl9YFeoHNmERYkIPM=
-github.com/AlexGalhardo/vukem/drivers/otel v0.4.5/go.mod h1:OOw36zbB6f+tu2Qc6pBRFQEokJNgy2wEY9f4aaqURIg=
-github.com/AlexGalhardo/vukem/drivers/postgres v0.7.1 h1:KAeAJK58x4yj4XftfNuu9XCqIN0RhxHJMSYl3d9XL/U=
-github.com/AlexGalhardo/vukem/drivers/postgres v0.7.1/go.mod h1:d3t1KiDr+BXDbzKnpfNSdW4SvxfAMSrwTsFdTQbDhO4=
+github.com/AlexGalhardo/vukem v0.48.0 h1:cvZjZ+sRlGiSTGNTc5seksZhnIuCB9fckSUlJCshpVU=
+github.com/AlexGalhardo/vukem v0.48.0/go.mod h1:l6kl1qNA/ROwsDymXx9NQfjs37bfBXnj4EZmScRW/sQ=
+github.com/AlexGalhardo/vukem/drivers/otel v0.4.6 h1:p8+hZ28md+me5b6xYcyOjMQCliuH8ymBFLfwD5TW6nI=
+github.com/AlexGalhardo/vukem/drivers/otel v0.4.6/go.mod h1:jxmv+bFUw0GBJSfE8/7OK0YQ6uSvZWlFGebunzh9SM8=
+github.com/AlexGalhardo/vukem/drivers/postgres v0.7.2 h1:O4JdiABUVDltcpLfjslfuUagwWKv/n0K16YDWA0EPKY=
+github.com/AlexGalhardo/vukem/drivers/postgres v0.7.2/go.mod h1:HZLCmx23u4CG3Y78Pem05QAX+rzdY1K25xNKzlQ9c70=
 github.com/AlexGalhardo/vukem/drivers/s3 v0.4.4 h1:8vFBehC9Sr4iSg7sKmfEhq/moJQwPz/kCXD6GC4uVUA=
 github.com/AlexGalhardo/vukem/drivers/s3 v0.4.4/go.mod h1:bb5T1qTZUR/XCRPi3j3qiM5PENp+yb9nPJbQHzsJ64s=
 github.com/beorn7/perks v1.0.1 h1:VlbKKnNfV8bJzeqoa4cOKqO6bYr3WgKZxO8Z16+hsOM=

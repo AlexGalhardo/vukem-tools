@@ -22,9 +22,10 @@ const options: { value: "light" | "dark"; icon: IconName; label: string }[] = [
  * never tells you which state you are in. Each option is a labelled radio, so
  * a screen reader announces the group, the current theme and the alternative.
  *
- * The two options are stacked, icon on the left and its name on the right: an
- * icon alone is hard to read, and a touch device never shows a title
- * attribute. Each row is 44px tall, which is what a thumb needs.
+ * The two options are the sun and the moon, side by side in one row. The name
+ * stays in the markup, hidden for sighted users, so a screen reader still
+ * hears "Light theme" or "Dark theme"; a pointer also gets it as a tooltip.
+ * Each icon is a 44px square, which is what a thumb needs.
  */
 export default function ThemeToggle(): React.ReactElement {
   // Both start empty, which is what the markup must say for hydration to
@@ -69,16 +70,18 @@ export default function ThemeToggle(): React.ReactElement {
   }
 
   return (
-    <fieldset className="flex flex-col">
-      <legend className="px-3 pb-1 text-xs text-ink-faint">Theme</legend>
+    <fieldset className="flex items-center gap-1">
+      <legend className="sr-only">Theme</legend>
       {options.map((option) => {
         const active = on(option.value);
 
         return (
           <label
             key={option.value}
-            className={`flex min-h-11 cursor-pointer items-center gap-3 rounded-field px-3 text-sm
-              transition-colors duration-100 ${
+            title={option.label}
+            className={`flex size-11 cursor-pointer items-center justify-center rounded-field
+              transition-colors duration-100 focus-within:outline-2 focus-within:outline-offset-2
+              focus-within:outline-signal ${
                 active ? "bg-signal-soft text-signal" : "text-ink-soft hover:bg-sunken hover:text-ink"
               }`}
           >
@@ -91,7 +94,7 @@ export default function ThemeToggle(): React.ReactElement {
               className="sr-only"
             />
             <Icon name={option.icon} className="size-5 shrink-0" />
-            {option.label}
+            <span className="sr-only">{option.label}</span>
           </label>
         );
       })}

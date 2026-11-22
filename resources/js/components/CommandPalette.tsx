@@ -18,7 +18,8 @@ interface Entry {
 const pages: Entry[] = [
   { key: "page:index", title: "All tools", hint: "Page", icon: "grid", href: "/", search: "all tools index home list" },
   { key: "page:account", title: "Account", hint: "Page", icon: "user", href: "/account", search: "account profile api keys settings" },
-  { key: "page:docs", title: "API reference", hint: "Page", icon: "document", href: "/docs", document: true, search: "api reference docs openapi" },
+  { key: "page:documentation", title: "Documentation", hint: "Page", icon: "document", href: "https://tools.vukem.dev/docs/", document: true, search: "documentation docs guide help cli mcp install" },
+  { key: "page:docs", title: "API reference", hint: "Page", icon: "document", href: "/docs", document: true, search: "api reference openapi scalar" },
   { key: "page:licenses", title: "Licences", hint: "Page", icon: "key", href: "/licenses", search: "licences licenses legal" },
 ];
 

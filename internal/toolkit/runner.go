@@ -70,6 +70,16 @@ func NewRunner(cfg Config, hc *http.Client) *Runner {
 		hc = &http.Client{}
 	}
 
+	wrapped := *hc
+
+	base := wrapped.Transport
+	if base == nil {
+		base = http.DefaultTransport
+	}
+
+	wrapped.Transport = rateLimitRetry{base: base}
+	hc = &wrapped
+
 	api := apiclient.New(cfg.BaseURL)
 	api.HTTP = hc
 	api.Header = func(r *http.Request) { r.Header.Set("Authorization", "Bearer "+cfg.Key) }
@@ -247,6 +257,15 @@ func (r *Runner) upload(ctx context.Context, path string, size int64) (string, e
 	}
 
 	patch.ContentLength = size
+	// A refused upload (429) is sent again from the start of the file.
+	patch.GetBody = func() (io.ReadCloser, error) {
+		again, err := os.Open(path)
+		if err != nil {
+			return nil, err
+		}
+
+		return &limitedFile{Reader: io.LimitReader(again, size), file: again}, nil
+	}
 	patch.Header.Set("Tus-Resumable", tusVersion)
 	patch.Header.Set("Upload-Offset", "0")
 	patch.Header.Set("Content-Type", "application/offset+octet-stream")
@@ -376,7 +395,12 @@ func (r *Runner) wait(
 
 	defer deadline.Stop()
 
-	tick := time.NewTicker(r.Poll)
+	// The API allows about two requests a second per client, so a long
+	// conversion is polled less and less often instead of at a fixed rate.
+	interval := r.Poll
+	limit := r.Poll * 6
+
+	tick := time.NewTimer(interval)
 	defer tick.Stop()
 
 	for {
@@ -399,6 +423,9 @@ func (r *Runner) wait(
 			return view, r.stop(id, context.DeadlineExceeded)
 		case <-tick.C:
 		}
+
+		interval = min(interval*3/2, limit)
+		tick.Reset(interval)
 
 		next, err := r.api.ConversionsShow(ctx, id)
 		if err != nil {
@@ -522,7 +549,10 @@ func (r *Runner) fetch(ctx context.Context, link, path string) (int64, error) {
 		return 0, fromResponse(res.StatusCode, body)
 	}
 
-	out, err := os.OpenFile(path, os.O_CREATE|os.O_TRUNC|os.O_WRONLY, 0o600)
+	// The result goes to a temporary file beside the target and is renamed
+	// into place only when it is whole, so a download that breaks half way
+	// leaves an existing file at the target as it was.
+	out, err := os.CreateTemp(filepath.Dir(path), ".vukem-*.part")
 	if err != nil {
 		return 0, &Error{Code: CodeIO, Message: "could not write " + strconv.Quote(path)}
 	}
@@ -531,13 +561,19 @@ func (r *Runner) fetch(ctx context.Context, link, path string) (int64, error) {
 	closeErr := out.Close()
 
 	if copyErr != nil || closeErr != nil {
-		_ = os.Remove(path)
+		_ = os.Remove(out.Name())
 
 		if copyErr != nil {
 			return 0, networkError("download the result", copyErr)
 		}
 
 		return 0, &Error{Code: CodeIO, Message: "could not finish writing " + strconv.Quote(path)}
+	}
+
+	if err := os.Rename(out.Name(), path); err != nil {
+		_ = os.Remove(out.Name())
+
+		return 0, &Error{Code: CodeIO, Message: "could not write " + strconv.Quote(path)}
 	}
 
 	return n, nil

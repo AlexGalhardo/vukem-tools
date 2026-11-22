@@ -67,7 +67,13 @@ func FromStatus(status int, body []byte) *Error { return fromResponse(status, bo
 func fromResponse(status int, body []byte) *Error {
 	var problem apiclient.Problem
 
-	_ = json.Unmarshal(body, &problem)
+	if err := json.Unmarshal(body, &problem); err != nil {
+		// The upload endpoint answers a refusal as plain text, and that
+		// sentence is the only explanation the person gets.
+		if text := plainSentence(body); text != "" {
+			problem = apiclient.Problem{Detail: text}
+		}
+	}
 
 	return fromProblem(status, problem)
 }
@@ -102,8 +108,9 @@ func fromProblem(status int, problem apiclient.Problem) *Error {
 		}
 	case http.StatusForbidden:
 		return &Error{
-			Code:    CodeMissingAbility,
-			Message: "The API key may not run this tool: " + detail + ". Issue a key with the tool's ability.",
+			Code: CodeMissingAbility,
+			Message: "The API key may not run this tool: " + strings.TrimRight(detail, ".") +
+				". Issue a key with the tool's ability.",
 		}
 	case http.StatusNotFound:
 		return &Error{Code: CodeNotFound, Message: detail}
@@ -114,7 +121,11 @@ func fromProblem(status int, problem apiclient.Problem) *Error {
 	case http.StatusUnprocessableEntity, http.StatusBadRequest:
 		return &Error{Code: CodeInvalidInput, Message: detail}
 	case http.StatusTooManyRequests:
-		return &Error{Code: CodeRateLimited, Message: detail + ". Wait a moment and try again.", Retry: true}
+		return &Error{
+			Code:    CodeRateLimited,
+			Message: strings.TrimRight(detail, ".") + ". Wait a moment and try again.",
+			Retry:   true,
+		}
 	}
 
 	if status >= http.StatusInternalServerError {
@@ -122,4 +133,21 @@ func fromProblem(status int, problem apiclient.Problem) *Error {
 	}
 
 	return &Error{Code: CodeServer, Message: detail}
+}
+
+// plainSentence returns body as one short printable line, or "" when it is
+// not that (HTML, binary, or too long to be a sentence).
+func plainSentence(body []byte) string {
+	text := strings.TrimSpace(string(body))
+	if text == "" || len(text) > 300 || strings.ContainsAny(text, "<>{}\x00") || strings.Contains(text, "\n") {
+		return ""
+	}
+
+	for _, r := range text {
+		if r < ' ' || r == 0x7f {
+			return ""
+		}
+	}
+
+	return text
 }

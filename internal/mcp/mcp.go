@@ -19,6 +19,7 @@ import (
 	"net/http"
 	"slices"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/AlexGalhardo/vukem-tools/internal/toolkit"
@@ -271,60 +272,214 @@ func failure(e *toolkit.Error) map[string]any {
 	}
 }
 
+// maxConcurrentCalls bounds the tools/call requests in flight on one stdio
+// session; the rest wait their turn while ping and the other requests are
+// still answered.
+const maxConcurrentCalls = 4
+
+// session is one stdio conversation: the writer shared by every answer and
+// the calls still running, so a notification can cancel one.
+type session struct {
+	mu       sync.Mutex
+	enc      *json.Encoder
+	writeErr error
+	running  map[string]context.CancelFunc
+}
+
+func (s *session) write(resp Response) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	if err := s.enc.Encode(resp); err != nil && s.writeErr == nil {
+		s.writeErr = err
+	}
+}
+
+func (s *session) track(id string, cancel context.CancelFunc) {
+	s.mu.Lock()
+	s.running[id] = cancel
+	s.mu.Unlock()
+}
+
+func (s *session) untrack(id string) {
+	s.mu.Lock()
+	delete(s.running, id)
+	s.mu.Unlock()
+}
+
+func (s *session) cancel(id string) {
+	s.mu.Lock()
+	cancel := s.running[id]
+	s.mu.Unlock()
+
+	if cancel != nil {
+		cancel()
+	}
+}
+
+func (s *session) failed() error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	return s.writeErr
+}
+
 // Serve reads newline-delimited requests until stdin ends or ctx is cancelled.
+//
+// A tools/call runs in its own goroutine so that a conversion that takes
+// minutes does not stop ping from being answered, and so a
+// notifications/cancelled can end it. When stdin ends, the calls still running
+// are waited for: a client that writes one request and closes the pipe gets
+// its answer.
 func (s *Server) Serve(ctx context.Context, stdin io.Reader, stdout, stderr io.Writer) int {
-	scanner := bufio.NewScanner(stdin)
-	scanner.Buffer(make([]byte, 0, 64*1024), 1<<20)
+	ctx, stop := context.WithCancel(ctx)
+	defer stop()
 
-	enc := json.NewEncoder(stdout)
+	type line struct {
+		raw []byte
+		err error
+	}
 
-	for scanner.Scan() {
-		if err := ctx.Err(); err != nil {
-			writeErr(stderr, err)
+	lines := make(chan line)
 
-			return 1
+	// The read cannot be interrupted, so it has its own goroutine: the loop
+	// below must be free to notice that ctx was cancelled.
+	go func() {
+		defer close(lines)
+
+		scanner := bufio.NewScanner(stdin)
+		scanner.Buffer(make([]byte, 0, 64*1024), 1<<20)
+
+		for scanner.Scan() {
+			select {
+			case lines <- line{raw: bytes.Clone(scanner.Bytes())}:
+			case <-ctx.Done():
+				return
+			}
 		}
 
-		line := bytes.TrimSpace(scanner.Bytes())
-		if len(line) == 0 {
+		if err := scanner.Err(); err != nil && !errors.Is(err, io.EOF) {
+			select {
+			case lines <- line{err: err}:
+			case <-ctx.Done():
+			}
+		}
+	}()
+
+	sess := &session{enc: json.NewEncoder(stdout), running: map[string]context.CancelFunc{}}
+	slots := make(chan struct{}, maxConcurrentCalls)
+
+	var calls sync.WaitGroup
+
+	code := 0
+
+loop:
+	for {
+		var in line
+
+		select {
+		case <-ctx.Done():
+			writeErr(stderr, ctx.Err())
+
+			code = 1
+
+			break loop
+		case l, ok := <-lines:
+			if !ok {
+				break loop
+			}
+
+			in = l
+		}
+
+		if in.err != nil {
+			writeErr(stderr, in.err)
+
+			code = 1
+
+			break
+		}
+
+		raw := bytes.TrimSpace(in.raw)
+		if len(raw) == 0 {
 			continue
 		}
 
 		var req Request
-		if err := json.Unmarshal(line, &req); err != nil {
-			bad := Response{
-				JSONRPC: "2.0",
-				ID:      json.RawMessage("null"),
-				Error:   &CallError{Code: -32700, Message: err.Error()},
-			}
-			if encodeErr := enc.Encode(bad); encodeErr != nil {
-				writeErr(stderr, encodeErr)
-
-				return 1
-			}
+		if err := json.Unmarshal(raw, &req); err != nil {
+			sess.write(parseFailure(raw, err))
 
 			continue
 		}
 
-		resp, send := s.Handle(ctx, req)
-		if !send {
-			continue
+		switch {
+		case req.Method == "notifications/cancelled":
+			var p struct {
+				RequestID json.RawMessage `json:"requestId"`
+			}
+
+			if json.Unmarshal(req.Params, &p) == nil {
+				sess.cancel(string(p.RequestID))
+			}
+		case req.Method == "tools/call" && len(req.ID) > 0:
+			callCtx, cancel := context.WithCancel(ctx)
+			sess.track(string(req.ID), cancel)
+			calls.Go(func() {
+				defer cancel()
+				defer sess.untrack(string(req.ID))
+
+				select {
+				case slots <- struct{}{}:
+					defer func() { <-slots }()
+				case <-callCtx.Done():
+				}
+
+				if resp, send := s.Handle(callCtx, req); send {
+					sess.write(resp)
+				}
+			})
+		default:
+			if resp, send := s.Handle(ctx, req); send {
+				sess.write(resp)
+			}
 		}
 
-		if err := enc.Encode(resp); err != nil {
+		if err := sess.failed(); err != nil {
 			writeErr(stderr, err)
 
-			return 1
+			code = 1
+
+			break
 		}
 	}
 
-	if err := scanner.Err(); err != nil && !errors.Is(err, io.EOF) {
-		writeErr(stderr, err)
-
-		return 1
+	if code != 0 {
+		stop()
 	}
 
-	return 0
+	calls.Wait()
+
+	if err := sess.failed(); err != nil && code == 0 {
+		writeErr(stderr, err)
+
+		code = 1
+	}
+
+	return code
+}
+
+// parseFailure answers a line that is not one JSON-RPC message. A batch (a
+// JSON array) is told apart because MCP does not use them and the client can
+// act on that.
+func parseFailure(raw []byte, err error) Response {
+	if bytes.HasPrefix(raw, []byte("[")) {
+		return Response{
+			JSONRPC: "2.0", ID: json.RawMessage("null"),
+			Error: &CallError{Code: -32600, Message: "batch requests are not supported: send one message per line"},
+		}
+	}
+
+	return Response{JSONRPC: "2.0", ID: json.RawMessage("null"), Error: &CallError{Code: -32700, Message: err.Error()}}
 }
 
 func writeErr(w io.Writer, err error) {
@@ -412,6 +567,10 @@ func local(w http.ResponseWriter, r *http.Request) bool {
 
 // Listen serves Handler on addr until ctx is cancelled.
 func (s *Server) Listen(ctx context.Context, addr string, ready func(net.Addr)) error {
+	if err := requireLoopback(addr); err != nil {
+		return err
+	}
+
 	srv := &http.Server{Addr: addr, Handler: s.Handler(), ReadHeaderTimeout: 5 * time.Second}
 
 	ln, err := (&net.ListenConfig{}).Listen(ctx, "tcp", addr)
@@ -434,4 +593,29 @@ func (s *Server) Listen(ctx context.Context, addr string, ready func(net.Addr)) 
 	}
 
 	return fmt.Errorf("mcp http: %w", err)
+}
+
+// ErrNotLoopback is the refusal of an address another machine could reach.
+var ErrNotLoopback = errors.New("mcp http: not a loopback address")
+
+// requireLoopback refuses an address that is reachable from another machine.
+// The adapter reads and writes local files on behalf of its caller, and a
+// peer on the network can send any Host header it likes, so the Host check
+// is not a defence there: the only safe place to listen is the loopback.
+func requireLoopback(addr string) error {
+	host, _, err := net.SplitHostPort(addr)
+	if err != nil {
+		return fmt.Errorf("mcp http: %q is not host:port: %w", addr, err)
+	}
+
+	if host == "localhost" {
+		return nil
+	}
+
+	if ip := net.ParseIP(host); ip != nil && ip.IsLoopback() {
+		return nil
+	}
+
+	return fmt.Errorf("%w: %q; this adapter reads and writes local files "+
+		"and must listen on 127.0.0.1, ::1 or localhost only", ErrNotLoopback, addr)
 }

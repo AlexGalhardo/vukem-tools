@@ -215,6 +215,10 @@ func (c *command) serve(args []string) int {
 	err := mcp.New(c.runner(), c.opt.Version).Listen(c.ctx, *addr, func(a net.Addr) {
 		_, _ = fmt.Fprintln(c.stderr, "listening on", a.String())
 	})
+	if errors.Is(err, mcp.ErrNotLoopback) {
+		return c.fail(&toolkit.Error{Code: toolkit.CodeInvalidInput, Message: err.Error()}, 2)
+	}
+
 	if err != nil {
 		return c.fail(toolkit.AsError(err), 1)
 	}

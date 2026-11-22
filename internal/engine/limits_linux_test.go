@@ -32,28 +32,27 @@ func softLimits(t *testing.T, table string) map[string]int64 {
 			continue
 		}
 
-		var name string
-
 		for i, f := range fields {
-			if f == "unlimited" || (f[0] >= '0' && f[0] <= '9') {
-				name = strings.Join(fields[:i], " ")
-				value := f
+			if f != "unlimited" && (f[0] < '0' || f[0] > '9') {
+				continue
+			}
 
-				if value == "unlimited" {
-					out[name] = -1
+			name := strings.Join(fields[:i], " ")
 
-					break
-				}
-
-				n, err := strconv.ParseInt(value, 10, 64)
-				if err != nil {
-					t.Fatalf("limit %q is not a number: %v", line, err)
-				}
-
-				out[name] = n
+			if f == "unlimited" {
+				out[name] = -1
 
 				break
 			}
+
+			n, err := strconv.ParseInt(f, 10, 64)
+			if err != nil {
+				t.Fatalf("limit %q is not a number: %v", line, err)
+			}
+
+			out[name] = n
+
+			break
 		}
 	}
 

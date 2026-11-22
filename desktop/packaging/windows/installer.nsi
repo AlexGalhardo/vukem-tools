@@ -32,6 +32,8 @@ VIAddVersionKey "LegalCopyright" "Alex Galhardo"
 
 !include "MUI2.nsh"
 !define MUI_ABORTWARNING
+!define MUI_ICON "${__FILEDIR__}\icon.ico"
+!define MUI_UNICON "${__FILEDIR__}\icon.ico"
 !insertmacro MUI_PAGE_DIRECTORY
 !insertmacro MUI_PAGE_INSTFILES
 !define MUI_FINISHPAGE_RUN "$INSTDIR\vukem-tools.exe"

@@ -14,6 +14,8 @@
 	<string>@VERSION@</string>
 	<key>CFBundleExecutable</key>
 	<string>vukem-tools</string>
+	<key>CFBundleIconFile</key>
+	<string>icon</string>
 	<key>CFBundlePackageType</key>
 	<string>APPL</string>
 	<key>LSMinimumSystemVersion</key>

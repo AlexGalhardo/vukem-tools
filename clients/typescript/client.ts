@@ -422,6 +422,7 @@ export type Token = {
   id?: string;
   last_used_at?: string | null;
   name?: string;
+  resource?: string;
   revoked_at?: string | null;
   user_id?: string;
 };

@@ -69,3 +69,7 @@ vukem-feedback.md
 /site/out/
 
 development/
+
+# Working documents: decisions, audits, status and the epics of docs/plans.
+# The images the README shows live in assets/. Anchored: site/content/docs is tracked.
+/docs/

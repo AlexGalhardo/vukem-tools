@@ -259,6 +259,7 @@ func (r *Runner) Run(ctx context.Context, cmd Command) (Result, error) {
 	}
 
 	r.sandbox.isolate(proc, cmd.Network)
+	detach(proc)
 
 	if err := proc.Start(); err != nil {
 		return Result{}, fmt.Errorf("engine: start %s: %w", cmd.Path, err)

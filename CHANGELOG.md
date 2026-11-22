@@ -5,6 +5,39 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.9.0] - 2026-11-22
+
+### Added
+
+- **infra:** Run the whole app in one process on SQLite in local mode ([7787242](https://github.com/AlexGalhardo/vukem-tools/commit/778724276a9b38c08083a040dee5579cd33f7228))
+- **ci:** Attach the installers, the cli builds and the checksums to the release ([1a95ae6](https://github.com/AlexGalhardo/vukem-tools/commit/1a95ae61a59d58a0861ee4b36e34b4410d3e7fa7))
+- **ui:** Show the release in the bottom-right corner of every screen ([296b652](https://github.com/AlexGalhardo/vukem-tools/commit/296b652704d6d401a12bdd1fdec3bb0cdf686ed7))
+- **auth:** Verify the first local account and show the reset code without mail ([3898faa](https://github.com/AlexGalhardo/vukem-tools/commit/3898faa1e6783e44653af9e9df690ce558815d7a))
+- **infra:** Start the server inside the desktop app and stop it on exit ([52f9cb6](https://github.com/AlexGalhardo/vukem-tools/commit/52f9cb6e4534c4eda45ea7c2af75afb0ded6f5c9))
+- **api:** Drive every tool from the cli and mcp through the http api ([5cf2591](https://github.com/AlexGalhardo/vukem-tools/commit/5cf2591eea4253bc43f6b2b4f10a3c6fbdc6e34f))
+- **ui:** Show the theme as a sun and a moon and link to the documentation ([09adc73](https://github.com/AlexGalhardo/vukem-tools/commit/09adc73457dcacac0761479b0524e02e915d50c2))
+
+### Changed
+
+- **api:** Remove the unused local pdf crop in internal/agent ([9e5b4e9](https://github.com/AlexGalhardo/vukem-tools/commit/9e5b4e9b1026a4e19f19a5f2123a5ca49732c3ed))
+
+### Fixed
+
+- **ci:** Bump the clamav and libreoffice pins to the published trixie versions ([4cdfa86](https://github.com/AlexGalhardo/vukem-tools/commit/4cdfa865e9e681c957ac2611a2d9a0341ed0543c))
+- **infra:** List util-linux on the licences page and test every engine rule ([36e1dab](https://github.com/AlexGalhardo/vukem-tools/commit/36e1dab98001c5fd81197e800613f59535d90653))
+- **auth:** Write the local reset code to a file instead of handing it out ([eb64041](https://github.com/AlexGalhardo/vukem-tools/commit/eb640411de95bf5700dce290d1d07bb8f23d5d07))
+- **api:** Point the OpenAPI overview at the documentation site ([2466cb6](https://github.com/AlexGalhardo/vukem-tools/commit/2466cb682d89c3be49c563c4b4a5731de1beb3ed))
+- **ci:** Build the Windows installer from a native staging directory and test it ([1244c51](https://github.com/AlexGalhardo/vukem-tools/commit/1244c51e915a96015d9f11dde1e844c13c829f85))
+- **infra:** Reduce the nesting of the limits parser in the engine test ([9a5fc98](https://github.com/AlexGalhardo/vukem-tools/commit/9a5fc981ef53cbc58873e049ad4e9a56eab65020))
+- **video:** Cap the ffmpeg encoder threads so 1080p compression fits the memory limit ([31eced7](https://github.com/AlexGalhardo/vukem-tools/commit/31eced757e15e026f3091a9737373778b5098166))
+- **api:** Harden the cli and the MCP server after the QA pass ([050bb4c](https://github.com/AlexGalhardo/vukem-tools/commit/050bb4c639eed88c01e3c5e5972e3a8a65a2693d))
+- **api:** Regenerate the clients for the resource field of a token ([67a944d](https://github.com/AlexGalhardo/vukem-tools/commit/67a944d4f9834055f33e71cc245b53dda6a0d6a4))
+- **infra:** Make the desktop start robust and say why when it cannot ([f64becb](https://github.com/AlexGalhardo/vukem-tools/commit/f64becbbfbb518d2cfe612a61a9adf107415c4f6))
+- **ui:** Keep large numbers exact and report JSON errors at the bad character ([776815a](https://github.com/AlexGalhardo/vukem-tools/commit/776815a2dd384b70d165e0211e32a67fa4d0193e))
+- **ui:** Meet the contrast ratio, fit /licenses at 360px and show the server's sentence ([34dcf90](https://github.com/AlexGalhardo/vukem-tools/commit/34dcf90cb6100e048ce74f65fc9a507576355e55))
+- **auth:** Keep the session after a password change and say reset code locally ([adf944e](https://github.com/AlexGalhardo/vukem-tools/commit/adf944efc89172e011cf7cc6d8b1194f9cd7dbbb))
+- **ui:** Stop advertising passphrases the password tool does not make ([27bcb11](https://github.com/AlexGalhardo/vukem-tools/commit/27bcb11eff423a80879bc8dbb5e88701213dd13b))
+
 ## [0.8.0] - 2026-11-18
 
 ### Added
@@ -221,6 +254,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - OpenAPI document and Scalar API reference ([8e3918b](https://github.com/AlexGalhardo/vukem-tools/commit/8e3918b5b33675e837ddd3e7969ba0c9110a208f))
 
+[0.9.0]: https://github.com/AlexGalhardo/vukem-tools/compare/v0.8.0...v0.9.0
 [0.8.0]: https://github.com/AlexGalhardo/vukem-tools/compare/v0.7.0...v0.8.0
 [0.7.0]: https://github.com/AlexGalhardo/vukem-tools/compare/v0.6.0...v0.7.0
 [0.6.0]: https://github.com/AlexGalhardo/vukem-tools/compare/v0.5.0...v0.6.0

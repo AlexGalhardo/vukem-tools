@@ -799,6 +799,7 @@ type Token struct {
 	ID         *string    `json:"id,omitempty"`
 	LastUsedAt *time.Time `json:"last_used_at,omitempty"`
 	Name       *string    `json:"name,omitempty"`
+	Resource   *string    `json:"resource,omitempty"`
 	RevokedAt  *time.Time `json:"revoked_at,omitempty"`
 	UserID     *string    `json:"user_id,omitempty"`
 }

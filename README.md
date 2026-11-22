@@ -1,6 +1,13 @@
 <div align="center">
 
-<h1><a href="https://tools.vukem.dev" target="_blank" rel="noopener noreferrer">Vukem Tools</a></h1>
+<h1>
+  <a href="https://tools.vukem.dev" target="_blank" rel="noopener noreferrer">
+    <picture>
+      <source media="(prefers-color-scheme: dark)" srcset="assets/brand/logo-dark-theme.png">
+      <img src="assets/brand/logo-light-theme.png" alt="Vukem Tools" width="420">
+    </picture>
+  </a>
+</h1>
 
 <a href="https://github.com/AlexGalhardo/vukem-tools/actions/workflows/ci.yml"><img src="https://img.shields.io/github/actions/workflow/status/AlexGalhardo/vukem-tools/ci.yml?branch=main&label=tests" alt="Tests"></a>
 <a href="https://github.com/AlexGalhardo/vukem-tools/actions/workflows/release.yml"><img src="https://img.shields.io/github/actions/workflow/status/AlexGalhardo/vukem-tools/release.yml?label=ci%2Fcd" alt="CI/CD"></a>

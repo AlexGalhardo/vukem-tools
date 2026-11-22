@@ -4,6 +4,10 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"log/slog"
+	"net"
+	"os"
+	"strings"
 	"time"
 
 	vukem "github.com/AlexGalhardo/vukem"
@@ -47,6 +51,10 @@ func (l *Local) Stop(ctx context.Context) error {
 // The server lives until Stop or until ctx is cancelled. A second start on the
 // same dataDir returns a *RunningError and starts nothing.
 func StartLocal(ctx context.Context, dataDir string) (*Local, error) {
+	if strings.TrimSpace(dataDir) == "" {
+		return nil, errors.New("desktop: no data directory given")
+	}
+
 	lock, err := acquireLock(ctx, dataDir)
 	if err != nil {
 		return nil, err
@@ -62,8 +70,58 @@ func StartLocal(ctx context.Context, dataDir string) (*Local, error) {
 	return l, nil
 }
 
+// listenAttempts is how many ports start tries. The port is reserved and released
+// before the app binds it (the app has to know it to print absolute URLs), so
+// another process can take it in between; a fresh port fixes that.
+const listenAttempts = 3
+
+var errNotListening = errors.New("the server stopped before it listened")
+
 func start(ctx context.Context, dataDir string, lock *instanceLock) (*Local, error) {
-	opts, err := bootstrap.LocalServeOptions(dataDir)
+	// The lock is ours, so nothing else is converting into this directory: what is
+	// in it belongs to a run that died.
+	// A file an antivirus still holds open must not stop the app from starting.
+	if err := os.RemoveAll(bootstrap.LocalEnv(dataDir)["WORK_DIR"]); err != nil {
+		slog.WarnContext(ctx, "desktop: could not clear the scratch space of an earlier run", "err", err)
+	}
+
+	var err error
+
+	for range listenAttempts {
+		var l *Local
+
+		if l, err = startOnce(ctx, dataDir, lock); err == nil || !errors.Is(err, errNotListening) {
+			return l, err
+		}
+	}
+
+	return nil, err
+}
+
+// freePort asks the kernel for an unused loopback port.
+func freePort(ctx context.Context) (int, error) {
+	ln, err := (&net.ListenConfig{}).Listen(ctx, "tcp", "127.0.0.1:0")
+	if err != nil {
+		return 0, fmt.Errorf("desktop: choose a port: %w", err)
+	}
+
+	addr, ok := ln.Addr().(*net.TCPAddr)
+	if !ok {
+		_ = ln.Close()
+
+		return 0, fmt.Errorf("desktop: choose a port: unexpected address %s", ln.Addr())
+	}
+
+	return addr.Port, ln.Close()
+}
+
+func startOnce(ctx context.Context, dataDir string, lock *instanceLock) (*Local, error) {
+	port, err := freePort(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	opts, err := bootstrap.LocalServeOptions(dataDir, port)
 	if err != nil {
 		return nil, err
 	}
@@ -99,7 +157,7 @@ func start(ctx context.Context, dataDir string, lock *instanceLock) (*Local, err
 	case addr := <-ready:
 		l.Origin = "http://" + addr
 	case <-l.done:
-		return nil, errors.Join(errors.New("desktop: the server stopped before it listened"), l.err)
+		return nil, errors.Join(fmt.Errorf("desktop: %w", errNotListening), l.err)
 	case <-time.After(readyTimeout):
 		return nil, abort(l, "the server did not listen in time")
 	}

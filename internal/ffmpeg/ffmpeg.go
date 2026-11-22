@@ -70,12 +70,12 @@ func Base() []string {
 		// The filter graph's thread pools, which are global options. Both
 		// are sized from the container's quota rather than the host's core
 		// count.
-		"-filter_threads", itoa(cpu.Limit()),
-		"-filter_complex_threads", itoa(cpu.Limit()),
+		"-filter_threads", itoa(threads()),
+		"-filter_complex_threads", itoa(threads()),
 		// Decoder threads. This is an *input* option, so it bounds the
 		// decode and nothing else — see Threads for the other half, which is
 		// the half that was a bug.
-		"-threads", itoa(cpu.Limit()),
+		"-threads", itoa(threads()),
 	}
 }
 
@@ -97,7 +97,7 @@ func Base() []string {
 // So every builder in internal/video and internal/audio appends this to its
 // output options, and TestEveryBuilderBoundsTheEncodersThreads asserts that
 // they all still do.
-func Threads() []string { return []string{"-threads", itoa(cpu.Limit())} }
+func Threads() []string { return []string{"-threads", itoa(threads())} }
 
 // Env is the environment ffmpeg runs in. It is deliberately almost empty:
 // the runner already starts from a minimal environment, and ffmpeg needs
@@ -222,3 +222,17 @@ func CapabilitiesFrom(version, encoders string) Capabilities {
 
 	return c
 }
+
+// MaxThreads caps every ffmpeg thread pool, whatever the core count.
+//
+// The engine runs under RLIMIT_AS, and each x264 or decoder thread maps its
+// own frame buffers and allocator arena. On a host with many cores and no CPU
+// quota the pools sized from the core count exceed the limit and 1080p
+// encodes fail with "malloc ... failed". Measured under a 3 GiB limit in the
+// image: 16 encoder threads fail on 1080p, 8 pass. Four keeps a margin and
+// costs little, since x264 gains little past that on one file.
+const MaxThreads = 4
+
+func threads() int { return threadsFor(cpu.Limit()) }
+
+func threadsFor(cores int) int { return max(1, min(cores, MaxThreads)) }

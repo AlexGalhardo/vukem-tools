@@ -7,12 +7,14 @@ import (
 	"os"
 	"path/filepath"
 	"slices"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
 
 	"github.com/AlexGalhardo/vukem-tools/internal/editor"
 	"github.com/AlexGalhardo/vukem-tools/internal/engine"
+	"github.com/AlexGalhardo/vukem-tools/internal/ffmpeg"
 )
 
 const (
@@ -495,5 +497,34 @@ func TestAnOutputNameThatIsAPathIsRefused(t *testing.T) {
 		if len(runner.ffmpegCalls()) != 0 {
 			t.Errorf("ffmpeg was started for the output name %q", name)
 		}
+	}
+}
+
+// QA-C7: see the compressor's test of the same name.
+func TestTheReEncodingCutIsBoundedInThreads(t *testing.T) {
+	t.Parallel()
+
+	runner := &fakeRunner{handle: probeAnd(probeJSON(1280, 720, 60), keyframeJSON(10), "out.mp4", 2048)}
+	e := newEditor(t, runner, 0)
+	dir := t.TempDir()
+
+	if _, err := e.Trim(t.Context(), editor.TrimRequest{
+		Dir: dir, Input: writeInput(t, dir), Output: "out.mp4",
+		Start: 10 * time.Second, Duration: 5 * time.Second, FrameAccurate: true,
+	}); err != nil {
+		t.Fatal(err)
+	}
+
+	calls := runner.ffmpegCalls()
+	args := calls[len(calls)-1].Args
+	last := slices.Index(args, "-i")
+	i := slices.Index(args[last:], "-threads")
+
+	if i < 0 {
+		t.Fatalf("no -threads after the input: %v", args)
+	}
+
+	if n, err := strconv.Atoi(args[last+i+1]); err != nil || n > ffmpeg.MaxThreads {
+		t.Fatalf("-threads %s, want at most %d", args[last+i+1], ffmpeg.MaxThreads)
 	}
 }

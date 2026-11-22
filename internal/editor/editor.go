@@ -29,6 +29,7 @@ import (
 	"time"
 
 	"github.com/AlexGalhardo/vukem-tools/internal/engine"
+	"github.com/AlexGalhardo/vukem-tools/internal/ffmpeg"
 )
 
 // Runner runs one engine under its limits. *engine.Runner satisfies it.
@@ -340,7 +341,8 @@ func (e *Editor) trimArgs(in TrimRequest, out string, reEncode bool) []string {
 // hardware decoders refuse, and the result is a file that plays nowhere the
 // user is likely to open it.
 func encodeArgs() []string {
-	return []string{
+	// The encoder is bounded: see ffmpeg.MaxThreads.
+	return append(ffmpeg.Threads(), []string{
 		"-c:v", "libx264",
 		"-preset", "veryfast",
 		"-crf", "20",
@@ -348,7 +350,7 @@ func encodeArgs() []string {
 		"-c:a", "aac",
 		"-b:a", "128k",
 		"-movflags", "+faststart",
-	}
+	}...)
 }
 
 // MaxClip is the longest clip the clips mode produces. It is the ROADMAP's

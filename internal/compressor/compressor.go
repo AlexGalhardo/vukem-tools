@@ -28,6 +28,7 @@ import (
 
 	"github.com/AlexGalhardo/vukem-tools/internal/editor"
 	"github.com/AlexGalhardo/vukem-tools/internal/engine"
+	"github.com/AlexGalhardo/vukem-tools/internal/ffmpeg"
 )
 
 // Runner runs one engine under its limits. *engine.Runner satisfies it.
@@ -228,6 +229,7 @@ func (c *Compressor) ffmpegPass(ctx context.Context, in Request, encode []string
 		"-progress", "pipe:1",
 		"-i", in.Input,
 	}
+	args = append(args, ffmpeg.Threads()...)
 	args = append(args, encode...)
 	args = append(args, candidate)
 

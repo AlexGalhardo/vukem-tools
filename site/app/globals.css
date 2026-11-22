@@ -2,9 +2,6 @@
 
 @custom-variant dark (&:where(.dark, .dark *));
 
-/* The landing page fits one viewport (no scroll) when the window is wide and tall enough; otherwise it flows. */
-@custom-variant fit (@media (min-width: 64rem) and (min-height: 43.75rem));
-
 @theme inline {
   --color-bg: var(--bg);
   --color-fg: var(--fg);
@@ -58,13 +55,6 @@ html {
   /* +25% type scale: every rem-based size (Tailwind text-*, prose, layout) follows. */
   font-size: 125%;
   scroll-padding-top: calc(var(--header-h) + 1.5rem);
-}
-
-/* The landing page on a short desktop window: the base type scale drops to 100% so the page still fits one viewport. */
-@media (min-width: 64rem) and (min-height: 43.75rem) and (max-height: 56rem) {
-  html:has(main[data-landing]) {
-    font-size: 100%;
-  }
 }
 
 /* Phones: 75% of the desktop scale (20px -> 15px root) for all rem-based sizes. */

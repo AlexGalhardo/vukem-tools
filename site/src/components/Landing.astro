@@ -1,103 +1,272 @@
 ---
 import { landing as copy } from "@/lib/landing";
-import { dockerRunCommand } from "@/lib/latest-release";
+import type { Link } from "@/lib/landing";
 import { withBase } from "@/lib/site";
 
-const command = dockerRunCommand();
-const lines = command.split("\n");
+const href = (link: Link) => (link.external ? link.href : withBase(link.href));
+const rel = (link: Link) => (link.external ? "noopener noreferrer" : undefined);
+
+const dots = [
+	{ id: copy.hero.id, label: copy.hero.nav },
+	...copy.sections.map((s) => ({ id: s.id, label: s.nav })),
+	{ id: copy.closing.id, label: copy.closing.nav },
+];
+
+const primary =
+	"inline-flex h-11 items-center rounded-lg bg-[#6446f0] px-5 text-sm font-semibold text-white hover:bg-[#5a3be6]";
+const secondary =
+	"inline-flex h-11 items-center rounded-lg border border-border-strong px-5 text-sm font-semibold text-fg hover:bg-hover";
+const textLink = "font-medium text-accent underline decoration-accent/40 underline-offset-4 hover:decoration-accent";
 ---
 
-<main
-	id="content"
-	data-landing
-	class="mx-auto w-full max-w-[90rem] fit:h-[calc(100dvh-var(--header-h))] fit:grid-cols-[minmax(0,5fr)_minmax(0,6fr)] fit:overflow-hidden grid grid-cols-1"
->
-	<section aria-labelledby="hero" class="relative flex min-w-0 flex-col px-4 py-8 sm:px-6 fit:py-6">
-		<div aria-hidden="true" class="pointer-events-none absolute inset-0 -z-10 bg-[radial-gradient(ellipse_at_top_left,var(--accent-soft),transparent_70%)]"></div>
+<nav aria-label={copy.sectionsLabel} class="landing-dots hidden lg:block">
+	<ul class="flex flex-col gap-1">
+		{dots.map((d) => (
+			<li>
+				<a href={`#${d.id}`} data-dot={d.id} class="group flex size-6 items-center justify-center rounded-full">
+					<span aria-hidden="true" class="size-2 rounded-full border border-faint bg-transparent group-hover:bg-faint group-[[aria-current]]:border-accent group-[[aria-current]]:bg-accent"></span>
+					<span class="sr-only">{d.label}</span>
+				</a>
+			</li>
+		))}
+	</ul>
+</nav>
 
-		<div class="my-auto">
-			<h1 id="hero" class="text-3xl font-semibold tracking-tight text-fg">{copy.hero.title}</h1>
-			<p class="mt-2 max-w-xl text-sm leading-snug text-muted">{copy.hero.lead}</p>
-
-			<div class="mt-4 max-w-xl">
-				<p id="run-label" class="text-xs text-muted">{copy.hero.runLabel}</p>
-				<div role="group" aria-labelledby="run-label" class="mt-2 overflow-hidden rounded-xl border border-border-strong bg-code-bg">
-					<div class="flex items-center justify-between border-b border-border px-3 py-1.5">
-						<span aria-hidden="true" class="flex gap-1.5"><i class="size-2.5 rounded-full bg-border-strong"></i><i class="size-2.5 rounded-full bg-border-strong"></i><i class="size-2.5 rounded-full bg-border-strong"></i></span>
-						<button
-							type="button"
-							data-copy={command}
-							aria-label="Copy the docker run command"
-							class="rounded-md border border-border px-2 py-0.5 text-xs font-medium text-muted hover:bg-hover hover:text-fg"
-						>
-							Copy
-						</button>
-					</div>
-					<pre
-						tabindex="0"
-						class="overflow-x-auto px-3 py-2.5 font-mono text-[0.7rem] leading-relaxed text-fg"
-					><code>{lines.map((line, i) => (<span class="block whitespace-pre">{i === 0 ? <span aria-hidden="true" class="select-none text-faint">$ </span> : <span aria-hidden="true" class="select-none">{"  "}</span>}{line.replace(/^ {2}/, "")}</span>))}</code></pre>
+<main id="content" data-landing>
+	<section id={copy.hero.id} aria-labelledby="hero-title" class="landing-section">
+		<div class="landing-grid">
+			<div class="landing-copy">
+				<p class="landing-eyebrow">{copy.hero.eyebrow}</p>
+				<h1 id="hero-title" class="landing-title landing-title-hero">{copy.hero.title}</h1>
+				<p class="landing-text">{copy.hero.lead}</p>
+				<div class="mt-6 flex flex-wrap items-center gap-3">
+					<a href={href(copy.hero.download)} rel={rel(copy.hero.download)} class={primary}>{copy.hero.download.label} &rarr;</a>
+					<a href={href(copy.hero.docs)} class={secondary}>{copy.hero.docs.label}</a>
 				</div>
-				<p class="mt-2 text-xs leading-relaxed text-faint">{copy.hero.runNote}</p>
+				<p class="mt-5 max-w-[34rem] text-[0.8rem] leading-relaxed text-faint">
+					{copy.hero.licence} <a href={href(copy.hero.licenceLink)} class={textLink}>{copy.hero.licenceLink.label}</a>.
+				</p>
 			</div>
-
-			<ul class="mt-4 grid max-w-xl gap-x-4 gap-y-1 text-xs text-muted [@media(max-height:760px)]:hidden sm:grid-cols-2">
-				{copy.hero.points.map((point) => (
-					<li class="flex gap-2">
-						<svg aria-hidden="true" viewBox="0 0 16 16" class="mt-0.5 size-4 shrink-0 text-accent" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m3 8.5 3.2 3L13 4.5"></path></svg>
-						<span>{point}</span>
-					</li>
-				))}
-			</ul>
-
-			<div class="mt-4 flex flex-wrap items-center gap-3">
-				<a href={withBase("/docs/quick-start/")} class="inline-flex h-10 items-center rounded-lg bg-[#6446f0] px-4 text-sm font-semibold text-white hover:bg-[#5a3be6]">{copy.hero.quickStart} &rarr;</a>
-				<a href={withBase("/changelog/")} class="inline-flex h-10 items-center rounded-lg border border-border-strong px-4 text-sm font-semibold text-fg hover:bg-hover">{copy.hero.releases}</a>
-			</div>
+			<figure class="landing-shot">
+				<img
+					src={withBase(copy.hero.image.src)}
+					alt={copy.hero.image.alt}
+					width={copy.hero.image.width}
+					height={copy.hero.image.height}
+					loading="eager"
+					fetchpriority="high"
+					decoding="async"
+				/>
+			</figure>
 		</div>
 	</section>
 
-	<section aria-labelledby="gallery" class="flex min-w-0 flex-col justify-center border-t border-border bg-subtle px-5 py-6 sm:px-8 fit:border-t-0 fit:border-l fit:px-8">
-		<h2 id="gallery" class="sr-only">{copy.gallery.label}</h2>
-		<div data-tabs class="mx-auto w-full max-w-3xl">
-			<div role="tablist" aria-label={copy.gallery.label} class="flex flex-wrap gap-1.5">
-				{copy.features.map((f, i) => (
-					<button
-						type="button"
-						role="tab"
-						id={`tab-${f.id}`}
-						data-tab={f.id}
-						aria-controls={`panel-${f.id}`}
-						aria-selected={i === 0 ? "true" : "false"}
-						class="rounded-full border border-border-strong px-3 py-1 text-xs font-medium text-muted hover:bg-hover hover:text-fg aria-selected:border-accent aria-selected:bg-accent-soft aria-selected:text-accent"
-					>
-						{f.tab}
-					</button>
-				))}
-			</div>
-
-			{copy.features.map((f, i) => (
-				<div role="tabpanel" id={`panel-${f.id}`} data-panel={f.id} aria-labelledby={`tab-${f.id}`} hidden={i !== 0} class="mt-3">
-					<figure class="m-0">
-						{f.image && (
-							<img
-								src={withBase(f.image.src)}
-								alt={f.image.alt}
-								width="1440"
-								height="900"
-								loading={i === 0 ? "eager" : "lazy"}
-								decoding="async"
-								class="aspect-[8/5] max-h-[calc(100dvh-var(--header-h)-15rem)] w-full rounded-xl border border-border-strong bg-black object-contain shadow-2xl shadow-black/20"
-							/>
-						)}
-						<figcaption class="mt-3">
-							<h3 class="text-base font-semibold text-fg">{f.title}</h3>
-							<p class="mt-1 text-sm leading-relaxed text-muted">{f.text}</p>
-							<p class="mt-2 text-xs text-faint">In Vukem Tools: <code class="rounded bg-code-bg px-1.5 py-0.5 font-mono text-fg">{f.command}</code></p>
-						</figcaption>
-					</figure>
+	{copy.sections.map((s, i) => (
+		<section id={s.id} aria-labelledby={`${s.id}-title`} class:list={["landing-section", i % 2 === 0 && "landing-alt"]}>
+			<div class="landing-grid">
+				<div class="landing-copy">
+					<p class="landing-eyebrow">{s.eyebrow}</p>
+					<h2 id={`${s.id}-title`} tabindex="-1" class="landing-title">{s.title}</h2>
+					<p class="landing-text">{s.text}</p>
+					<ul class="mt-5 grid max-w-[34rem] gap-2.5 text-[0.85rem] leading-snug text-muted">
+						{s.points.map((point) => (
+							<li class="flex gap-2.5">
+								<svg aria-hidden="true" viewBox="0 0 16 16" class="mt-0.5 size-4 shrink-0 text-accent" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="m3 8.5 3.2 3L13 4.5"></path></svg>
+								<span>{point}</span>
+							</li>
+						))}
+					</ul>
+					{s.code && (
+						<div class="mt-5 max-w-[34rem]">
+							<p id={`${s.id}-code`} class="text-xs text-faint">{s.code.label}</p>
+							<pre tabindex="0" aria-labelledby={`${s.id}-code`} class="mt-1.5 overflow-x-auto rounded-lg border border-border-strong bg-code-bg px-3.5 py-3 font-mono text-[0.7rem] leading-relaxed text-fg"><code>{s.code.lines.map((line) => (<span class="block whitespace-pre-wrap [overflow-wrap:anywhere]"><span aria-hidden="true" class="select-none text-faint">$ </span>{line}</span>))}</code></pre>
+						</div>
+					)}
+					{s.links && (
+						<p class="mt-5 flex flex-wrap gap-x-5 gap-y-1.5 text-sm">
+							{s.links.map((link) => <a href={href(link)} rel={rel(link)} class={textLink}>{link.label} &rarr;</a>)}
+						</p>
+					)}
+					{s.id === "self-host" && (
+						<div class="mt-6 flex flex-wrap items-center gap-3">
+							<a href={href(copy.closing.primary)} rel={rel(copy.closing.primary)} class={primary}>{copy.hero.download.label} &rarr;</a>
+						</div>
+					)}
 				</div>
-			))}
+				<figure class="landing-shot">
+					<img
+						src={withBase(s.image.src)}
+						alt={s.image.alt}
+						width={s.image.width}
+						height={s.image.height}
+						loading="lazy"
+						decoding="async"
+					/>
+				</figure>
+			</div>
+		</section>
+	))}
+
+	<section id={copy.closing.id} aria-labelledby="start-title" class="landing-section landing-closing">
+		<div class="mx-auto flex w-full max-w-[44rem] flex-col items-center text-center">
+			<h2 id="start-title" tabindex="-1" class="landing-title">{copy.closing.title}</h2>
+			<p class="landing-text">{copy.closing.text}</p>
+			<div class="mt-7 flex flex-wrap items-center justify-center gap-3">
+				<a href={href(copy.closing.primary)} rel={rel(copy.closing.primary)} class={primary}>{copy.closing.primary.label} &rarr;</a>
+				<a href={href(copy.closing.secondary)} class={secondary}>{copy.closing.secondary.label}</a>
+				<a href={href(copy.closing.tertiary)} rel={rel(copy.closing.tertiary)} class={secondary}>{copy.closing.tertiary.label}</a>
+			</div>
+			<p class="mt-6 text-sm leading-relaxed text-faint">{copy.closing.note}</p>
 		</div>
 	</section>
 </main>
+
+<script>
+	// Marks the section dot of the section that fills the viewport. Plain progressive enhancement:
+	// without it the dots are still working anchors.
+	const dots = [...document.querySelectorAll<HTMLAnchorElement>("[data-dot]")];
+	const sections = dots
+		.map((dot) => document.getElementById(dot.dataset.dot ?? ""))
+		.filter((el): el is HTMLElement => el !== null);
+	if (sections.length > 0 && "IntersectionObserver" in window) {
+		const mark = (id: string) => {
+			for (const dot of dots) {
+				if (dot.dataset.dot === id) dot.setAttribute("aria-current", "location");
+				else dot.removeAttribute("aria-current");
+			}
+		};
+		const observer = new IntersectionObserver(
+			(entries) => {
+				for (const entry of entries) if (entry.isIntersecting) mark(entry.target.id);
+			},
+			{ rootMargin: "-45% 0px -45% 0px" },
+		);
+		for (const section of sections) observer.observe(section);
+		mark(sections[0].id);
+	}
+</script>
+
+<style is:global>
+	/* Snap only where a section can fit the viewport; proximity so a tall section is never a trap. */
+	@media (min-width: 64rem) and (min-height: 36rem) {
+		html:has(main[data-landing]) {
+			scroll-snap-type: y proximity;
+		}
+		main[data-landing] > .landing-section {
+			scroll-snap-align: start;
+		}
+	}
+
+	/* The sticky header covers the top of the viewport, so a section aligns right under it. */
+	html:has(main[data-landing]) {
+		scroll-padding-top: var(--header-h);
+	}
+
+	.landing-section {
+		display: flex;
+		align-items: center;
+		min-height: calc(100vh - var(--header-h));
+		min-height: calc(100svh - var(--header-h));
+		padding: 2.5rem 1rem;
+	}
+	@media (min-width: 40rem) {
+		.landing-section {
+			padding-inline: 1.5rem;
+		}
+	}
+	@media (min-width: 64rem) {
+		.landing-section {
+			padding-block: 2rem;
+			padding-inline: 3.5rem;
+		}
+	}
+	.landing-alt {
+		background: var(--subtle);
+		border-block: 1px solid var(--border);
+	}
+	.landing-closing {
+		justify-content: center;
+	}
+
+	.landing-grid {
+		display: grid;
+		width: 100%;
+		max-width: 90rem;
+		margin-inline: auto;
+		gap: 2rem;
+		grid-template-columns: minmax(0, 1fr);
+		align-items: center;
+	}
+	@media (min-width: 64rem) {
+		.landing-grid {
+			grid-template-columns: minmax(0, 4fr) minmax(0, 7fr);
+			gap: 3.5rem;
+		}
+	}
+
+	.landing-eyebrow {
+		font-family: var(--font-mono);
+		font-size: 0.75rem;
+		letter-spacing: 0.02em;
+		text-transform: uppercase;
+		color: var(--accent);
+	}
+	.landing-title {
+		margin-top: 0.5rem;
+		max-width: 22ch;
+		font-size: clamp(1.5rem, 1rem + 1.4vw, 2rem);
+		font-weight: 600;
+		line-height: 1.12;
+		letter-spacing: -0.03em;
+		text-wrap: balance;
+		color: var(--fg);
+	}
+	.landing-title-hero {
+		max-width: 18ch;
+		font-size: clamp(1.9rem, 1.1rem + 2.4vw, 2.9rem);
+	}
+	.landing-title:focus-visible {
+		outline: 2px solid var(--accent);
+		outline-offset: 4px;
+	}
+	.landing-text {
+		margin-top: 1rem;
+		max-width: 34rem;
+		font-size: 0.9rem;
+		line-height: 1.55;
+		color: var(--muted);
+	}
+
+	/* The screenshots are dark: a hairline and a soft shadow keep them framed on the light theme. */
+	.landing-shot {
+		margin: 0;
+		min-width: 0;
+	}
+	.landing-shot img {
+		display: block;
+		/* 1.6 is the screenshots' aspect ratio: never taller than the viewport minus the header. */
+		width: min(100%, calc((100svh - var(--header-h) - 4rem) * 1.6));
+		height: auto;
+		border-radius: 0.75rem;
+		border: 1px solid var(--border-strong);
+		background: #08090c;
+		box-shadow: 0 24px 60px -24px rgb(0 0 0 / 0.35);
+	}
+	@media (max-width: 63.99rem) {
+		.landing-shot img {
+			width: 100%;
+		}
+	}
+
+	.landing-dots {
+		position: fixed;
+		inset-inline-end: 0.75rem;
+		top: 50%;
+		z-index: 30;
+		transform: translateY(-50%);
+	}
+	.landing-dots a:focus-visible {
+		outline: 2px solid var(--accent);
+		outline-offset: 2px;
+	}
+</style>

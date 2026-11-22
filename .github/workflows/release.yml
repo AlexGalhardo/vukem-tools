@@ -1,21 +1,45 @@
 name: Release
 
+# A vX.Y.Z tag tests, publishes the image, builds every desktop and CLI file and
+# attaches them with checksums.txt to the GitHub release. A manual run builds the
+# same files from any branch without a tag or a release: download them from the
+# run's artifacts to test an installer before tagging.
 on:
   push:
     tags: ["v*.*.*"]
   workflow_dispatch:
+    inputs:
+      version:
+        description: "Version stamped into the build, X.Y.Z (no tag is created)"
+        required: true
+        default: "0.0.0-dev"
+        type: string
 
 permissions:
   contents: read
 
 jobs:
+  meta:
+    name: Resolve the version
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.v.outputs.version }}
+    steps:
+      - name: Version from the tag, or from the manual input
+        id: v
+        env:
+          REF_TYPE: ${{ github.ref_type }}
+          REF_NAME: ${{ github.ref_name }}
+          INPUT_VERSION: ${{ inputs.version }}
+        run: |
+          if [ "$REF_TYPE" = tag ]; then version="${REF_NAME#v}"; else version="$INPUT_VERSION"; fi
+          [[ "$version" =~ ^[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.]+)?$ ]] || { echo "::error::version must be X.Y.Z, got $version"; exit 1; }
+          echo "version=$version" >>"$GITHUB_OUTPUT"
+
   test:
     name: Tests before anything is published
     runs-on: ubuntu-latest
     steps:
-      - name: Only a version tag releases
-        run: |
-          case "$GITHUB_REF" in refs/tags/v*) ;; *) echo "::error::run this workflow on a vX.Y.Z tag, not on $GITHUB_REF"; exit 1 ;; esac
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
@@ -31,6 +55,7 @@ jobs:
   image:
     name: Image to GHCR and Docker Hub, signed
     needs: test
+    if: github.ref_type == 'tag'
     runs-on: ubuntu-latest
     env:
       GHCR_IMAGE: ghcr.io/alexgalhardo/vukem-tools
@@ -122,12 +147,13 @@ jobs:
           subject-digest: ${{ steps.build.outputs.digest }}
           push-to-registry: true
 
-  # The desktop shell is the same window on every OS. Linux and macOS use the
+
+  # The CLI and every desktop target are cross-built with CGO_ENABLED=0. Linux and macOS use the
   # purego Wails backend so the build does not need GTK or WebKit headers.
-  desktop-windows:
-    name: Windows executable
-    needs: test
-    runs-on: windows-latest
+  cli:
+    name: CLI (windows/amd64, linux/amd64, linux/arm64, darwin/arm64)
+    needs: [meta, test]
+    runs-on: ubuntu-latest
     permissions:
       contents: read
     steps:
@@ -138,24 +164,49 @@ jobs:
         with:
           go-version-file: go.mod
           cache: true
-      - name: Build the desktop executable
-        shell: pwsh
-        run: |
-          $env:CGO_ENABLED = "0"
-          $tag = $env:GITHUB_REF_NAME
-          if ($tag -notmatch '^v(\d+\.\d+\.\d+)$') { throw "release tag must be vX.Y.Z, got $tag" }
-          $ver = $Matches[1]
-          $slug = $ver.Replace('.', '-')
-          go build -trimpath -ldflags "-s -w -H windowsgui -X main.version=$ver" -o "vukem-tools-$slug.exe" ./cmd/desktop
+      - name: Build the CLI for every target
+        run: bash scripts/build-cli.sh "${{ needs.meta.outputs.version }}" dist
+      - name: The Linux build runs
+        run: dist/vukem-tools-cli-*-linux-amd64 tools >/dev/null
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
-          name: desktop-windows
-          path: vukem-tools-*.exe
+          name: files-cli
+          path: dist/vukem-tools-cli-*
+          if-no-files-found: error
+
+  desktop-windows:
+    name: Windows installer and portable zip
+    needs: [meta, test]
+    runs-on: windows-2025
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version-file: go.mod
+          cache: true
+      - name: Install NSIS 3.11.0
+        shell: pwsh
+        run: |
+          choco install nsis --version=3.11.0 --yes --no-progress
+          "C:\Program Files (x86)\NSIS" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
+      - name: Build the executable, the installer and the zip
+        shell: bash
+        run: bash scripts/build-windows.sh "${{ needs.meta.outputs.version }}" dist
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: files-windows
+          path: |
+            dist/*-setup.exe
+            dist/*-portable.zip
           if-no-files-found: error
 
   desktop-linux:
     name: Linux AppImage
-    needs: test
+    needs: [meta, test]
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -171,19 +222,19 @@ jobs:
         run: |
           set -euo pipefail
           mkdir -p out
-          CGO_ENABLED=0 go build -tags purego -trimpath -ldflags "-s -w -X main.version=${GITHUB_REF_NAME#v}" -o out/vukem-tools ./cmd/desktop
+          CGO_ENABLED=0 go build -tags purego -trimpath -ldflags "-s -w -X main.version=${{ needs.meta.outputs.version }}" -o out/vukem-tools ./cmd/desktop
       - name: Build the AppImage
-        run: bash desktop/packaging/linux/build-appimage.sh out/vukem-tools "${GITHUB_REF_NAME}" dist
+        run: bash desktop/packaging/linux/build-appimage.sh out/vukem-tools "${{ needs.meta.outputs.version }}" dist
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
-          name: desktop-linux
+          name: files-linux
           path: dist/*.AppImage
           if-no-files-found: error
 
   desktop-macos:
     name: macOS disk image
-    needs: test
-    runs-on: macos-latest
+    needs: [meta, test]
+    runs-on: macos-15
     permissions:
       contents: read
     steps:
@@ -198,39 +249,69 @@ jobs:
         run: |
           set -euo pipefail
           mkdir -p out
-          CGO_ENABLED=0 GOARCH=arm64 go build -tags purego -trimpath -ldflags "-s -w -X main.version=${GITHUB_REF_NAME#v}" -o out/vukem-tools ./cmd/desktop
+          CGO_ENABLED=0 GOARCH=arm64 go build -tags purego -trimpath -ldflags "-s -w -X main.version=${{ needs.meta.outputs.version }}" -o out/vukem-tools ./cmd/desktop
       - name: Build the disk image
-        run: bash desktop/packaging/macos/build-dmg.sh out/vukem-tools "${GITHUB_REF_NAME}" arm64 dist
+        run: bash desktop/packaging/macos/build-dmg.sh out/vukem-tools "${{ needs.meta.outputs.version }}" arm64 dist
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
-          name: desktop-macos
+          name: files-macos
           path: dist/*.dmg
           if-no-files-found: error
 
-  release:
-    name: GitHub release
-    needs: [image, desktop-windows, desktop-linux, desktop-macos]
+  checksums:
+    name: checksums.txt
+    needs: [cli, desktop-windows, desktop-linux, desktop-macos]
     runs-on: ubuntu-latest
     permissions:
-      contents: write # create the GitHub release
+      contents: read
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
       - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
-          pattern: desktop-*
+          pattern: files-*
           path: dist
           merge-multiple: true
+      - run: bash scripts/checksums.sh dist
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: release-files
+          path: dist/*
+          if-no-files-found: error
+
+  # Only a tag publishes. The release is created here, after the image is
+  # pushed, so a failed image never leaves a release behind.
+  release:
+    name: GitHub release
+    needs: [image, checksums]
+    if: github.ref_type == 'tag'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write # create the GitHub release and upload its files
+    env:
+      GH_TOKEN: ${{ github.token }}
+      GH_REPO: ${{ github.repository }}
+      TAG: ${{ github.ref_name }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: release-files
+          path: dist
       - name: Extract the changelog section
         run: |
-          version="${GITHUB_REF_NAME#v}"
+          version="${TAG#v}"
           awk -v h="## [$version]" 'index($0, h) == 1 {p=1; next} p && index($0, "## [") == 1 {exit} p' CHANGELOG.md > release-notes.md
           test -s release-notes.md || { echo "no CHANGELOG.md section for $version"; exit 1; }
-      - uses: softprops/action-gh-release@efb35369e0ad2afab669f228072c1b0d510eae64 # v3.0.3
-        with:
-          body_path: release-notes.md
-          files: |
-            dist/vukem-tools-*.exe
-            dist/*.AppImage
-            dist/*.dmg
+      - name: Create the release if it does not exist
+        run: |
+          if ! gh release view "$TAG" >/dev/null 2>&1; then
+            flags=()
+            [[ "$TAG" == *-* ]] && flags+=(--prerelease)
+            gh release create "$TAG" --verify-tag --title "$TAG" --notes-file release-notes.md "${flags[@]}"
+          fi
+      - name: Attach every file and checksums.txt
+        run: gh release upload "$TAG" dist/* --clobber

@@ -67,6 +67,7 @@ func LocalEnv(dataDir string) map[string]string {
 		"SCHEDULE_IN_SERVE": "true",
 		"S3_BUCKET":         "",
 		"PASSWORD_AUTH":     "on",
+		"DATA_DIR":          dataDir,
 		"STORAGE_DIR":       filepath.Join(dataDir, "files"),
 		"UPLOAD_DIR":        filepath.Join(dataDir, "uploads"),
 		"WORK_DIR":          filepath.Join(dataDir, "work"),

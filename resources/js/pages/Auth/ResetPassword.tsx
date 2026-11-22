@@ -6,7 +6,15 @@ import PasswordField from "../../components/PasswordField";
 import PasswordStrength from "../../components/PasswordStrength";
 import { authSubmitClass } from "./submitClass";
 
-export default function ResetPassword({ token, email }: { token: string; email: string }) {
+export default function ResetPassword({
+  token,
+  email,
+  codeFile,
+}: {
+  token: string;
+  email: string;
+  codeFile?: string;
+}) {
   const form = useForm({ token, email, password: "", password_confirmation: "" });
 
   const submit = (e: FormEvent) => {
@@ -28,6 +36,24 @@ export default function ResetPassword({ token, email }: { token: string; email: 
           onChange={(e) => form.setData("email", e.target.value)}
           error={form.errors.email}
         />
+        {codeFile ? (
+          <>
+            <p className="text-zinc-600 dark:text-zinc-400">
+              This computer sends no email. If the address has an account, the reset code was saved
+              in this file; open it and paste the code below:
+              <br />
+              <code className="break-all">{codeFile}</code>
+            </p>
+            <Field
+              label="Reset code"
+              autoComplete="off"
+              required
+              value={form.data.token}
+              onChange={(e) => form.setData("token", e.target.value)}
+              error={form.errors.token}
+            />
+          </>
+        ) : null}
         <div>
           <PasswordField
             label="New password"

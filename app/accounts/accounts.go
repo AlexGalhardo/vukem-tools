@@ -43,6 +43,9 @@ type Accounts struct {
 	// request can change it, so the local shortcuts cannot be reached in a
 	// hosted process.
 	Local bool
+	// dataDir is local mode's data directory (DATA_DIR, set by
+	// bootstrap.LocalEnv): where the local reset code is written.
+	dataDir string
 	// ResetTTL is how long password reset links work.
 	ResetTTL time.Duration
 	// VerifyTTL is how long email verification links work.
@@ -148,6 +151,7 @@ func New(app *vukem.App) (*Accounts, error) {
 		Messages:  messages,
 		URL:       strings.TrimSuffix(app.Config.URL, "/"),
 		Local:     services.IsLocal(app),
+		dataDir:   strings.TrimSpace(app.Source.Get("DATA_DIR")),
 		ResetTTL:  time.Hour,
 		VerifyTTL: time.Hour,
 		now:       time.Now,

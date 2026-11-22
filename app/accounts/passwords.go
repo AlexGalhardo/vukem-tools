@@ -7,7 +7,12 @@ import (
 	"crypto/subtle"
 	"encoding/hex"
 	"errors"
+	"fmt"
+	"io/fs"
 	"net/url"
+	"os"
+	"path/filepath"
+	"runtime"
 	"strings"
 	"time"
 
@@ -50,32 +55,117 @@ func (a *Accounts) SendResetLink(ctx context.Context, email string) error {
 	)
 }
 
-// LocalResetCode issues the single-use reset code of the account with email and
-// returns it, for the local answer to show instead of mailing it: a local
-// machine has no mailbox. found is false for an unknown email, and no code
-// exists then. Anyone who can reach the loopback server can ask, which is no
-// more than they could do with the database file; the code ends the account's
-// sessions and keys when used, like the mailed one (ResetPassword). It exists
-// only in local mode.
-func (a *Accounts) LocalResetCode(ctx context.Context, email string) (code string, found bool, err error) {
-	if !a.Local {
-		return "", false, errors.New("accounts: reset codes are issued in local mode only")
+// resetFileName is the file in the data directory that holds the pending
+// local reset code.
+const resetFileName = "password-reset.txt"
+
+// maxResetAttempts is how many wrong codes an email may try before its code is
+// invalidated.
+const maxResetAttempts = 5
+
+// LocalResetFile is where a local reset writes its code ("" when the data
+// directory is unknown).
+func (a *Accounts) LocalResetFile() string {
+	if a.dataDir == "" {
+		return ""
+	}
+
+	return filepath.Join(a.dataDir, resetFileName)
+}
+
+// LocalRequestReset starts a password reset on a machine with no mailbox. For
+// an account it creates the single-use code (ResetTTL) and writes it, with the
+// email and the expiry, to LocalResetFile, readable by its owner only: whoever
+// can read the data directory can already read the database, so reading the
+// file proves what the code is for. For an unknown email it does nothing. It
+// returns nothing about which of the two happened, and the HTTP answer must not
+// either: no secret goes to an unauthenticated caller. Local mode only.
+func (a *Accounts) LocalRequestReset(ctx context.Context, email string) error {
+	if !a.Local || a.dataDir == "" {
+		return errors.New("accounts: local reset needs local mode and a data directory")
 	}
 
 	email = strings.ToLower(strings.TrimSpace(email))
 
-	_, err = a.Users.ByCredentials(ctx, map[string]string{"email": email})
-	if errors.Is(err, auth.ErrUserNotFound) {
-		return "", false, nil
+	if _, err := a.Users.ByCredentials(ctx, map[string]string{"email": email}); err != nil {
+		if errors.Is(err, auth.ErrUserNotFound) {
+			return nil
+		}
+
+		return err
 	}
 
+	code, err := a.storeResetToken(ctx, email)
 	if err != nil {
-		return "", false, err
+		return err
 	}
 
-	code, err = a.storeResetToken(ctx, email)
+	// A fresh code starts a fresh count.
+	c, err := a.cache()
+	if err != nil {
+		return err
+	}
 
-	return code, err == nil, err
+	if err := c.Forget(ctx, resetAttemptsKey(email)); err != nil {
+		return err
+	}
+
+	body := fmt.Sprintf(
+		"email: %s\ncode: %s\nexpires: %s\n",
+		email,
+		code,
+		a.now().UTC().Add(a.ResetTTL).Format(time.RFC3339),
+	)
+
+	return writeOwnerOnly(a.LocalResetFile(), body)
+}
+
+// writeOwnerOnly writes body to path with mode 0600, narrowing a file that
+// already exists with a wider one.
+func writeOwnerOnly(path, body string) error {
+	f, err := os.OpenFile(path, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0o600)
+	if err != nil {
+		return fmt.Errorf("accounts: write the reset code: %w", err)
+	}
+
+	if err := f.Chmod(0o600); err != nil && runtime.GOOS != "windows" {
+		_ = f.Close()
+
+		return fmt.Errorf("accounts: restrict the reset code file: %w", err)
+	}
+
+	if _, err := f.WriteString(body); err != nil {
+		_ = f.Close()
+
+		return fmt.Errorf("accounts: write the reset code: %w", err)
+	}
+
+	return f.Close()
+}
+
+func resetAttemptsKey(email string) string { return "reset:attempts:" + EmailHash(email) }
+
+// noteWrongResetCode counts a wrong code for email and, at maxResetAttempts,
+// deletes the pending reset so even the right code stops working.
+func (a *Accounts) noteWrongResetCode(ctx context.Context, email string) error {
+	c, err := a.cache()
+	if err != nil {
+		return err
+	}
+
+	n, err := c.Increment(ctx, resetAttemptsKey(email), 1, a.ResetTTL)
+	if err != nil {
+		return err
+	}
+
+	if n < maxResetAttempts {
+		return nil
+	}
+
+	d := a.DB.Dialect()
+	_, err = a.DB.ExecContext(ctx, "DELETE FROM password_resets WHERE email = "+d.Placeholder(1), email)
+
+	return err
 }
 
 // storeResetToken replaces the pending reset of email with a new random token
@@ -119,8 +209,21 @@ func (a *Accounts) ResetPassword(ctx context.Context, email, token, password str
 
 	err := a.DB.QueryRowContext(ctx, "SELECT hash, created_at FROM password_resets WHERE email = "+d.Placeholder(1), email).
 		Scan(&stored, &created)
-	if err != nil || subtle.ConstantTimeCompare([]byte(stored), []byte(digest(token))) != 1 ||
-		a.expired(created, a.ResetTTL) {
+	if err != nil {
+		return models.User{}, a.errInvalidReset(ctx)
+	}
+
+	if subtle.ConstantTimeCompare([]byte(stored), []byte(digest(token))) != 1 {
+		if a.Local {
+			if err := a.noteWrongResetCode(ctx, email); err != nil {
+				return models.User{}, err
+			}
+		}
+
+		return models.User{}, a.errInvalidReset(ctx)
+	}
+
+	if a.expired(created, a.ResetTTL) {
 		return models.User{}, a.errInvalidReset(ctx)
 	}
 
@@ -152,6 +255,13 @@ func (a *Accounts) ResetPassword(ctx context.Context, email, token, password str
 	})
 	if err != nil {
 		return u, err
+	}
+
+	// The code is spent: do not leave it readable in the data directory.
+	if a.Local && a.dataDir != "" {
+		if err := os.Remove(a.LocalResetFile()); err != nil && !errors.Is(err, fs.ErrNotExist) {
+			a.log.ErrorContext(ctx, "reset: could not remove the spent code file", "err", err)
+		}
 	}
 
 	// After the commit: the session store may share SQLite's one writer.

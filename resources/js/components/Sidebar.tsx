@@ -201,29 +201,13 @@ export default function Sidebar(): React.ReactElement {
   );
 }
 
-/** The framework's own mark, the same as its favicon, so the site and the
- *  tab agree. Drawn inline because it keeps its colours in both themes. */
-function Mark(): React.ReactElement {
-  return (
-    <svg viewBox="0 0 32 32" fill="none" aria-hidden="true" className="size-6 shrink-0">
-      <rect width="32" height="32" rx="8" fill="#00ADD8" />
-      <path d="M6.5 8h5.25l5.5 16h-5.25z" fill="#fff" />
-      <path d="M20.25 8h5.25l-5.5 16h-5.25z" fill="#fff" fillOpacity=".72" />
-      <path d="M15.25 24h1.75l1.2-3.5-.88-2.55z" fill="#007D9C" />
-    </svg>
-  );
-}
-
-/** Brand is the site's title: just "Tools", on every screen size. */
+/** Brand is the product logo. The theme is a class on <html>, so CSS picks the
+ *  file and a toggle never waits on React. */
 function Brand(): React.ReactElement {
   return (
-    <Link
-      href="/"
-      aria-label="Tools home"
-      className="flex min-h-11 items-center gap-2.5 rounded-field px-2 font-semibold tracking-tight text-ink"
-    >
-      <Mark />
-      Tools
+    <Link href="/" aria-label="Vukem Tools home" className="flex min-h-11 items-center rounded-field px-2">
+      <img src="/logo-light-theme.png" alt="" width={480} height={96} className="h-7 w-auto dark:hidden" />
+      <img src="/logo-dark-theme.png" alt="" width={480} height={96} className="hidden h-7 w-auto dark:block" />
     </Link>
   );
 }

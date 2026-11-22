@@ -73,3 +73,6 @@ development/
 # Working documents: decisions, audits, status and the epics of docs/plans.
 # The images the README shows live in assets/. Anchored: site/content/docs is tracked.
 /docs/
+
+# Output of the browser tool used for visual checks
+.playwright-mcp/

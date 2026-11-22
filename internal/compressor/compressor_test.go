@@ -6,6 +6,7 @@ import (
 	"os"
 	"path/filepath"
 	"slices"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -13,6 +14,7 @@ import (
 	"github.com/AlexGalhardo/vukem-tools/internal/compressor"
 	"github.com/AlexGalhardo/vukem-tools/internal/editor"
 	"github.com/AlexGalhardo/vukem-tools/internal/engine"
+	"github.com/AlexGalhardo/vukem-tools/internal/ffmpeg"
 )
 
 const (
@@ -548,5 +550,33 @@ func TestAnOutputNameThatIsAPathIsRefused(t *testing.T) {
 		if len(runner.calls) != 0 {
 			t.Errorf("an engine was started for the output name %q", name)
 		}
+	}
+}
+
+// QA-C7: no -threads on the encoder left x264 on "auto", which on a 16-core
+// host exceeds the engine's address-space limit and fails every 1080p file.
+func TestTheCompressionEncoderIsBoundedInThreads(t *testing.T) {
+	t.Parallel()
+
+	runner := &fakeRunner{handle: writes(4 << 20)}
+	c := newCompressor(t, runner, "")
+	dir := t.TempDir()
+
+	if _, err := c.Video(t.Context(), compressor.Request{
+		Dir: dir, Input: writeInput(t, dir, "input.mp4", 10<<20), Output: "compressed.mp4",
+	}); err != nil {
+		t.Fatal(err)
+	}
+
+	args := runner.last(t).Args
+	last := slices.Index(args, "-i")
+	i := slices.Index(args[last:], "-threads")
+
+	if i < 0 {
+		t.Fatalf("no -threads after the input: %v", args)
+	}
+
+	if n, err := strconv.Atoi(args[last+i+1]); err != nil || n > ffmpeg.MaxThreads {
+		t.Fatalf("-threads %s, want at most %d", args[last+i+1], ffmpeg.MaxThreads)
 	}
 }

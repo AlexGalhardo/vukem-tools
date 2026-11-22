@@ -6,7 +6,7 @@ export type Feature = {
 	title: string;
 	text: string;
 	command: string;
-	image: { src: string; alt: string };
+	image?: { src: string; alt: string };
 };
 
 export const landing = {
@@ -29,7 +29,6 @@ export const landing = {
 	},
 	gallery: {
 		label: "The toolbox",
-		placeholderNote: "Placeholder images stand in until screenshots of the tools are added.",
 	},
 	features: [
 		{
@@ -39,8 +38,8 @@ export const landing = {
 			text: "Trim the same margin from every page of a PDF. The web form, the CLI, the HTTP API, and MCP call the same crop.",
 			command: "vukem-tools pdf crop --input in.pdf --output out.pdf",
 			image: {
-				src: "/placeholders/export.svg",
-				alt: "Placeholder for the PDF crop tool.",
+				src: "/screens/pdf-crop.png",
+				alt: "The Crop a PDF page: a drop zone for the file, the options panel and the Crop a PDF button.",
 			},
 		},
 		{
@@ -50,31 +49,27 @@ export const landing = {
 			text: "Image, audio, video, PDF, archives, and sprite sheets are entries in one catalogue. A browser-only tool is marked and does not need the server pipeline.",
 			command: "vukem-tools tools",
 			image: {
-				src: "/placeholders/cuts.svg",
-				alt: "Placeholder for the tool catalogue.",
+				src: "/screens/catalogue.png",
+				alt: "The tool catalogue: the families in the sidebar, a search field and the list of tools with their formats.",
 			},
 		},
 		{
 			id: "agents",
 			tab: "Agents",
 			title: "Agents use the same names",
-			text: "An agent lists the tools, then crops a PDF through the CLI, a local HTTP server, or MCP. The tool name is pdf-crop on every surface.",
+			text: "An agent lists the tools, then runs any of them through the CLI, a local HTTP server, or MCP, with an API key that carries abilities. The tool names are the same on every surface, and the HTTP API has a generated reference.",
 			command: "vukem-tools mcp",
 			image: {
-				src: "/placeholders/agents.svg",
-				alt: "Placeholder for an agent calling vukem-tools.",
+				src: "/screens/api-reference.png",
+				alt: "The API reference: the sections of the JSON API, authentication with an API key and client examples.",
 			},
 		},
 		{
 			id: "desktop",
 			tab: "Desktop",
-			title: "The window is the web app",
-			text: "The Windows, Linux, and macOS downloads open the web app. They do not ship a second copy of a tool. The release is shown in the sidebar of the window.",
-			command: "VUKEM_TOOLS_URL=http://127.0.0.1:3000",
-			image: {
-				src: "/placeholders/compositing.svg",
-				alt: "Placeholder for the desktop window.",
-			},
+			title: "The desktop app runs on its own",
+			text: "The desktop app starts the server inside the window, with its own database on your machine, so it needs no terminal, no Docker and no network. Set VUKEM_TOOLS_URL to use a remote server instead. The release is shown in the corner of every screen.",
+			command: "VUKEM_TOOLS_URL=https://tools.example.com",
 		},
 		{
 			id: "docker",
@@ -82,10 +77,6 @@ export const landing = {
 			title: "One image for a VPS",
 			text: "The container image holds the app and the conversion engines. Compose adds Postgres and ClamAV. The same image is what Railway builds.",
 			command: "docker compose up -d --build --wait",
-			image: {
-				src: "/placeholders/captions.svg",
-				alt: "Placeholder for the Docker stack.",
-			},
 		},
 	] satisfies Feature[],
 };

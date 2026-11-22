@@ -54,7 +54,7 @@ const apiDescription = "The JSON API of Vukem Tools.\n\n" +
 	"object mapping each rejected field to its messages.\n\n" +
 	"Rate limits: 120 requests per minute per IP, 60 per minute per key, and 5 key issues per " +
 	"minute per IP. Over the limit is a `429` with `Retry-After`.\n\n" +
-	"See /docs for the reference and docs/api.md in the repository for the overview."
+	"See /docs for the reference and https://tools.vukem.dev/docs/api/overview/ for the overview."
 
 // APIDocs serves the OpenAPI document and the Scalar API reference.
 //

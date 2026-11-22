@@ -4,6 +4,7 @@ package bootstrap
 
 import (
 	"context"
+	"os"
 
 	vukem "github.com/AlexGalhardo/vukem"
 	"github.com/AlexGalhardo/vukem/drivers/postgres"
@@ -33,9 +34,11 @@ func New(opts ...vukem.Option) (*vukem.App, error) {
 	conversions.SetTelemetry(telemetry)
 
 	base := []vukem.Option{
-		// PostgreSQL in every environment: the queue, sessions, cache and the
-		// conversion tables all live there, and SQLite would not survive the
-		// web and worker services being separate processes.
+		// PostgreSQL is the production database: the web and worker services are
+		// separate processes, and only a server database serves both. SQLite is
+		// built into the framework and is chosen by DATABASE_URL, which local
+		// mode (APP_MODE=local, see local.go) points at a file because one
+		// process runs the web server and the worker together there.
 		vukem.WithDatabaseDrivers(postgres.Driver()),
 		vukem.WithProviders(Providers(telemetry, conversions)...),
 		vukem.WithMigrations(migrations.All()),
@@ -48,11 +51,25 @@ func New(opts ...vukem.Option) (*vukem.App, error) {
 		vukem.WithInertia(inertia.Config{}),
 	}
 
+	local, isLocal, err := localOption(os.LookupEnv)
+	if err != nil {
+		return nil, err
+	}
+
 	for _, fn := range routes.All(telemetry, conversions) {
 		base = append(base, vukem.WithRoutes(fn))
 	}
 
-	app, err := vukem.New(append(base, opts...)...)
+	base = append(base, opts...)
+
+	// Last, so it replaces the WithEnv that vukem.Main passes in opts: that
+	// one reads the process environment and .env, and a .env written for the
+	// Postgres setup would otherwise win.
+	if isLocal {
+		base = append(base, local)
+	}
+
+	app, err := vukem.New(base...)
 	if err != nil {
 		return nil, err
 	}

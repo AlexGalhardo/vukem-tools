@@ -220,7 +220,9 @@ func (c *Conversions) build(app *vukem.App) error {
 	// serve runs the worker in process, a single-process hub is correct.
 	var broker sse.Broker
 
-	if app.Config.Env == "production" || db.Dialect().Name() == "postgres" {
+	// Local mode is one process on SQLite whatever APP_ENV says, so there is
+	// no database to relay through.
+	if db.Dialect().Name() == "postgres" || (app.Config.Env == "production" && !IsLocal(app)) {
 		broker, err = postgres.NewBroker(db, postgres.WithBrokerLogger(app.Log))
 		if err != nil {
 			return fmt.Errorf("services: progress broker: %w", err)
@@ -291,7 +293,7 @@ func (c *Conversions) build(app *vukem.App) error {
 	// directory belongs to the deploy and is not guaranteed to exist or be
 	// writable for a read-only command, which is how `about` came to fail in
 	// the production image with "unable to open for write".
-	probeDir, err := os.MkdirTemp("", "vukem-tools-probe-")
+	probeDir, err := os.MkdirTemp(probeRoot(app, root), "vukem-tools-probe-")
 	if err != nil {
 		return fmt.Errorf("services: capability probe directory: %w", err)
 	}
@@ -389,7 +391,7 @@ func (c *Conversions) buildFiles(app *vukem.App, ttl, uploadTTL time.Duration) e
 func openDisk(app *vukem.App) (storage.Disk, error) {
 	bucket := app.Source.Get("S3_BUCKET")
 	if bucket == "" {
-		if app.Config.IsProduction() {
+		if app.Config.IsProduction() && !IsLocal(app) {
 			return nil, errors.New("services: S3_BUCKET is required in production: " +
 				"the web and worker services share no filesystem, so results must live in a bucket")
 		}
@@ -417,6 +419,26 @@ func openDisk(app *vukem.App) (storage.Disk, error) {
 	}
 
 	return disk, nil
+}
+
+// IsLocal reports whether the app runs in local mode (APP_MODE=local): one
+// process on SQLite, everything on disk under the data directory.
+func IsLocal(app *vukem.App) bool { return app.Source.Get("APP_MODE") == "local" }
+
+// probeRoot is where the capability probe puts its scratch directory. Local
+// mode keeps every write inside the data directory, so the probe goes under
+// the work directory; elsewhere the system temporary directory is fine, and
+// "" selects it.
+func probeRoot(app *vukem.App, workRoot string) string {
+	if !IsLocal(app) {
+		return ""
+	}
+
+	if err := os.MkdirAll(workRoot, 0o700); err != nil {
+		return ""
+	}
+
+	return workRoot
 }
 
 // defaultStorageDir is where results go without a bucket (development only).

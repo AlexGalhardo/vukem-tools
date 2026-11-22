@@ -26,12 +26,17 @@ test("a header link that leaves the app is a document link", () => {
   }
 });
 
-test("/docs is reached by a document link", () => {
-  // Named on its own because it is the one that broke: vukem/apidocs serves
-  // the Scalar reference as plain HTML, so an Inertia <Link> to it renders
-  // the error iframe instead of navigating.
-  const docs = headerPages.find((page) => page.href === "/docs");
+test("Documentation opens the documentation site in a new tab by a document link", () => {
+  // Named on its own because leaving the app by an Inertia visit is the bug
+  // above: the documentation site is another origin and plain HTML.
+  const docs = headerPages.find((page) => page.label === "Documentation");
 
   expect(docs).toBeDefined();
+  expect(docs?.href).toBe("https://tools.vukem.dev/docs/");
   expect(docs?.document).toBe(true);
+  expect(docs?.external).toBe(true);
+});
+
+test("the sidebar has no link called API reference any more", () => {
+  expect(headerPages.some((page) => page.label === "API reference")).toBe(false);
 });

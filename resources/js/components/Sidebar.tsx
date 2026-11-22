@@ -315,6 +315,15 @@ function NavLink({
     </>
   );
 
+  if (item.external) {
+    return (
+      <a href={item.href} target="_blank" rel="noopener noreferrer" className={className}>
+        {body}
+        <Icon name="external" className="ml-auto size-3.5 shrink-0" />
+      </a>
+    );
+  }
+
   if (item.document) {
     return (
       <a href={item.href} className={className}>

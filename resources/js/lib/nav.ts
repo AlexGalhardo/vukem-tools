@@ -14,7 +14,12 @@ export type Page = {
    * dismissed. Leaving the app is a document link or nothing.
    */
   document?: boolean;
+  /** external marks a link to another site: it opens in a new tab. */
+  external?: boolean;
 };
+
+/** The documentation site (the Astro site in site/), published at /docs. */
+const documentationURL = "https://tools.vukem.dev/docs/";
 
 /** The tools and the account: what somebody comes to the app to use. */
 export const mainPages: Page[] = [
@@ -30,9 +35,10 @@ export const mainPages: Page[] = [
  * without a DOM.
  */
 export const footerPages: Page[] = [
-  // /docs is the Scalar API reference, which vukem/apidocs serves as plain
-  // HTML. It is not an Inertia page and must never be visited as one.
-  { href: "/docs", label: "API reference", icon: "document", document: true },
+  // The documentation site is another origin, so it is a document link and
+  // never an Inertia visit. The API reference (Scalar, served by vukem/apidocs
+  // at /docs on this app) is linked from that site and from the API pages.
+  { href: documentationURL, label: "Documentation", icon: "document", document: true, external: true },
 ];
 
 /** Every page the sidebar links to. */
